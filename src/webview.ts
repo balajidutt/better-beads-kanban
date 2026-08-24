@@ -232,7 +232,7 @@ export function getWebviewHtml(webview: vscode.Webview, extensionUri: vscode.Uri
         <!-- Row 1: Title -->
         <div class="form-row">
           <label class="form-label" for="editTitle">Title:</label>
-          <input id="editTitle" type="text" maxlength="500" class="form-input-title" placeholder="Issue title" />
+          <input id="editTitle" type="text" maxlength="500" class="form-input-title" placeholder="Issue title" autofocus />
         </div>
 
         <!-- Row 2: Status, Type, Priority, Assignee -->

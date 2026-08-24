@@ -1029,7 +1029,7 @@ function generateHtml() {
 '        <h3 id="editFormHeader" class="form-section-header">Edit Issue</h3>\n' +
 '        <div class="form-row">\n' +
 '          <label class="form-label" for="editTitle">Title:</label>\n' +
-'          <input id="editTitle" type="text" class="form-input-title" placeholder="Issue title" />\n' +
+'          <input id="editTitle" type="text" class="form-input-title" placeholder="Issue title" autofocus />\n' +
 '        </div>\n' +
 '        <div class="form-row-multi">\n' +
 '          <div class="form-group">\n' +
