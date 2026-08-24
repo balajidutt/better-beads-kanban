@@ -3407,15 +3407,11 @@ async function openDetail(card) {
         }
     }
 
-    // We will dynamically rebuild the form content to support editing
     const form = detDialog.querySelector("form");
     if (!form) {
         console.error('Dialog form not found');
         return;
     }
-
-    // Helper to safe string
-    const safe = (s) => escapeHtml(s || "");
 
     // Helper to format dependency: last 20 chars of ID + ": " + Title
     const formatDep = (dep) => {
@@ -3424,31 +3420,8 @@ async function openDetail(card) {
         return `${escapeHtml(idSuffix)}: ${escapeHtml(title)}`;
     };
 
-    const statusOptions = [
-        { v: "open", l: "Open" },
-        { v: "in_progress", l: "In Progress" },
-        { v: "blocked", l: "Blocked" },
-        { v: "closed", l: "Closed" }
-    ];
-
-    const typeOptions = ["task", "bug", "feature", "epic", "chore"];
-    const priorityOptions = [0, 1, 2, 3, 4];
-
     const issueOptionsId = "issueIdOptions";
-    
-    // Collect all cards from columnState for the datalist
-    const allCards = [];
-    for (const col of ['ready', 'in_progress', 'blocked', 'closed']) {
-        if (columnState[col]?.cards) {
-            allCards.push(...columnState[col].cards);
-        }
-    }
-    
-    const issueOptionsHtml = allCards
-        .filter(c => !card.id || c.id !== card.id)
-        .map(c => `<option value="${escapeHtml(c.id)}" label="${escapeHtml(c.title)}"></option>`)
-        .join("");
-    const disabledAttr = isCreateMode ? 'disabled' : '';
+
     const renderStructureSection = () => `
                          <label style="font-size: 10px; color: var(--muted); text-transform: uppercase;">Structure</label>
                          
@@ -3513,203 +3486,6 @@ async function openDetail(card) {
                           </div>
     `;
 
-    // Apply DOMPurify to form content for defense-in-depth against XSS
-    const formContent = `
-        <div class="form-container">
-            <h3 class="form-section-header">${isCreateMode ? 'Create New Issue' : `Edit Issue <span style="color: var(--muted); font-weight: normal; font-size: 14px;">${escapeHtml(card.id)}</span>`}</h3>
-            
-            <!-- Row 1: Title -->
-            <div class="form-row">
-                <label class="form-label">Title:</label>
-                <input id="editTitle" type="text" value="${safe(card.title)}" class="form-input-title" />
-            </div>
-
-            <!-- Row 2: Status, Type, Priority, Assignee -->
-            <div class="form-row-multi">
-                <div class="form-group">
-                    <label class="form-label">Status:</label>
-                    <select id="editStatus" class="form-input-inline">
-                        ${statusOptions.map(o => `<option value="${o.v}" ${card.status === o.v ? 'selected' : ''}>${o.l}</option>`).join('')}
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Type:</label>
-                    <select id="editType" class="form-input-inline">
-                        ${typeOptions.map(t => `<option value="${t}" ${card.issue_type === t ? 'selected' : ''}>${t}</option>`).join('')}
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label class="form-label">Priority:</label>
-                    <select id="editPriority" class="form-input-inline">
-                        ${priorityOptions.map(p => `<option value="${p}" ${card.priority === p ? 'selected' : ''}>P${p}</option>`).join('')}
-                    </select>
-                </div>
-                
-                <div class="form-group-large">
-                    <label class="form-label">Assignee:</label>
-                    <input id="editAssignee" type="text" value="${safe(card.assignee)}" placeholder="Unassigned" class="form-input-inline" />
-                </div>
-            </div>
-
-            <!-- Row 3: Est. Minutes, Due At, Defer Until -->
-            <div class="form-row-multi">
-                <div class="form-group">
-                    <label class="form-label">Est. Minutes:</label>
-                    <input id="editEst" type="number" value="${card.estimated_minutes || ''}" placeholder="Min" class="form-input-inline" />
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Due At:</label>
-                    <input id="editDueAt" type="datetime-local" value="${toLocalDateTimeInput(card.due_at)}" class="form-input-inline" />
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Defer Until:</label>
-                    <input id="editDeferUntil" type="datetime-local" value="${toLocalDateTimeInput(card.defer_until)}" class="form-input-inline" />
-                </div>
-            </div>
-
-            <!-- Row 4: Tags -->
-            <div style="margin-top: 8px;">
-                <label class="form-label-small">Tags</label>
-                <div class="labels-container" style="display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px 0;">
-                    ${(card.labels || []).map(l => `
-                        <span class="badge" style="background: var(--bg2); padding: 4px 8px; border-radius: 4px; display: flex; align-items: center; gap: 4px;">
-                            #${escapeHtml(l)}
-                            <span class="remove-label" data-label="${escapeHtml(l)}" style="cursor: pointer; opacity: 0.7;">&times;</span>
-                        </span>
-                    `).join('')}
-                </div>
-                <div style="display: flex; gap: 4px;">
-                    <input id="newLabel" type="text" placeholder="Add tag..." style="flex: 1; margin: 0; font-size: 12px; padding: 4px;" />
-                    <button id="btnAddLabel" class="btn" style="padding: 2px 8px;">+</button>
-                </div>
-            </div>
-
-            <!-- Row 5: Flags -->
-            <div style="margin-top: 8px;">
-                <label class="form-label-small">Flags</label>
-                <div style="display: flex; gap: 12px; margin-top: 4px; flex-wrap: wrap;">
-                    <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 13px;">
-                        <input type="checkbox" id="editPinned" ${card.pinned ? 'checked' : ''} style="cursor: pointer;" />
-                        📌 Pinned
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 13px;">
-                        <input type="checkbox" id="editTemplate" ${card.is_template ? 'checked' : ''} style="cursor: pointer;" />
-                        📄 Template
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 13px;">
-                        <input type="checkbox" id="editEphemeral" ${card.ephemeral ? 'checked' : ''} style="cursor: pointer;" />
-                        ⏱ Ephemeral
-                    </label>
-                </div>
-            </div>
-
-            <!-- Row 6: Ext Ref -->
-            <div class="form-row-wide-label">
-                <label class="form-label">Ext Ref:</label>
-                <input id="editExtRef" type="text" value="${safe(card.external_ref)}" placeholder="JIRA-123" class="form-input-full" />
-            </div>
-
-            <hr class="form-hr">
-
-            <div class="markdown-fields-container">
-                ${createMarkdownField("Description", "editDesc", card.description)}
-                ${createMarkdownField("Acceptance Criteria", "editAC", card.acceptance_criteria)}
-                ${createMarkdownField("Design Notes", "editDesign", card.design)}
-                ${createMarkdownField("Notes", "editNotes", card.notes)}
-            </div>
-
-            <!-- Relationships -->
-            <div style="margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px;">
-                <div id="structureSection">
-                    ${renderStructureSection()}
-                </div>
-            </div>
-            <datalist id="${issueOptionsId}">
-                ${issueOptionsHtml}
-            </datalist>
-
-            <!-- Event/Agent Metadata Panel (only shown when populated) -->
-            ${(() => {
-                const hasEventData = card.event_kind || card.actor || card.target || card.payload || card.sender ||
-                                     card.mol_type || card.role_type || card.rig || card.agent_state ||
-                                     card.last_activity || card.hook_bead || card.role_bead ||
-                                     card.await_type || card.await_id || card.timeout_ns || card.waiters;
-                if (!hasEventData) return '';
-
-                return `
-                    <div style="margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px;">
-                        <details>
-                            <summary style="font-size: 10px; color: var(--muted); text-transform: uppercase; cursor: pointer; user-select: none;">
-                                Advanced Metadata (Event/Agent)
-                            </summary>
-                            <div style="margin-top: 8px; display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; font-size: 11px;">
-                                ${card.event_kind ? `<span style="color: var(--muted);">Event Kind:</span><span>${escapeHtml(card.event_kind)}</span>` : ''}
-                                ${card.actor ? `<span style="color: var(--muted);">Actor:</span><span>${escapeHtml(card.actor)}</span>` : ''}
-                                ${card.target ? `<span style="color: var(--muted);">Target:</span><span>${escapeHtml(card.target)}</span>` : ''}
-                                ${card.sender ? `<span style="color: var(--muted);">Sender:</span><span>${escapeHtml(card.sender)}</span>` : ''}
-                                ${card.mol_type ? `<span style="color: var(--muted);">Mol Type:</span><span>${escapeHtml(card.mol_type)}</span>` : ''}
-                                ${card.role_type ? `<span style="color: var(--muted);">Role Type:</span><span>${escapeHtml(card.role_type)}</span>` : ''}
-                                ${card.rig ? `<span style="color: var(--muted);">Rig:</span><span>${escapeHtml(card.rig)}</span>` : ''}
-                                ${card.agent_state ? `<span style="color: var(--muted);">Agent State:</span><span>${escapeHtml(card.agent_state)}</span>` : ''}
-                                ${card.last_activity ? `<span style="color: var(--muted);">Last Activity:</span><span>${new Date(card.last_activity).toLocaleString()}</span>` : ''}
-                                ${card.hook_bead ? `<span style="color: var(--muted);">Hook Bead:</span><span>${escapeHtml(card.hook_bead)}</span>` : ''}
-                                ${card.role_bead ? `<span style="color: var(--muted);">Role Bead:</span><span>${escapeHtml(card.role_bead)}</span>` : ''}
-                                ${card.await_type ? `<span style="color: var(--muted);">Await Type:</span><span>${escapeHtml(card.await_type)}</span>` : ''}
-                                ${card.await_id ? `<span style="color: var(--muted);">Await ID:</span><span>${escapeHtml(card.await_id)}</span>` : ''}
-                                ${card.timeout_ns !== null && card.timeout_ns !== undefined ? `<span style="color: var(--muted);">Timeout (ns):</span><span>${card.timeout_ns}</span>` : ''}
-                                ${card.waiters ? `<span style="color: var(--muted);">Waiters:</span><span>${escapeHtml(card.waiters)}</span>` : ''}
-                                ${card.payload ? `<span style="color: var(--muted); vertical-align: top;">Payload:</span><pre style="margin: 0; font-size: 10px; overflow-x: auto; max-width: 100%; background: rgba(0,0,0,0.2); padding: 4px; border-radius: 3px;">${escapeHtml(card.payload)}</pre>` : ''}
-                            </div>
-                        </details>
-                    </div>
-                `;
-            })()}
-
-            <div style="margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px;">
-                <label style="font-size: 10px; color: var(--muted); text-transform: uppercase;">Comments</label>
-                <div id="commentsList" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; max-height: 200px; overflow-y: auto;">
-                    ${card.comments && card.comments.length > 0 ? card.comments.map(c => `
-                        <div class="comment" style="padding: 8px; background: rgba(255,255,255,0.03); border-radius: 6px; border: 1px solid var(--border);">
-                            <div style="font-size: 11px; color: var(--muted); margin-bottom: 4px; display: flex; justify-content: space-between;">
-                                <span>${escapeHtml(c.author)}</span>
-                                <span>${new Date(c.created_at).toLocaleString()}</span>
-                            </div>
-                            <div class="markdown-body" style="font-size: 13px;">${safeRenderMarkdown(c.text)}</div>
-                        </div>
-                    `).join('') : '<div style="font-size: 12px; color: var(--muted); font-style: italic;">No comments yet.</div>'}
-                </div>
-                
-                <div style="display: flex; gap: 8px;">
-                    <textarea id="newCommentText" rows="2" placeholder="Write a comment..." style="flex: 1; resize: vertical; margin: 0;"></textarea>
-                    <button type="button" id="btnPostComment" class="btn" style="align-self: flex-start; height: auto;">Post</button>
-                </div>
-                ${isCreateMode ? '<div style="font-size: 10px; color: var(--muted); margin-top: 6px;">Comments will be added after issue creation.</div>' : ''}
-            </div>
-
-            <div class="dialogActions" style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center;">
-                <div style="display: flex; gap: 8px;">
-                     <button type="button" id="btnSave" class="btn primary">${isCreateMode ? 'Create Issue' : 'Save Changes'}</button>
-                     <button type="button" id="btnClose" class="btn">Close</button>
-                </div>
-                <div style="display: flex; gap: 8px;">
-                     <button type="button" id="btnChat" class="btn icon-btn" title="Add to Chat">💬 Chat</button>
-                     <button type="button" id="btnCopy" class="btn icon-btn" title="Copy Context">📋 Copy</button>
-                </div>
-            </div>
-            <div style="font-size: 10px; color: var(--muted); text-align: right; margin-top: 8px; display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap;">
-               <span>ID: ${isCreateMode ? 'Assigned on create' : escapeHtml(card.id)}</span>
-               <span>Created: ${isCreateMode ? 'Not yet created' : new Date(card.created_at).toLocaleString()}</span>
-               <span>Updated: ${isCreateMode ? 'Not yet created' : new Date(card.updated_at).toLocaleString()}</span>${!isCreateMode && card.closed_at ? `<span>Closed: ${new Date(card.closed_at).toLocaleString()}</span>` : ''}
-            </div>
-        </div>
-    `;
-
-    // STATIC FORM FIX: Instead of rebuilding HTML, populate static form fields
-    // The form HTML is now defined statically in webview.ts
     populateStaticEditForm(form, card, isCreateMode);
 
     // Snapshot the form as loaded so save can send only what changed.
@@ -4310,24 +4086,6 @@ ${card.design || 'None'}
         post("issue.copyToClipboard", { text: getContext() });
         toast("Copying...");
     };
-
-    // Markdown Field Helper
-    function createMarkdownField(label, id, value) {
-        // We use a unique ID for the preview container
-        const safeVal = safe(value);
-        return `
-            <div class="markdown-field-wrapper">
-                <div class="markdown-field-header">
-                    <label class="form-label-small">${label}</label>
-                    <button type="button" class="btn icon-btn toggle-preview" data-target="${id}" style="font-size: 10px; padding: 2px 6px;">Preview</button>
-                </div>
-                <!-- Editor -->
-                <textarea id="${id}" class="markdown-field-editor">${safeVal}</textarea>
-                <!-- Preview (Hidden by default) -->
-                <div id="${id}-preview" class="markdown-body markdown-field-preview"></div>
-            </div>
-        `;
-    }
 
     // Bind Toggle Events
     form.querySelectorAll(".toggle-preview").forEach(btn => {
