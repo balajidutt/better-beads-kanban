@@ -1029,7 +1029,7 @@ function generateHtml() {
 '        <h3 id="editFormHeader" class="form-section-header">Edit Issue</h3>\n' +
 '        <div class="form-row">\n' +
 '          <label class="form-label" for="editTitle">Title:</label>\n' +
-'          <input id="editTitle" type="text" class="form-input-title" placeholder="Issue title" autofocus />\n' +
+'          <input id="editTitle" type="text" maxlength="500" class="form-input-title" placeholder="Issue title" autofocus />\n' +
 '        </div>\n' +
 '        <div class="form-row-multi">\n' +
 '          <div class="form-group">\n' +
@@ -1064,13 +1064,13 @@ function generateHtml() {
 '          </div>\n' +
 '          <div class="form-group-large">\n' +
 '            <label class="form-label" for="editAssignee">Assignee:</label>\n' +
-'            <input id="editAssignee" type="text" placeholder="Unassigned" class="form-input-inline" />\n' +
+'            <input id="editAssignee" type="text" maxlength="100" placeholder="Unassigned" class="form-input-inline" />\n' +
 '          </div>\n' +
 '        </div>\n' +
 '        <div class="form-row-multi">\n' +
 '          <div class="form-group">\n' +
 '            <label class="form-label" for="editEst">Est. Minutes:</label>\n' +
-'            <input id="editEst" type="number" placeholder="Min" class="form-input-inline" />\n' +
+'            <input id="editEst" type="number" min="0" step="1" placeholder="Min" class="form-input-inline" />\n' +
 '          </div>\n' +
 '          <div class="form-group">\n' +
 '            <label class="form-label" for="editDueAt">Due At:</label>\n' +
@@ -1099,7 +1099,7 @@ function generateHtml() {
 '        </div>\n' +
 '        <div class="form-row-wide-label">\n' +
 '          <label class="form-label" for="editExtRef">Ext Ref:</label>\n' +
-'          <input id="editExtRef" type="text" placeholder="JIRA-123" class="form-input-full" />\n' +
+'          <input id="editExtRef" type="text" maxlength="200" placeholder="JIRA-123" class="form-input-full" />\n' +
 '        </div>\n' +
 '        <hr class="form-hr">\n' +
 '        <div class="markdown-fields-container">\n' +
