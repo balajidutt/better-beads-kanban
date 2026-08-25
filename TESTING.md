@@ -7,6 +7,7 @@ This document describes the testing infrastructure for the Better Beads Kanban V
 - [Extension Test Suite](#extension-test-suite)
 - [Writing a Test](#writing-a-test)
 - [Integration Tests](#integration-tests)
+- [Visual Testing](#visual-testing)
 - [Manual QA Before a Release](#manual-qa-before-a-release)
 - [Continuous Improvement](#continuous-improvement)
 
@@ -111,6 +112,71 @@ npm run test:all
 # With coverage
 npm run test:coverage
 ```
+
+## Visual Testing
+
+Nothing in `npm test` renders the webview. Two interactive harnesses do:
+
+| Harness | What it runs | Command |
+| -------- | --------- | --------- |
+| `scripts/visual-test-server.js` | Board and mock data in stock Chrome | `npm run test:visual-server` |
+| `scripts/visual-test-harness.js` | The real extension inside VS Code | `node scripts/visual-test-harness.js [workspace] [--port=NNNN]` |
+
+Reach for the standalone server first: it starts in seconds, serves on `localhost:3333`
+with CDP on 9222, and Chrome DevTools MCP can drive it. Reach for the VS Code harness
+when the host itself is the variable — theme variables, Electron rendering, the real
+`bd` data path. Pass it a workspace that already has `.beads` (the repo root works) so
+it does not seed a throwaway database. `--dataset=showcase` swaps the two adversarial
+title fixtures for ordinary ones when capturing screenshots.
+
+### The standalone server duplicates the dialog markup
+
+`generateHtml()` in `scripts/visual-test-server.js` carries its own copy of the edit
+dialog rather than importing it from `src/webview.ts`. **Any markup change to that
+dialog has to be made in both places**, or the harness keeps validating a DOM that no
+longer ships. They have drifted before, silently: the server's copy had lost the
+`maxlength` on `#editTitle`, `#editAssignee` and `#editExtRef`, and the `min` / `step`
+on `#editEst`, so no input-constraint behaviour could be tested there.
+
+Every control in the dialog carries an `id`, which makes the two copies cheap to
+compare — extract the `<dialog id="detailDialog">…</dialog>` block from each and diff
+the per-`id` attribute sets. Worth doing after any change to that markup.
+
+### Driving a harness over CDP directly
+
+Chrome DevTools MCP does not work against VS Code's Electron webviews at all —
+Puppeteer's `Target.getDevToolsTarget` is unsupported there. It can also wedge against
+the standalone server: once the Chrome it attached to exits, every call returns "The
+selected page has been closed", `list_pages` included, and only restarting the MCP
+server clears that.
+
+Both cases have the same fallback. Node 22 exposes a global `WebSocket` and
+`.node-version` pins 22, so raw CDP needs no dependency — though `engines.node` still
+allows 20, where that global does not exist:
+
+```js
+const targets = await (await fetch('http://localhost:9222/json/list')).json();
+const page = targets.find(t => t.type === 'page' && t.url.includes('localhost:3333'));
+const ws = new WebSocket(page.webSocketDebuggerUrl);
+// then Runtime.enable, and Runtime.evaluate with returnByValue: true
+```
+
+Four things that are easy to lose an hour to:
+
+- **A VS Code webview's content sits in a nested iframe.** The target advertised as the
+  webview is only the shell. Walk `Page.getFrameTree`, call `Page.createIsolatedWorld`
+  on the child frame, and pass the returned `executionContextId` to `Runtime.evaluate`.
+  Without it you get the shell's DOM and conclude the board is empty.
+- **`Page.captureScreenshot` refuses on anything but a top-level target.** Screenshot
+  the workbench page, not the webview frame.
+- **Only one VS Code instance may run at a time.** `npm test` aborts with "currently
+  only supported if no other instance of Code is running" while the harness is up. Stop
+  the harness before running the suite, and give it `--port` so it does not collide with
+  the standalone server on 9222.
+- **Use `Input.dispatch*`, not `element.click()`.** Anything that depends on input
+  modality — `:focus-visible` above all — answers differently for a scripted click than
+  for a dispatched one. A synthetic click will tell you a focus ring does not exist when
+  a real user sees it on every keyboard-driven open.
 
 ## Manual QA Before a Release
 
