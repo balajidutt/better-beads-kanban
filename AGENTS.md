@@ -59,4 +59,8 @@ Two repo rules that outrank convenience:
 
   Inlining is safe here only because `cc-commit` is a four-variable env prefix with no logic of its own. Do not generalize the habit — `scripts/release-fork-vsix.sh` carries real guards (GitHub account switch, verification, restore on exit) and must never be hand-rolled.
 
-- **`bd dolt push` reports success even when nothing moved** ([gastownhall/beads#5433](https://github.com/gastownhall/beads/issues/5433)). After a push that matters, confirm the ref actually advanced with `git ls-remote origin refs/dolt/data`.
+- **Embedded mode can silently stop creating Dolt commits** ([gastownhall/beads#5433](https://github.com/gastownhall/beads/issues/5433), open against bd 1.0.4; unconfirmed on newer builds). In that state writes land in the working set and never become commits, so nothing looks wrong: `bd show` and `bd list` return the new data, while `bd history <id>` answers "No history found", `bd dolt commit` answers "Nothing to commit." right after a verified write, and `bd dolt push` answers "Push complete." while the remote ref never advances. The reporter lost six days and 103 issues to it. This repo runs embedded mode, so after a push that matters, check the ref yourself:
+
+  ```bash
+  git ls-remote origin refs/dolt/data
+  ```
