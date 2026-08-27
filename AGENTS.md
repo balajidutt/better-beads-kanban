@@ -15,99 +15,48 @@ See the "Working in a git worktree" section of CLAUDE.md for the full picture.
 ## Quick Reference
 
 ```bash
-bd ready              # Find available work
-bd show <id>          # View issue details
-bd update <id> --status in_progress  # Claim work
-bd close <id>         # Complete work
-bd sync               # Sync with git
-```
-
-## Landing the Plane (Session Completion)
-
-**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
-
-**MANDATORY WORKFLOW:**
-
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **PUSH TO REMOTE** - This is MANDATORY:
-   ```bash
-   git pull --rebase
-   bd sync
-   git push
-   git status  # MUST show "up to date with origin"
-   ```
-5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
-
-**CRITICAL RULES:**
-- Work is NOT complete until `git push` succeeds
-- NEVER stop before pushing - that leaves work stranded locally
-- NEVER say "ready to push when you are" - YOU must push
-- If push fails, resolve and retry until it succeeds
-
-
-<!-- bv-agent-instructions-v1 -->
-
----
-
-## Beads Workflow Integration
-
-This project uses [beads_viewer](https://github.com/Dicklesworthstone/beads_viewer) for issue tracking. Issues are stored in `.beads/` and tracked in git.
-
-### Essential Commands
-
-```bash
-# View issues (launches TUI - avoid in automated sessions)
-bv
-
-# CLI commands for agents (use these instead)
-bd ready              # Show issues ready to work (no blockers)
-bd list --status=open # All open issues
-bd show <id>          # Full issue details with dependencies
+bd ready                        # Find available work
+bd show <id>                    # View issue details
+bd update <id> --claim          # Claim work (sets assignee, sets in_progress)
 bd create --title="..." --type=task --priority=2
-bd update <id> --status=in_progress
-bd close <id> --reason="Completed"
-bd close <id1> <id2>  # Close multiple issues at once
-bd sync               # Commit and push changes
+bd close <id> --reason="..."    # Complete work
+bd close <id1> <id2>            # Close several at once
+bd dep add <issue> <depends-on> # <issue> is blocked until <depends-on> closes
+bd dolt push                    # Publish the backlog to the remote
+bd dolt pull                    # Fetch the backlog from the remote
 ```
 
-### Workflow Pattern
+There is no `bd sync`. Code and issues travel separately: `git push` moves code, `bd dolt push` moves the backlog, and neither does the other's job.
 
-1. **Start**: Run `bd ready` to find actionable work
-2. **Claim**: Use `bd update <id> --status=in_progress`
-3. **Work**: Implement the task
-4. **Complete**: Use `bd close <id>`
-5. **Sync**: Always run `bd sync` at session end
+## Key Concepts
 
-### Key Concepts
+- **Dependencies**: issues can block other issues. `bd ready` shows only unblocked work.
+- **Priority**: P0=critical, P1=high, P2=medium, P3=low, P4=backlog. Use numbers, not words.
+- **Types**: task, bug, feature, epic, question, docs.
+- **Storage**: `.beads/` is gitignored, but the issue data *is* tracked in git. It lives on `refs/dolt/data`, a ref that never appears in the working tree, which is why a fresh clone needs `bd dolt pull`.
 
-- **Dependencies**: Issues can block other issues. `bd ready` shows only unblocked work.
-- **Priority**: P0=critical, P1=high, P2=medium, P3=low, P4=backlog (use numbers, not words)
-- **Types**: task, bug, feature, epic, question, docs
-- **Blocking**: `bd dep add <issue> <depends-on>` to add dependencies
+## Landing the Plane (session completion)
 
-### Session Protocol
+1. **File issues for follow-up work** — anything discovered but not done.
+2. **Run quality gates** if code changed: `npm run lint`, `npm test`, `npm run compile`.
+3. **Update issue status** — `bd close` what finished, with a reason worth reading later.
+4. **Run `git status`** and report what changed.
+5. **Hand off** — what landed, what is staged, what remains.
 
-**Before ending any session, run this checklist:**
+**Do not commit, push, or run `bd dolt push` on your own initiative.** The default here is conservative: propose the commit message and the exact commands, then wait for the maintainer. Being asked to commit once does not carry over to the next change.
 
-```bash
-git status              # Check what changed
-git add <files>         # Stage code changes
-bd sync                 # Commit beads changes
-git commit -m "..."     # Commit code
-bd sync                 # Commit any new beads changes
-git push                # Push to remote
-```
+Two repo rules that outrank convenience:
 
-### Best Practices
+- **Never let a commit land under the maintainer's git identity.** Use `cc-commit`, which sets Claude as author and committer. It is a dotfiles-managed wrapper rather than part of this repo, so a fresh machine may not have it — if `command -v cc-commit` comes back empty, inline what it does instead of falling back to bare `git commit`:
 
-- Check `bd ready` at session start to find available work
-- Update status as you work (in_progress → closed)
-- Create new issues with `bd create` when you discover tasks
-- Use descriptive titles and set appropriate priority/type
-- Always `bd sync` before ending session
+  ```bash
+  env GIT_AUTHOR_NAME="Claude" GIT_AUTHOR_EMAIL="noreply@anthropic.com" \
+      GIT_COMMITTER_NAME="Claude" GIT_COMMITTER_EMAIL="noreply@anthropic.com" \
+      git commit -m "..."
+  ```
 
-<!-- end-bv-agent-instructions -->
+  On native Windows the wrapper is `cc-commit.ps1`, invoked from PowerShell; the same-name `.cmd` stub refuses because batch cannot preserve multiline arguments. Either way, confirm with `git log -1 --format='%an <%ae>'` before moving on.
+
+  Inlining is safe here only because `cc-commit` is a four-variable env prefix with no logic of its own. Do not generalize the habit — `scripts/release-fork-vsix.sh` carries real guards (GitHub account switch, verification, restore on exit) and must never be hand-rolled.
+
+- **`bd dolt push` reports success even when nothing moved** ([gastownhall/beads#5433](https://github.com/gastownhall/beads/issues/5433)). After a push that matters, confirm the ref actually advanced with `git ls-remote origin refs/dolt/data`.
