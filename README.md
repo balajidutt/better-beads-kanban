@@ -2,7 +2,7 @@
 
 An independent, actively maintained fork of [Beads Kanban](https://github.com/davidcforbes/Beads-Kanban) for VS Code, updated for bd 1.x and Dolt-backed repositories.
 
-View, create, edit, and organize the [Beads](https://github.com/steveyegge/beads) issues in your repository from four views — Kanban, table, tree, and dependency graph — without leaving the editor.
+View, create, edit, and organize the [Beads](https://github.com/gastownhall/beads) issues in your repository from four views — Kanban, table, tree, and dependency graph — without leaving the editor.
 
 ![Version](https://img.shields.io/badge/version-2.2.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
@@ -134,7 +134,7 @@ code --uninstall-extension balaji-dutt.beads-kanban-bd-fixes
 
 ## Prerequisites
 
-- **Beads CLI** (`bd`): required for all database operations. Install from [github.com/steveyegge/beads](https://github.com/steveyegge/beads).
+- **Beads CLI** (`bd`): required for all database operations. Install from [github.com/gastownhall/beads](https://github.com/gastownhall/beads).
 - The extension auto-starts the `bd` daemon when needed.
 
 ## Quick Start
@@ -159,7 +159,7 @@ Beads is an AI-native issue tracking system that lives directly in your codebase
 
 As of bd 1.x, issues are stored in a [Dolt](https://www.dolthub.com/) database under `.beads/` (JSONL is also supported); earlier versions used SQLite. This extension never opens that database itself — every read and write goes through the `bd` CLI, so it stays correct across storage backends.
 
-**Learn more:** [github.com/steveyegge/beads](https://github.com/steveyegge/beads)
+**Learn more:** [github.com/gastownhall/beads](https://github.com/gastownhall/beads)
 
 ## Configuration
 

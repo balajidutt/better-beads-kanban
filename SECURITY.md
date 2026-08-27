@@ -15,6 +15,6 @@ No response-time commitment is offered. This is a spare-time project, so a reali
 The extension does not open the issue database. Every read and every mutation shells out to the `bd` CLI, which owns the storage layer. So:
 
 - **In scope:** the extension host (`src/`), the webview and its sanitization, how arguments are passed to `bd`, and what the VSIX ships.
-- **Out of scope:** `bd` itself and its Dolt backend. Report those upstream at [steveyegge/beads](https://github.com/steveyegge/beads).
+- **Out of scope:** `bd` itself and its Dolt backend. Report those upstream at [gastownhall/beads](https://github.com/gastownhall/beads).
 
 The webview runs with `unsafe-inline` styles under a nonce-based CSP. That is a known, accepted trade-off rather than an oversight; a report needs to show a concrete exploit path, not just the directive.

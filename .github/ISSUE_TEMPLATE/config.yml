@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: bd CLI bug or question
-    url: https://github.com/steveyegge/beads/issues
+    url: https://github.com/gastownhall/beads/issues
     about: The extension shells out to bd for every read and write. If the board will not load at all, bd is often the cause — report those upstream.

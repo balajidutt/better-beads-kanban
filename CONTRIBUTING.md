@@ -11,7 +11,7 @@ open an issue first rather than building it and hoping.
 - Node.js 20 or higher (CI uses 22, per `.node-version`)
 - VS Code 1.90 or higher
 - Git
-- [Beads CLI](https://github.com/steveyegge/beads) (`bd`) on `PATH`, or configured via
+- [Beads CLI](https://github.com/gastownhall/beads) (`bd`) on `PATH`, or configured via
   the `beadsKanban.bdPath` setting
 
 The extension shells out to `bd` for everything. Without it, the board cannot load and
