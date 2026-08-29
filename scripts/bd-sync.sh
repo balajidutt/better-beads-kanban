@@ -150,6 +150,16 @@ PROJECT_ID=$(json_field "$CTX" project_id) || die 3 "bd context has no project i
 # Dolt records the remote with a git+ prefix; git itself does not want it.
 DOLT_URL="${DOLT_URL#git+}"
 
+# `git ls-remote` accepts a remote *name* as readily as a URL, and this repo has
+# a remote named `upstream` pointing at the abandoned davidcforbes fork. A bare
+# name arriving here would verify pushes against that repo and report them
+# clean. bd rejects bare names for sync.remote; this makes the script agree
+# rather than take it on trust.
+case "$DOLT_URL" in
+  *://*|*@*:*) ;;
+  *) die 3 "sync remote '${DOLT_URL}' is not a URL. Check 'bd config get sync.remote'." ;;
+esac
+
 VC_RAW=$(bd_json vc status) || die 4 "bd vc status failed."
 BRANCH=$(json_field "$VC_RAW" branch) || BRANCH=main
 

@@ -632,6 +632,8 @@ origin               git+ssh://git@github-balajidutt/balajidutt/better-beads-kan
 
 It was found pointing at the pre-`bbk-7lf` owner path, over bare `github.com` instead of the `github-balajidutt` alias — so it resolved through the machine's default SSH identity rather than the scoped one. That kept working, because GitHub redirects renamed repos over SSH and the default key had access, which is exactly why it went unnoticed. There is no `set-url`: fix it with `bd dolt remote remove origin`, then `bd dolt remote add origin <url>`. Dolt shells out to `git`, so `~/.ssh/config` host aliases resolve normally.
 
+Changing that URL leaves litter. Dolt caches each git-protocol remote under `.beads/embeddeddolt/bbk/.dolt/git-remote-cache/<sha256-of-url>/`, so every URL the remote has ever had keeps its own directory — three of them had accumulated by `bbk-s7a`. It is a pure cache, regenerated on the next push or pull, so stale directories are safe to delete once you have matched each one to its URL with `git -C <dir>/repo.git config --get remote.origin.url`.
+
 **Sync through `scripts/bd-sync.sh`, not through `bd dolt push` directly.** This is the repo's guarded sync helper, which is the phrase the global agent instructions key on.
 
 ```bash
@@ -672,9 +674,21 @@ command bd dolt push
 git ls-remote <dolt-url> refs/dolt/data   # confirm it changed
 ```
 
-**`routing.mode` must stay `maintainer`** in `.beads/config.yaml`. This machine has a global `routing.contributor = ~/.beads-planning` with `routing.mode = auto`, which silently routes `bd create` writes into that separate planning database (prefix `bktest-`) instead of this repo's. The symptom is issues coming back with the wrong prefix and `bd list` showing unrelated seed fixtures.
+**`routing.mode` must stay `maintainer`** in `.beads/config.yaml`. Under `routing.mode: auto`, bd asks `beads.role` whether this machine is a maintainer or a contributor and routes `bd create` writes to `routing.maintainer` or `routing.contributor` accordingly. This machine has `routing.contributor = ~/.beads-planning`, so the wrong answer silently files new issues into a separate planning database with prefix `bktest-`. The symptom is issues coming back with the wrong prefix and `bd list` showing unrelated seed fixtures.
 
-Checking `config.yaml` alone is not enough to confirm this: `bd config list` currently reports `routing.mode = auto` while `config.yaml` says `maintainer`, so the database-level value is overriding the file and the pin above is not in force. Writes still land in `bbk`, so nothing is lost today. Tracked in `bbk-2ik`, which also decides whether this paragraph is naming the wrong layer.
+**Verify with `bd config get routing.mode`, not with `bd config list`.** Three layers feed this and only `bd config get` reports the winner:
+
+| Key | Stored in | This repo |
+|---|---|---|
+| `routing.mode` | `.beads/config.yaml` (YAML-only key; beats the database) | `maintainer` |
+| `beads.role` | `.git/config` | `maintainer` |
+| `routing.mode`, `routing.contributor`, `sync.remote` | the Dolt database | stale, unreachable |
+
+`bd config list` prints the database rows and does not show a conflicting `config.yaml` value, so it reports `routing.mode = auto` and looks alarming. `bd config show` prints every layer with provenance but does not mark which one wins.
+
+**Do not run `bd config unset routing.mode` to clear the stale database row.** `routing.*` and `sync.*` are YAML-only keys, so `unset` strikes the `config.yaml` line — deleting the pin and leaving the database's `auto` as the effective value. That is the opposite of the intended cleanup, and there is no documented command that removes the database rows for a YAML-only key. They are inert; leave them.
+
+`beads.role` was `contributor` until `bbk-2ik`, inherited from when this was a fork of davidcforbes/Beads-Kanban. It was inert while `routing.mode` stayed `maintainer`, which is exactly why it went unnoticed: it only becomes load-bearing if the `config.yaml` line is ever lost, and then it routes the backlog somewhere else without a word.
 
 ### Working in a git worktree
 
