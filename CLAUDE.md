@@ -618,11 +618,11 @@ This project uses **bd (beads)** for its own backlog, dogfooding the extension. 
 
 - `bd ready` — available work, respecting blockers
 - `bd show <id>` / `bd create` / `bd close <id> --reason "..."`
-- `bd dolt push` / `bd dolt pull` — cross-machine sync
+- `scripts/bd-sync.sh` / `scripts/bd-sync.sh --pull` — cross-machine sync, guarded (see below)
 
 No bead carries a version number. Release scope is expressed as dependency edges into a release bead — see [RELEASING.md](RELEASING.md).
 
-`.beads/` being gitignored does **not** pin the backlog to one machine. The Dolt working files are what stays untracked; the issue *data* syncs to `refs/dolt/data` on the same GitHub remote — a ref namespace that never appears in the working tree. On a second machine: clone, then `bd dolt pull`.
+`.beads/` being gitignored does **not** pin the backlog to one machine. The Dolt working files are what stays untracked; the issue *data* syncs to `refs/dolt/data` on the same GitHub remote — a ref namespace that never appears in the working tree. On a second machine: clone, then bare `bd dolt pull` to bootstrap — `scripts/bd-sync.sh` requires a `.beads/` directory that a fresh clone does not have yet, and refuses before reaching the network. Every sync after that goes through the script.
 
 **The Dolt remote is configured separately from the git remote, and has drifted before.** `bd dolt remote list` should show:
 
@@ -632,13 +632,49 @@ origin               git+ssh://git@github-balajidutt/balajidutt/better-beads-kan
 
 It was found pointing at the pre-`bbk-7lf` owner path, over bare `github.com` instead of the `github-balajidutt` alias — so it resolved through the machine's default SSH identity rather than the scoped one. That kept working, because GitHub redirects renamed repos over SSH and the default key had access, which is exactly why it went unnoticed. There is no `set-url`: fix it with `bd dolt remote remove origin`, then `bd dolt remote add origin <url>`. Dolt shells out to `git`, so `~/.ssh/config` host aliases resolve normally.
 
-**`bd dolt push` prints `Push complete.` even when nothing moved** — upstream [gastownhall/beads#5433](https://github.com/gastownhall/beads/issues/5433). After a push that matters, confirm the ref actually advanced:
+**Sync through `scripts/bd-sync.sh`, not through `bd dolt push` directly.** This is the repo's guarded sync helper, which is the phrase the global agent instructions key on.
 
 ```bash
-git ls-remote origin refs/dolt/data
+scripts/bd-sync.sh            # push, and verify refs/dolt/data actually advanced
+scripts/bd-sync.sh --pull     # pull, and verify the local head actually moved
+scripts/bd-sync.sh --flush    # bd dolt commit first, then push
+```
+
+It exists because **`bd dolt push` prints `Push complete.` and exits 0 even when nothing moved** — upstream [gastownhall/beads#5433](https://github.com/gastownhall/beads/issues/5433). Under that bug, writes stay in the Dolt working set and never become commits, so a total failure to sync is indistinguishable from a successful one. The reporter lost 103 issues. The script compares the remote ref before and after and gives that silence an exit code:
+
+| Exit | Meaning |
+|---|---|
+| 0 | pushed, or verified already up to date |
+| 1 | STALL — bd reported a transfer, the ref did not follow |
+| 2 | UNVERIFIED — cannot prove either way (no baseline yet, or a concurrent writer) |
+| 3 | precondition failed; nothing was pushed |
+| 4 | bd itself exited non-zero |
+
+Exit 2 is not a failure. It most often means the state file under `.beads/` has no baseline yet, which is the expected first run on a machine.
+
+**#5433 has two halves, and the ref comparison only sees one of them.** If Dolt commits exist but the push does not move the ref, comparing the ref catches it. If the writes never became commits in the first place, there is genuinely nothing to push — the head does not move, neither ref moves, and every hash the script can see agrees that all is well. That half is caught by a different signal: the script records an issue count and the newest `updated_at` alongside the head, and issue data that changed while the Dolt head stood still is the stall. That check is inert until the first verified push writes a baseline, and it deliberately does not backfill one on the up-to-date path — recording a baseline mid-stall would mask the stall permanently.
+
+Three things about it are load-bearing and easy to undo by accident:
+
+- **It resolves the remote URL from `bd context --json`, never from a remote named `origin`.** The Dolt remote is configured separately and has drifted (see above); hardcoding `origin` would verify a different URL than bd pushes to, which fails either permanently or — worse — silently.
+- **It records state only when an advance is attributable to this run**, using the `timestamp` in `refs/heads/__dolt_remote_info__`. "The ref moved, therefore I pushed" is the tempting shortcut and it is a false pass: the other machine may have moved it, after which the next run reports "up to date" over an unpushed local head.
+- **It never writes the state file on a path it could not verify.** Every failure mode of that file should cost a spurious exit 2, which is merely annoying. A single write on an unverified path converts it into a silent "up to date" over unsynced data, which is the failure this whole script exists to prevent.
+
+A measured fact worth keeping: a no-op `bd dolt push` leaves `refs/heads/__dolt_remote_info__` alone. That is what makes "info ref moved but `refs/dolt/data` did not" a trustworthy stall signal rather than noise.
+
+`--flush` is opt-in rather than automatic because `bd dolt commit` answers `Nothing to commit.` in exactly the broken state, so it is one of #5433's liars, and because it commits the whole working set — which can include a half-finished write from the Kanban board.
+
+To take over by hand, or on a machine without the script:
+
+```bash
+git ls-remote <dolt-url> refs/dolt/data   # note the hash
+command bd dolt push
+git ls-remote <dolt-url> refs/dolt/data   # confirm it changed
 ```
 
 **`routing.mode` must stay `maintainer`** in `.beads/config.yaml`. This machine has a global `routing.contributor = ~/.beads-planning` with `routing.mode = auto`, which silently routes `bd create` writes into that separate planning database (prefix `bktest-`) instead of this repo's. The symptom is issues coming back with the wrong prefix and `bd list` showing unrelated seed fixtures.
+
+Checking `config.yaml` alone is not enough to confirm this: `bd config list` currently reports `routing.mode = auto` while `config.yaml` says `maintainer`, so the database-level value is overriding the file and the pin above is not in force. Writes still land in `bbk`, so nothing is lost today. Tracked in `bbk-2ik`, which also decides whether this paragraph is naming the wrong layer.
 
 ### Working in a git worktree
 
@@ -665,4 +701,4 @@ Two consequences worth knowing:
 - **There is one database, not per-branch state.** Closing an issue on a feature branch closes it immediately and globally, whether or not that branch ever merges. Close when the work is done; reopen if the branch is abandoned.
 - **Opening a worktree in VS Code hits `bbk-p86`.** A worktree opened as a single-root window has no `.beads`, so the board climbs upward and adopts `~/.beads` — which is not a bd repository — then fails with a bd error rather than saying no repository was found. Add the main checkout as a second workspace folder, or use the repository picker, until that bug is fixed.
 
-Merging a worktree branch into `main` is unaffected. No bead data is tracked by git; it travels on `refs/dolt/data` via `bd dolt push` / `bd dolt pull`, and refs are shared across worktrees. There is nothing for a merge to conflict on.
+Merging a worktree branch into `main` is unaffected. No bead data is tracked by git; it travels on `refs/dolt/data` via `scripts/bd-sync.sh`, and refs are shared across worktrees. There is nothing for a merge to conflict on. The script derives the main checkout the same way as the snippet above, so it is safe to run from a worktree.
