@@ -91,6 +91,16 @@ real `bd`, outside the VS Code host:
 | `test-round-trip.js` | Test data round-trip consistency | `npm run test:round-trip` |
 | `test-all.js` | Run all integration tests | `npm run test:all` |
 
+**Three of these write to the live `bbk` backlog.** `test-bd-cli.js`,
+`test-adapter-integration.js` and `test-round-trip.js` invoke `bd` with no `--db` and
+no `-C`, so they create real issues in whatever database the current directory
+resolves to — this repo's own backlog. `test-bd-cli.js` then stops and asks
+`Run cleanup to close test issues? (press Ctrl+C to skip)`, which hangs a
+non-interactive shell, and its cleanup only closes the issues rather than deleting
+them. `npm run test:all` runs all three. Until that is fixed, prefer the two scripts
+that touch no database at all: `npm run test:validation` and
+`npm run test:field-mapping`. Tracked in `bbk-b84`.
+
 `npm run test:all` writes a `test-summary.md` at the repo root. That file is a local
 artifact and is gitignored — do not commit it.
 

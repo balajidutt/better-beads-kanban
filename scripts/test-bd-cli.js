@@ -15,7 +15,7 @@ const fs = require('fs');
 
 // Configuration
 const TEST_PREFIX = 'BD_CLI_TEST';
-const REPORT_FILE = path.join(__dirname, '..', 'bd-cli-test-report.md');
+const REPORT_FILE = path.join(__dirname, '..', 'bd-cli-report.md');
 
 // Color output helpers
 const colors = {
