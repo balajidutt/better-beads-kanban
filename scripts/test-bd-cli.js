@@ -9,13 +9,15 @@
  * Usage: node scripts/test-bd-cli.js [--no-daemon-only]
  */
 
-const { execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const { createScratchWorkspace, BD, SPAWN_DEFAULTS } = require('./lib/bd-scratch-workspace');
 
 // Configuration
 const TEST_PREFIX = 'BD_CLI_TEST';
 const REPORT_FILE = path.join(__dirname, '..', 'bd-cli-report.md');
+
+let workspace = null;
 
 // Color output helpers
 const colors = {
@@ -53,7 +55,7 @@ let noDaemonOnly = false;
 const { spawnSync } = require('child_process');
 
 function bdExec(args, { expectJson = true, noDaemon = false } = {}) {
-  const cmdArgs = [...args];
+  const cmdArgs = [...workspace.bdArgs, ...args];
   // Respect global noDaemonOnly flag or local override
   if (noDaemon || (typeof noDaemonOnly !== 'undefined' && noDaemonOnly)) {
     // Only add if not already present to avoid duplicates
@@ -64,11 +66,7 @@ function bdExec(args, { expectJson = true, noDaemon = false } = {}) {
   if (expectJson && !cmdArgs.includes('--json')) cmdArgs.push('--json');
 
   try {
-    const result = spawnSync('bd', cmdArgs, {
-      encoding: 'utf8',
-      shell: false,
-      timeout: 30000 // 30 second timeout
-    });
+    const result = spawnSync(BD, cmdArgs, SPAWN_DEFAULTS);
 
     const output = result.stdout || '';
     const stderr = result.stderr || '';
@@ -468,7 +466,7 @@ function generateReport() {
 
   let report = `# BD CLI Test Report\n\n`;
   report += `**Generated:** ${new Date().toISOString()}\n\n`;
-  report += `**BD Version:** \`${execSync('bd version', { encoding: 'utf8' }).trim()}\`\n\n`;
+  report += `**BD Version:** \`${bdExec(['version'], { expectJson: false }).raw?.trim()}\`\n\n`;
   report += `## Summary\n\n`;
   report += `- ✓ Passed: ${testResults.passed}\n`;
   report += `- ✗ Failed: ${testResults.failed}\n`;
@@ -531,33 +529,6 @@ function generateReport() {
 }
 
 /**
- * Cleanup test issues
- */
-function cleanup() {
-  section('Cleanup');
-
-  log('blue', 'Closing test issues...');
-
-  const listResult = bdExec(['list', '--all']);
-  if (!listResult.success || !Array.isArray(listResult.data)) {
-    log('yellow', 'Could not list issues for cleanup');
-    return;
-  }
-
-  const testIssues = listResult.data.filter(issue =>
-    issue.title && issue.title.includes(TEST_PREFIX)
-  );
-
-  log('blue', `Found ${testIssues.length} test issues to close`);
-
-  testIssues.forEach(issue => {
-    bdExec(['close', issue.id, '--reason', 'Test cleanup'], { expectJson: false });
-  });
-
-  log('green', 'Cleanup complete');
-}
-
-/**
  * Main test execution
  */
 function main() {
@@ -571,6 +542,9 @@ function main() {
   if (noDaemonOnly) {
     log('yellow', 'Running in no-daemon-only mode\n');
   }
+
+  workspace = createScratchWorkspace('bdcli');
+  log('blue', `Scratch workspace: ${workspace.dir}\n`);
 
   // Run test suites
   testIssueCreation();
@@ -590,28 +564,16 @@ function main() {
 
   console.log('\n');
 
-  // Ask about cleanup
-  console.log('Run cleanup to close test issues? (press Ctrl+C to skip)');
-  setTimeout(() => {
-    cleanup();
-
-    if (testResults.failed > 0) {
-      log('red', '\n✗ Tests failed. See report for details.');
-      process.exit(1);
-    } else if (testResults.warnings > 0) {
-      log('yellow', '\n⚠ Tests passed with warnings. See report for details.');
-      process.exit(0);
-    } else {
-      log('green', '\n✓ All tests passed!');
-      process.exit(0);
-    }
-  }, 3000);
+  if (testResults.failed > 0) {
+    log('red', '\n✗ Tests failed. See report for details.');
+    process.exit(1);
+  } else if (testResults.warnings > 0) {
+    log('yellow', '\n⚠ Tests passed with warnings. See report for details.');
+    process.exit(0);
+  } else {
+    log('green', '\n✓ All tests passed!');
+    process.exit(0);
+  }
 }
-
-// Handle graceful exit
-process.on('SIGINT', () => {
-  log('yellow', '\n\nTest interrupted. Skipping cleanup.');
-  process.exit(0);
-});
 
 main();

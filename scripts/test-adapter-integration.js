@@ -10,13 +10,16 @@
  * Usage: node scripts/test-adapter-integration.js
  */
 
-const { execSync } = require('child_process');
+const { spawnSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const { createScratchWorkspace, BD, SPAWN_DEFAULTS } = require('./lib/bd-scratch-workspace');
 
 // Configuration
 const TEST_PREFIX = 'ADAPTER_TEST';
 const REPORT_FILE = path.join(__dirname, '..', 'adapter-integration-report.md');
+
+let workspace = null;
 
 // Color output helpers
 const colors = {
@@ -50,38 +53,34 @@ const testResults = {
  * Execute bd command and return parsed JSON output
  */
 function bdExec(args, { expectJson = true, noDaemon = false } = {}) {
-  const cmdArgs = [...args];
+  const cmdArgs = [...workspace.bdArgs, ...args];
   if (noDaemon) cmdArgs.push('--no-daemon');
   if (expectJson && !cmdArgs.includes('--json')) cmdArgs.push('--json');
 
-  try {
-    const output = execSync(`bd ${cmdArgs.map(arg => {
-      if (typeof arg === 'string' && (arg.includes(' ') || arg.includes('&') || arg.includes('|'))) {
-        return `"${arg.replace(/"/g, '\\"')}"`;
-      }
-      return arg;
-    }).join(' ')}`, {
-      encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-      shell: true
-    });
+  const result = spawnSync(BD, cmdArgs, SPAWN_DEFAULTS);
+  const output = result.stdout || '';
+  const stderr = result.stderr || '';
 
-    if (expectJson) {
-      try {
-        return { success: true, data: JSON.parse(output), raw: output };
-      } catch (e) {
-        return { success: false, error: 'Failed to parse JSON', raw: output };
-      }
-    }
-    return { success: true, raw: output };
-  } catch (error) {
+  if (result.error) {
+    return { success: false, error: result.error.message };
+  }
+  if (result.status !== 0) {
     return {
       success: false,
-      error: error.message,
-      stderr: error.stderr?.toString(),
-      stdout: error.stdout?.toString()
+      error: `Command failed with status ${result.status}`,
+      stderr,
+      stdout: output
     };
   }
+
+  if (expectJson) {
+    try {
+      return { success: true, data: JSON.parse(output), raw: output };
+    } catch (e) {
+      return { success: false, error: 'Failed to parse JSON', raw: output };
+    }
+  }
+  return { success: true, raw: output };
 }
 
 /**
@@ -636,7 +635,7 @@ function generateReport() {
 
   let report = `# Adapter Integration Test Report\n\n`;
   report += `**Generated:** ${new Date().toISOString()}\n\n`;
-  report += `**BD Version:** \`${execSync('bd version', { encoding: 'utf8' }).trim()}\`\n\n`;
+  report += `**BD Version:** \`${bdExec(['version'], { expectJson: false }).raw?.trim()}\`\n\n`;
   report += `## Summary\n\n`;
   report += `- ✓ Passed: ${testResults.passed}\n`;
   report += `- ✗ Failed: ${testResults.failed}\n`;
@@ -688,39 +687,15 @@ function generateReport() {
 }
 
 /**
- * Cleanup test issues
- */
-function cleanup() {
-  section('Cleanup');
-
-  log('blue', 'Closing test issues...');
-
-  const listResult = bdExec(['list', '--all', '--limit', '0']);
-  if (!listResult.success || !Array.isArray(listResult.data)) {
-    log('yellow', 'Could not list issues for cleanup');
-    return;
-  }
-
-  const testIssues = listResult.data.filter(issue =>
-    issue.title && issue.title.includes(TEST_PREFIX)
-  );
-
-  log('blue', `Found ${testIssues.length} test issues to close`);
-
-  testIssues.forEach(issue => {
-    bdExec(['close', issue.id, '--reason', 'Adapter test cleanup'], { expectJson: false });
-  });
-
-  log('green', 'Cleanup complete');
-}
-
-/**
  * Main test execution
  */
 function main() {
   log('cyan', '\n╔════════════════════════════════════════════════════════════╗');
   log('cyan', '║        Adapter Integration Test Suite                      ║');
   log('cyan', '╚════════════════════════════════════════════════════════════╝\n');
+
+  workspace = createScratchWorkspace('adapter');
+  log('blue', `Scratch workspace: ${workspace.dir}\n`);
 
   // Run test suites
   testCreateIssue();
@@ -737,11 +712,6 @@ function main() {
   log('green', `Passed: ${testResults.passed}`);
   log('red', `Failed: ${testResults.failed}`);
   log('yellow', `Warnings: ${testResults.warnings}`);
-
-  console.log('\nRun cleanup to close test issues? (press Ctrl+C to skip)');
-
-  // Run cleanup
-  cleanup();
 
   // Exit with appropriate code
   if (testResults.failed > 0) {

@@ -21,8 +21,11 @@
  * - Empty strings vs null
  */
 
-const { execSync } = require('child_process');
+const { spawnSync } = require('child_process');
 const path = require('path');
+const { createScratchWorkspace, BD, SPAWN_DEFAULTS } = require('./lib/bd-scratch-workspace');
+
+let workspace = null;
 
 // Test result tracking
 const results = {
@@ -49,36 +52,27 @@ function log(message, color = 'reset') {
 
 // Execute bd command and return parsed JSON
 function bdExec(args, options = {}) {
-  // Build command with properly quoted arguments
-  const quotedArgs = args.map(arg => {
-    // Quote arguments that contain spaces, quotes, or special chars
-    if (typeof arg === 'string' && (arg.includes(' ') || arg.includes('"') || arg.includes("'") || arg.includes('\\') || arg.includes('\n'))) {
-      // Escape double quotes and backslashes, then wrap in double quotes
-      return `"${arg.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-    }
-    return arg;
-  });
-  
-  const cmd = `bd ${quotedArgs.join(' ')} --json`;
+  const cmdArgs = [...workspace.bdArgs, ...args, '--json'];
+  const result = spawnSync(BD, cmdArgs, SPAWN_DEFAULTS);
+
+  if (result.error) {
+    throw new Error(`BD command failed to start: ${result.error.message}`);
+  }
+  if (result.status !== 0) {
+    throw new Error(`BD command failed (status ${result.status})\n${(result.stderr || '').trim()}`);
+  }
+
+  const output = result.stdout || '';
+
+  if (options.expectJson === false) {
+    return { raw: output, data: null };
+  }
+
   try {
-    const output = execSync(cmd, {
-      cwd: path.join(__dirname, '..'),
-      encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'pipe']
-    });
-
-    if (options.expectJson === false) {
-      return { raw: output, data: null };
-    }
-
-    try {
-      const data = JSON.parse(output.trim());
-      return { raw: output, data };
-    } catch (parseError) {
-      return { raw: output, data: null, parseError };
-    }
-  } catch (error) {
-    throw new Error(`BD command failed: ${error.message}\n${error.stderr || ''}`);
+    const data = JSON.parse(output.trim());
+    return { raw: output, data };
+  } catch (parseError) {
+    return { raw: output, data: null, parseError };
   }
 }
 
@@ -205,13 +199,6 @@ function verifyRoundTrip(testName, createData, expectedValues, skipUpdate = fals
         actual: readIssue,
         issueId
       });
-
-      // Clean up
-      try {
-        bdExec(['close', issueId, '--no-daemon'], { expectJson: false });
-      } catch (e) {
-        // Ignore cleanup errors
-      }
       return;
     }
 
@@ -282,13 +269,6 @@ function verifyRoundTrip(testName, createData, expectedValues, skipUpdate = fals
       // Skip update phase
       log(`    ⊘ Update verification skipped`, 'gray');
       results.passed++;
-    }
-
-    // Clean up
-    try {
-      bdExec(['close', issueId, '--no-daemon'], { expectJson: false });
-    } catch (e) {
-      log(`    ⚠ Warning: Failed to clean up ${issueId}`, 'yellow');
     }
 
   } catch (error) {
@@ -643,6 +623,9 @@ function generateReport() {
 }
 
 function main() {
+  workspace = createScratchWorkspace('rtrip');
+  log(`Scratch workspace: ${workspace.dir}\n`, 'gray');
+
   runRoundTripTests();
 
   // Print summary
