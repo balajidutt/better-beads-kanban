@@ -71,17 +71,17 @@ function testSchema(schemaName, schema, testCases) {
         if (expectedError) {
           log(`    Expected error pattern: ${expectedError}`, 'gray');
         }
-        if (result.error && result.error.errors && result.error.errors.length > 0) {
-          const actualError = result.error.errors[0]?.message || JSON.stringify(result.error.errors[0]);
+        if (result.error && result.error.issues && result.error.issues.length > 0) {
+          const actualError = result.error.issues[0]?.message || JSON.stringify(result.error.issues[0]);
           log(`    Actual error: ${actualError}`, 'gray');
         }
         results.passed++;
       } else if (shouldPass && !result.success) {
         log(`  ✗ ${name}`, 'red');
         log(`    Expected: PASS`, 'red');
-        log(`    Error: ${JSON.stringify(result.error.errors, null, 2)}`, 'red');
+        log(`    Error: ${JSON.stringify(result.error.issues, null, 2)}`, 'red');
         results.failed++;
-        results.errors.push({ schema: schemaName, test: name, error: result.error.errors });
+        results.errors.push({ schema: schemaName, test: name, error: result.error.issues });
       } else {
         log(`  ✗ ${name}`, 'red');
         log(`    Expected: FAIL`, 'red');
@@ -123,8 +123,8 @@ const issueCreateTests = [
       design: 'Design notes',
       notes: 'Additional notes',
       external_ref: 'JIRA-123',
-      due_at: '2026-01-25',
-      defer_until: '2026-01-20'
+      due_at: '2026-01-25T00:00:00Z',
+      defer_until: '2026-01-20T00:00:00Z'
     },
     shouldPass: true
   },
@@ -314,8 +314,8 @@ const issueUpdateTests = [
         design: 'Updated design',
         notes: 'Updated notes',
         external_ref: 'JIRA-456',
-        due_at: '2026-02-01',
-        defer_until: '2026-01-28'
+        due_at: '2026-02-01T00:00:00Z',
+        defer_until: '2026-01-28T00:00:00Z'
       }
     },
     shouldPass: true
@@ -335,8 +335,8 @@ const issueUpdateTests = [
     shouldPass: true
   },
   {
-    name: 'Valid update with max length issue ID (200 chars)',
-    input: { id: 'x'.repeat(200), updates: { title: 'Test' } },
+    name: 'Valid update with a long (200 char) well-formed issue ID',
+    input: { id: 'x'.repeat(190) + '-' + 'y'.repeat(9), updates: { title: 'Test' } },
     shouldPass: true
   },
 
@@ -700,15 +700,17 @@ function generateReport() {
     });
   }
 
+  const schemaStatus = name => (results.errors.some(e => e.schema === name) ? '❌' : '✅');
+
   markdown += `## Schema Coverage\n\n`;
   markdown += `| Schema | Tests | Status |\n`;
   markdown += `|--------|-------|--------|\n`;
-  markdown += `| IssueCreateSchema | ${issueCreateTests.length} | ✅ |\n`;
-  markdown += `| IssueUpdateSchema | ${issueUpdateTests.length} | ✅ |\n`;
-  markdown += `| SetStatusSchema | ${setStatusTests.length} | ✅ |\n`;
-  markdown += `| CommentAddSchema | ${commentAddTests.length} | ✅ |\n`;
-  markdown += `| LabelSchema | ${labelTests.length} | ✅ |\n`;
-  markdown += `| DependencySchema | ${dependencyTests.length} | ✅ |\n`;
+  markdown += `| IssueCreateSchema | ${issueCreateTests.length} | ${schemaStatus('IssueCreateSchema')} |\n`;
+  markdown += `| IssueUpdateSchema | ${issueUpdateTests.length} | ${schemaStatus('IssueUpdateSchema')} |\n`;
+  markdown += `| SetStatusSchema | ${setStatusTests.length} | ${schemaStatus('SetStatusSchema')} |\n`;
+  markdown += `| CommentAddSchema | ${commentAddTests.length} | ${schemaStatus('CommentAddSchema')} |\n`;
+  markdown += `| LabelSchema | ${labelTests.length} | ${schemaStatus('LabelSchema')} |\n`;
+  markdown += `| DependencySchema | ${dependencyTests.length} | ${schemaStatus('DependencySchema')} |\n`;
 
   markdown += `\n## Test Categories\n\n`;
   markdown += `- ✅ Required field validation\n`;

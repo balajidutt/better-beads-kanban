@@ -178,6 +178,7 @@ const CANONICAL_FIELDS = {
     zod: 'due_at',
     webview: 'editDueAt',
     type: 'string', // ISO 8601 datetime
+    sample: '2026-01-25T00:00:00Z',
     required: false,
     nullable: true,
     description: 'Due date/time'
@@ -190,6 +191,7 @@ const CANONICAL_FIELDS = {
     zod: 'defer_until',
     webview: 'editDeferUntil',
     type: 'string', // ISO 8601 datetime
+    sample: '2026-01-20T00:00:00Z',
     required: false,
     nullable: true,
     description: 'Defer until date/time'
@@ -280,7 +282,9 @@ function validateZodSchemaMapping() {
   for (const [fieldName, fieldDef] of Object.entries(CANONICAL_FIELDS)) {
     if (fieldDef.zod && fieldName !== 'id') {
       // Add test value based on type
-      if (fieldDef.type === 'string') {
+      if (fieldDef.sample !== undefined) {
+        createTestIssue[fieldDef.zod] = fieldDef.sample;
+      } else if (fieldDef.type === 'string') {
         createTestIssue[fieldDef.zod] = 'test';
       } else if (fieldDef.type === 'number') {
         createTestIssue[fieldDef.zod] = 2;
@@ -296,16 +300,18 @@ function validateZodSchemaMapping() {
     results.passed++;
   } else {
     log('  ✗ IssueCreateSchema validation failed', 'red');
-    log(`    Error: ${JSON.stringify(createResult.error.errors)}`, 'gray');
+    log(`    Error: ${JSON.stringify(createResult.error.issues)}`, 'gray');
     results.failed++;
-    results.errors.push({ layer: 'Zod', schema: 'IssueCreateSchema', error: createResult.error.errors });
+    results.errors.push({ layer: 'Zod', schema: 'IssueCreateSchema', error: createResult.error.issues });
   }
 
   // Test update schema
   const updateTestIssue = { id: 'test-123', updates: {} };
   for (const [fieldName, fieldDef] of Object.entries(CANONICAL_FIELDS)) {
     if (fieldDef.zod && fieldName !== 'id') {
-      if (fieldDef.type === 'string') {
+      if (fieldDef.sample !== undefined) {
+        updateTestIssue.updates[fieldDef.zod] = fieldDef.sample;
+      } else if (fieldDef.type === 'string') {
         updateTestIssue.updates[fieldDef.zod] = 'test';
       } else if (fieldDef.type === 'number') {
         updateTestIssue.updates[fieldDef.zod] = 2;
@@ -321,9 +327,9 @@ function validateZodSchemaMapping() {
     results.passed++;
   } else {
     log('  ✗ IssueUpdateSchema validation failed', 'red');
-    log(`    Error: ${JSON.stringify(updateResult.error.errors)}`, 'gray');
+    log(`    Error: ${JSON.stringify(updateResult.error.issues)}`, 'gray');
     results.failed++;
-    results.errors.push({ layer: 'Zod', schema: 'IssueUpdateSchema', error: updateResult.error.errors });
+    results.errors.push({ layer: 'Zod', schema: 'IssueUpdateSchema', error: updateResult.error.issues });
   }
 
   // Check for missing fields in schemas
