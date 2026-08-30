@@ -54,12 +54,47 @@ function log(message, color = 'reset') {
   console.log(`${colors[color]}${message}${colors.reset}`);
 }
 
+const samePath = (a, b) => a.length === b.length && a.every((seg, i) => seg === b[i]);
+
+/**
+ * Check that the input was rejected for the reason the case claims.
+ *
+ * Matches on Zod's issue code and path rather than its message: the codes are
+ * API and the prose is not, and every expected message in this file was Zod 3
+ * wording that Zod 4 had already rewritten. Boundary cases can also pin
+ * maximum/minimum, which is what catches a case asserting a limit the schema
+ * does not actually impose.
+ *
+ * @returns {string|null} a description of the mismatch, or null when it matches
+ */
+function checkExpectedIssue(issues, expected) {
+  const onPath = issues.filter(i => samePath(i.path, expected.path));
+
+  if (onPath.length === 0) {
+    const seen = issues.map(i => `${i.code} at ${JSON.stringify(i.path)}`).join('; ');
+    return `expected ${expected.code} at ${JSON.stringify(expected.path)}, got ${seen || 'no issues'}`;
+  }
+
+  const match = onPath.find(i => i.code === expected.code);
+  if (!match) {
+    return `expected code ${expected.code} at ${JSON.stringify(expected.path)}, got ${onPath.map(i => i.code).join('/')}`;
+  }
+
+  for (const key of ['maximum', 'minimum']) {
+    if (expected[key] !== undefined && match[key] !== expected[key]) {
+      return `expected ${key} ${expected[key]} at ${JSON.stringify(expected.path)}, got ${match[key]}`;
+    }
+  }
+
+  return null;
+}
+
 function testSchema(schemaName, schema, testCases) {
   log(`\n${'='.repeat(60)}`, 'blue');
   log(`Testing: ${schemaName}`, 'blue');
   log('='.repeat(60), 'blue');
 
-  testCases.forEach(({ name, input, shouldPass, expectedError }) => {
+  testCases.forEach(({ name, input, shouldPass, expectedIssue }) => {
     try {
       const result = schema.safeParse(input);
 
@@ -67,15 +102,19 @@ function testSchema(schemaName, schema, testCases) {
         log(`  ✓ ${name}`, 'green');
         results.passed++;
       } else if (!shouldPass && !result.success) {
-        log(`  ✓ ${name}`, 'green');
-        if (expectedError) {
-          log(`    Expected error pattern: ${expectedError}`, 'gray');
+        const mismatch = expectedIssue
+          ? checkExpectedIssue(result.error.issues, expectedIssue)
+          : 'no expectedIssue declared - rejection reason is unasserted';
+
+        if (mismatch) {
+          log(`  ✗ ${name}`, 'red');
+          log(`    Rejected for the wrong reason: ${mismatch}`, 'red');
+          results.failed++;
+          results.errors.push({ schema: schemaName, test: name, error: mismatch });
+        } else {
+          log(`  ✓ ${name}`, 'green');
+          results.passed++;
         }
-        if (result.error && result.error.issues && result.error.issues.length > 0) {
-          const actualError = result.error.issues[0]?.message || JSON.stringify(result.error.issues[0]);
-          log(`    Actual error: ${actualError}`, 'gray');
-        }
-        results.passed++;
       } else if (shouldPass && !result.success) {
         log(`  ✗ ${name}`, 'red');
         log(`    Expected: PASS`, 'red');
@@ -181,13 +220,13 @@ const issueCreateTests = [
     name: 'Missing title (required)',
     input: { description: 'No title' },
     shouldPass: false,
-    expectedError: 'Required'
+    expectedIssue: { code: 'invalid_type', path: ['title'] }
   },
   {
     name: 'Empty string title',
     input: { title: '' },
     shouldPass: false,
-    expectedError: 'String must contain at least 1 character(s)'
+    expectedIssue: { code: 'too_small', path: ['title'], minimum: 1 }
   },
 
   // Invalid cases - type errors
@@ -195,31 +234,31 @@ const issueCreateTests = [
     name: 'Title is not a string',
     input: { title: 123 },
     shouldPass: false,
-    expectedError: 'Expected string'
+    expectedIssue: { code: 'invalid_type', path: ['title'] }
   },
   {
     name: 'Priority is not a number',
     input: { title: 'Test', priority: 'high' },
     shouldPass: false,
-    expectedError: 'Expected number'
+    expectedIssue: { code: 'invalid_type', path: ['priority'] }
   },
   {
     name: 'Priority is a float',
     input: { title: 'Test', priority: 2.5 },
     shouldPass: false,
-    expectedError: 'Expected integer'
+    expectedIssue: { code: 'invalid_type', path: ['priority'] }
   },
   {
     name: 'Estimated minutes is negative',
     input: { title: 'Test', estimated_minutes: -10 },
     shouldPass: false,
-    expectedError: 'Number must be greater than or equal to 0'
+    expectedIssue: { code: 'too_small', path: ['estimated_minutes'], minimum: 0 }
   },
   {
     name: 'Estimated minutes is a float',
     input: { title: 'Test', estimated_minutes: 30.5 },
     shouldPass: false,
-    expectedError: 'Expected integer'
+    expectedIssue: { code: 'invalid_type', path: ['estimated_minutes'] }
   },
 
   // Invalid cases - boundary violations
@@ -227,37 +266,37 @@ const issueCreateTests = [
     name: 'Title exceeds max length (501 chars)',
     input: { title: 'x'.repeat(501) },
     shouldPass: false,
-    expectedError: 'String must contain at most 500 character(s)'
+    expectedIssue: { code: 'too_big', path: ['title'], maximum: 500 }
   },
   {
     name: 'Description exceeds max length (65537 chars)',
     input: { title: 'Test', description: 'x'.repeat(65537) },
     shouldPass: false,
-    expectedError: 'String must contain at most 65536 character(s)'
+    expectedIssue: { code: 'too_big', path: ['description'], maximum: 65536 }
   },
   {
     name: 'Assignee exceeds max length (101 chars)',
     input: { title: 'Test', assignee: 'x'.repeat(101) },
     shouldPass: false,
-    expectedError: 'String must contain at most 100 character(s)'
+    expectedIssue: { code: 'too_big', path: ['assignee'], maximum: 100 }
   },
   {
     name: 'External ref exceeds max length (201 chars)',
     input: { title: 'Test', external_ref: 'x'.repeat(201) },
     shouldPass: false,
-    expectedError: 'String must contain at most 200 character(s)'
+    expectedIssue: { code: 'too_big', path: ['external_ref'], maximum: 200 }
   },
   {
     name: 'Priority below minimum (-1)',
     input: { title: 'Test', priority: -1 },
     shouldPass: false,
-    expectedError: 'Number must be greater than or equal to 0'
+    expectedIssue: { code: 'too_small', path: ['priority'], minimum: 0 }
   },
   {
     name: 'Priority above maximum (5)',
     input: { title: 'Test', priority: 5 },
     shouldPass: false,
-    expectedError: 'Number must be less than or equal to 4'
+    expectedIssue: { code: 'too_big', path: ['priority'], maximum: 4 }
   },
 
   // Invalid cases - enum violations
@@ -265,13 +304,13 @@ const issueCreateTests = [
     name: 'Invalid status value',
     input: { title: 'Test', status: 'pending' },
     shouldPass: false,
-    expectedError: 'Invalid enum value'
+    expectedIssue: { code: 'invalid_value', path: ['status'] }
   },
   {
     name: 'Invalid issue_type value',
     input: { title: 'Test', issue_type: 'story' },
     shouldPass: false,
-    expectedError: 'Invalid enum value'
+    expectedIssue: { code: 'invalid_value', path: ['issue_type'] }
   },
 
   // Edge cases
@@ -345,19 +384,19 @@ const issueUpdateTests = [
     name: 'Missing id (required)',
     input: { updates: { title: 'Test' } },
     shouldPass: false,
-    expectedError: 'Required'
+    expectedIssue: { code: 'invalid_type', path: ['id'] }
   },
   {
     name: 'Missing updates (required)',
     input: { id: 'test-123' },
     shouldPass: false,
-    expectedError: 'Required'
+    expectedIssue: { code: 'invalid_type', path: ['updates'] }
   },
   {
     name: 'Empty string id',
     input: { id: '', updates: {} },
     shouldPass: false,
-    expectedError: 'String must contain at least 1 character(s)'
+    expectedIssue: { code: 'invalid_format', path: ['id'] }
   },
 
   // Invalid cases - type errors
@@ -365,33 +404,35 @@ const issueUpdateTests = [
     name: 'ID is not a string',
     input: { id: 123, updates: {} },
     shouldPass: false,
-    expectedError: 'Expected string'
+    expectedIssue: { code: 'invalid_type', path: ['id'] }
   },
   {
     name: 'Updates is not an object',
     input: { id: 'test-123', updates: 'invalid' },
     shouldPass: false,
-    expectedError: 'Expected object'
+    expectedIssue: { code: 'invalid_type', path: ['updates'] }
   },
   {
     name: 'Title in updates is not a string',
     input: { id: 'test-123', updates: { title: 123 } },
     shouldPass: false,
-    expectedError: 'Expected string'
+    expectedIssue: { code: 'invalid_type', path: ['updates', 'title'] }
   },
 
   // Invalid cases - boundary violations
   {
-    name: 'ID exceeds max length (201 chars)',
+    // IssueIdSchema is a regex with no length cap, so a long id is rejected
+    // for its shape, not its size. A well-formed 201-char id is accepted.
+    name: 'Malformed id (201 chars, no prefix-suffix separator)',
     input: { id: 'x'.repeat(201), updates: {} },
     shouldPass: false,
-    expectedError: 'String must contain at most 200 character(s)'
+    expectedIssue: { code: 'invalid_format', path: ['id'] }
   },
   {
     name: 'Title in updates exceeds max length',
     input: { id: 'test-123', updates: { title: 'x'.repeat(501) } },
     shouldPass: false,
-    expectedError: 'String must contain at most 500 character(s)'
+    expectedIssue: { code: 'too_big', path: ['updates', 'title'], maximum: 500 }
   },
 
   // Invalid cases - enum violations
@@ -399,7 +440,7 @@ const issueUpdateTests = [
     name: 'Invalid status in updates',
     input: { id: 'test-123', updates: { status: 'done' } },
     shouldPass: false,
-    expectedError: 'Invalid enum value'
+    expectedIssue: { code: 'invalid_value', path: ['updates', 'status'] }
   }
 ];
 
@@ -435,25 +476,30 @@ const setStatusTests = [
     name: 'Missing id',
     input: { status: 'open' },
     shouldPass: false,
-    expectedError: 'Required'
+    expectedIssue: { code: 'invalid_type', path: ['id'] }
   },
+  // A required z.enum reports invalid_value for a missing field, a wrong value
+  // and a wrong type alike, with nothing in the issue to tell them apart. The
+  // three cases below therefore assert the same code and path; each still
+  // proves its input is rejected on the right field, but none of them singles
+  // out missingness.
   {
     name: 'Missing status',
     input: { id: 'test-123' },
     shouldPass: false,
-    expectedError: 'Required'
+    expectedIssue: { code: 'invalid_value', path: ['status'] }
   },
   {
     name: 'Invalid status value',
     input: { id: 'test-123', status: 'pending' },
     shouldPass: false,
-    expectedError: 'Invalid enum value'
+    expectedIssue: { code: 'invalid_value', path: ['status'] }
   },
   {
     name: 'Status is not a string',
     input: { id: 'test-123', status: 1 },
     shouldPass: false,
-    expectedError: 'Invalid enum value'
+    expectedIssue: { code: 'invalid_value', path: ['status'] }
   }
 ];
 
@@ -489,37 +535,37 @@ const commentAddTests = [
     name: 'Missing id',
     input: { text: 'Comment', author: 'John' },
     shouldPass: false,
-    expectedError: 'Required'
+    expectedIssue: { code: 'invalid_type', path: ['id'] }
   },
   {
     name: 'Missing text',
     input: { id: 'test-123', author: 'John' },
     shouldPass: false,
-    expectedError: 'Required'
+    expectedIssue: { code: 'invalid_type', path: ['text'] }
   },
   {
     name: 'Missing author',
     input: { id: 'test-123', text: 'Comment' },
     shouldPass: false,
-    expectedError: 'Required'
+    expectedIssue: { code: 'invalid_type', path: ['author'] }
   },
   {
     name: 'Empty string text',
     input: { id: 'test-123', text: '', author: 'John' },
     shouldPass: false,
-    expectedError: 'String must contain at least 1 character(s)'
+    expectedIssue: { code: 'too_small', path: ['text'], minimum: 1 }
   },
   {
     name: 'Text exceeds max length (10001 chars)',
     input: { id: 'test-123', text: 'x'.repeat(10001), author: 'John' },
     shouldPass: false,
-    expectedError: 'String must contain at most 10000 character(s)'
+    expectedIssue: { code: 'too_big', path: ['text'], maximum: 10000 }
   },
   {
     name: 'Author exceeds max length (101 chars)',
     input: { id: 'test-123', text: 'Comment', author: 'x'.repeat(101) },
     shouldPass: false,
-    expectedError: 'String must contain at most 100 character(s)'
+    expectedIssue: { code: 'too_big', path: ['author'], maximum: 100 }
   }
 ];
 
@@ -555,31 +601,31 @@ const labelTests = [
     name: 'Missing id',
     input: { label: 'bug' },
     shouldPass: false,
-    expectedError: 'Required'
+    expectedIssue: { code: 'invalid_type', path: ['id'] }
   },
   {
     name: 'Missing label',
     input: { id: 'test-123' },
     shouldPass: false,
-    expectedError: 'Required'
+    expectedIssue: { code: 'invalid_type', path: ['label'] }
   },
   {
     name: 'Empty string label',
     input: { id: 'test-123', label: '' },
     shouldPass: false,
-    expectedError: 'String must contain at least 1 character(s)'
+    expectedIssue: { code: 'too_small', path: ['label'], minimum: 1 }
   },
   {
     name: 'Label exceeds max length (101 chars)',
     input: { id: 'test-123', label: 'x'.repeat(101) },
     shouldPass: false,
-    expectedError: 'String must contain at most 100 character(s)'
+    expectedIssue: { code: 'too_big', path: ['label'], maximum: 100 }
   },
   {
     name: 'Label is not a string',
     input: { id: 'test-123', label: 123 },
     shouldPass: false,
-    expectedError: 'Expected string'
+    expectedIssue: { code: 'invalid_type', path: ['label'] }
   }
 ];
 
@@ -610,31 +656,31 @@ const dependencyTests = [
     name: 'Missing id',
     input: { otherId: 'test-456' },
     shouldPass: false,
-    expectedError: 'Required'
+    expectedIssue: { code: 'invalid_type', path: ['id'] }
   },
   {
     name: 'Missing otherId',
     input: { id: 'test-123' },
     shouldPass: false,
-    expectedError: 'Required'
+    expectedIssue: { code: 'invalid_type', path: ['otherId'] }
   },
   {
     name: 'Invalid type value',
     input: { id: 'test-123', otherId: 'test-456', type: 'depends-on' },
     shouldPass: false,
-    expectedError: 'Invalid enum value'
+    expectedIssue: { code: 'invalid_value', path: ['type'] }
   },
   {
     name: 'ID is not a string',
     input: { id: 123, otherId: 'test-456' },
     shouldPass: false,
-    expectedError: 'Expected string'
+    expectedIssue: { code: 'invalid_type', path: ['id'] }
   },
   {
     name: 'OtherId is not a string',
     input: { id: 'test-123', otherId: 456 },
     shouldPass: false,
-    expectedError: 'Expected string'
+    expectedIssue: { code: 'invalid_type', path: ['otherId'] }
   }
 ];
 
