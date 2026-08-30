@@ -185,29 +185,32 @@ function adapterUpdateIssue(id, input) {
   if (input.description !== undefined) args.push('--description', input.description);
   if (input.priority !== undefined) args.push('--priority', String(input.priority));
   if (input.issue_type !== undefined) args.push('--type', input.issue_type);
-  // Skip assignee if empty/null (CLI doesn't support empty string for clearing)
-  if (input.assignee !== undefined && input.assignee !== null && input.assignee !== '') {
-    args.push('--assignee', input.assignee);
+  if (input.assignee !== undefined) {
+    args.push('--assignee', input.assignee ? input.assignee : '');
   }
   if (input.estimated_minutes !== undefined) {
-    args.push('--estimate', String(input.estimated_minutes));
+    args.push('--estimate', String(input.estimated_minutes || 0));
   }
   if (input.acceptance_criteria !== undefined) args.push('--acceptance', input.acceptance_criteria);
   if (input.design !== undefined) args.push('--design', input.design);
-  // Skip notes if empty string (CLI doesn't support empty string for clearing)
-  if (input.notes !== undefined && input.notes !== '') {
-    args.push('--notes', input.notes);
-  }
-  if (input.external_ref !== undefined && input.external_ref !== '') {
+  if (input.external_ref !== undefined && input.external_ref) {
     args.push('--external-ref', input.external_ref);
   }
-  if (input.due_at !== undefined && input.due_at !== '') {
-    args.push('--due', input.due_at);
-  }
-  if (input.defer_until !== undefined && input.defer_until !== '') {
-    args.push('--defer', input.defer_until);
-  }
+  if (input.notes !== undefined) args.push('--notes', input.notes);
+  if (input.due_at !== undefined && input.due_at) args.push('--due', input.due_at);
+  if (input.defer_until !== undefined && input.defer_until) args.push('--defer', input.defer_until);
   if (input.status !== undefined) args.push('--status', input.status);
+  if (input.pinned !== undefined) {
+    args.push(...(input.pinned ? ['--set-metadata', 'pinned=true'] : ['--unset-metadata', 'pinned']));
+  }
+  if (input.is_template !== undefined) {
+    args.push(...(input.is_template ? ['--set-metadata', 'template=true'] : ['--unset-metadata', 'template']));
+  }
+
+  // 'update <id>' with no flags is a no-op call, so only run it if a flag was set.
+  if (args.length === 2) {
+    return;
+  }
 
   const result = bdExec(args, { expectJson: false });
 
@@ -518,17 +521,27 @@ function testEdgeCases() {
     }
   });
 
-  // Test 2: Null assignee (unassign) - SKIP: CLI limitation
+  // Test 2: Null assignee (unassign)
   test('Update with null assignee (unassign)', () => {
-    // SKIPPED: bd CLI doesn't accept empty string for clearing assignee
-    // This is a known CLI limitation documented in TESTING.md
-    // The test would require: 1) Creating with existing user (FK constraint)
-    // and 2) Clearing with empty string (CLI doesn't support this)
-    return {
-      pass: true,
-      skipped: true,
-      message: 'Skipped: CLI limitation - cannot clear assignee with empty string'
-    };
+    const { id } = adapterCreateIssue({
+      title: `${TEST_PREFIX} Unassign`,
+      assignee: 'UnassignTestUser'
+    });
+
+    const assigned = verifyIssue(id, { assignee: 'UnassignTestUser' });
+    if (!assigned.pass) {
+      return { pass: false, message: `Setup: ${assigned.mismatches.join(', ')}` };
+    }
+
+    adapterUpdateIssue(id, { assignee: null });
+
+    // bd omits an empty assignee from its JSON rather than returning ''.
+    const cleared = verifyIssue(id, { assignee: undefined });
+    if (!cleared.pass) {
+      return { pass: false, message: cleared.mismatches.join(', ') };
+    }
+
+    return { pass: true };
   });
 
   // Test 3: Special characters in text fields
@@ -554,17 +567,26 @@ function testEdgeCases() {
     return { pass: true };
   });
 
-  // Test 4: Clear optional field (set to empty) - SKIP: CLI limitation
+  // Test 4: Clear optional field (set to empty)
   test('Clear optional field with empty string', () => {
-    // SKIPPED: bd CLI doesn't accept empty string for clearing fields
-    // This is a known CLI limitation documented in TESTING.md
-    // The updated adapterUpdateIssue function now skips the flag entirely
-    // when an empty string is provided, which is the correct workaround
-    return {
-      pass: true,
-      skipped: true,
-      message: 'Skipped: CLI limitation - cannot clear notes with empty string'
-    };
+    const { id } = adapterCreateIssue({
+      title: `${TEST_PREFIX} Clear Notes`,
+      notes: 'notes that should not survive'
+    });
+
+    const populated = verifyIssue(id, { notes: 'notes that should not survive' });
+    if (!populated.pass) {
+      return { pass: false, message: `Setup: ${populated.mismatches.join(', ')}` };
+    }
+
+    adapterUpdateIssue(id, { notes: '' });
+
+    const cleared = verifyIssue(id, { notes: undefined });
+    if (!cleared.pass) {
+      return { pass: false, message: cleared.mismatches.join(', ') };
+    }
+
+    return { pass: true };
   });
 }
 
