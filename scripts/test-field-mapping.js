@@ -435,9 +435,9 @@ function validateWebviewMapping() {
   log('Validating Webview Form Mapping', 'blue');
   log('='.repeat(60), 'blue');
 
-  const webviewPath = path.join(__dirname, '../media/main.js');
+  const webviewPath = path.join(__dirname, '../src/webview/board.js');
   if (!fs.existsSync(webviewPath)) {
-    log('  ✗ Error: main.js not found', 'red');
+    log('  ✗ Error: src/webview/board.js not found', 'red');
     results.failed++;
     return;
   }
@@ -456,7 +456,7 @@ function validateWebviewMapping() {
         results.discrepancies.push({
           field: fieldName,
           layer: 'Webview',
-          issue: `Selector ${fieldDef.webview} not found in main.js`
+          issue: `Selector ${fieldDef.webview} not found in board.js`
         });
       }
     }
