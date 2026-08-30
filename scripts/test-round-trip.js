@@ -348,19 +348,21 @@ function runRoundTripTests() {
     }
   );
 
+  // bd's title column holds 500 characters and rejects anything longer rather
+  // than truncating. The update phase prefixes 'Updated: ', so 491 here puts
+  // the update exactly on the boundary.
   verifyRoundTrip(
-    'Very long strings (500 chars title, 1000 chars fields)',
+    'Very long strings (491 chars title, 1000 chars fields)',
     {
-      title: 'x'.repeat(500),
+      title: 'x'.repeat(491),
       description: 'y'.repeat(1000),
       acceptance_criteria: 'z'.repeat(1000)
     },
     {
-      title: 'x'.repeat(500),
+      title: 'x'.repeat(491),
       description: 'y'.repeat(1000),
       acceptance_criteria: 'z'.repeat(1000)
-    },
-    true // Skip update to avoid command line length limits
+    }
   );
 
   log('\n' + '='.repeat(60), 'blue');

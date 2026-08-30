@@ -533,15 +533,25 @@ function testEdgeCases() {
 
   // Test 3: Special characters in text fields
   test('Handle special characters in fields', () => {
-    // Skipped: Known limitation with shell escaping of special characters
-    // The execSync shell mode has issues properly escaping quotes, ampersands,
-    // and newlines when building CLI commands. This needs a refactor to use
-    // execFileSync (which doesn't use shell) or improved escaping logic.
-    return {
-      pass: true,
-      skipped: true,
-      message: 'Skipped: Shell escaping limitation with special characters'
+    // The description and notes carry shell metacharacters that would expand or
+    // split the command if a shell ever came back into bdExec: $HOME and the
+    // backticks would substitute, && and | and ; would end the command early.
+    // Reading them back verbatim is what proves spawnSync is still passing
+    // argv straight through.
+    const fields = {
+      title: `${TEST_PREFIX} quotes " ' pipe | semicolon ; amp &`,
+      description: 'Metacharacters: $HOME `id` && true || false',
+      notes: 'Backslash \\ tab\there newline:\nsecond line'
     };
+
+    const { id } = adapterCreateIssue(fields);
+    const verification = verifyIssue(id, fields);
+
+    if (!verification.pass) {
+      return { pass: false, message: verification.mismatches.join(', ') };
+    }
+
+    return { pass: true };
   });
 
   // Test 4: Clear optional field (set to empty) - SKIP: CLI limitation
