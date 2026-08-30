@@ -285,6 +285,51 @@ function verifyRoundTrip(testName, createData, expectedValues, skipUpdate = fals
 // Round-Trip Test Cases
 // ============================================================================
 
+/**
+ * Pin bd's title-trimming asymmetry (bbk-bah).
+ *
+ * bd 1.2.2 preserves leading and trailing title whitespace on create and strips
+ * it on update. No other text field does this: description, notes, design,
+ * acceptance_criteria and assignee all keep their padding on both paths. This
+ * asserts the behaviour as it stands so a change in either direction is a
+ * visible failure rather than a silent shift.
+ */
+function verifyTitleTrimAsymmetry() {
+  const padded = '  padded title  ';
+  log(`\n  Testing: Title whitespace (trimmed on update, kept on create)`, 'blue');
+
+  try {
+    const created = bdExec(['create', '--title', padded, '--type', 'task']);
+    const issueId = extractIssueId(created.raw, created.data);
+    log(`    Created issue: ${issueId}`, 'gray');
+
+    const afterCreate = getIssue(issueId).title;
+    if (afterCreate !== padded) {
+      log(`    ✗ create should keep padding: expected ${JSON.stringify(padded)}, got ${JSON.stringify(afterCreate)}`, 'red');
+      results.failed++;
+      results.errors.push({ test: 'Title trim asymmetry', phase: 'create', expected: padded, actual: afterCreate });
+      return;
+    }
+
+    bdExec(['update', issueId, '--title', padded], { expectJson: false });
+
+    const afterUpdate = getIssue(issueId).title;
+    if (afterUpdate !== padded.trim()) {
+      log(`    ✗ update should trim: expected ${JSON.stringify(padded.trim())}, got ${JSON.stringify(afterUpdate)}`, 'red');
+      results.failed++;
+      results.errors.push({ test: 'Title trim asymmetry', phase: 'update', expected: padded.trim(), actual: afterUpdate });
+      return;
+    }
+
+    log(`    ✓ create keeps padding, update trims it`, 'green');
+    results.passed++;
+  } catch (error) {
+    log(`    ✗ Title trim asymmetry: ${error.message}`, 'red');
+    results.failed++;
+    results.errors.push({ test: 'Title trim asymmetry', error: error.message });
+  }
+}
+
 function runRoundTripTests() {
   log('\n' + '='.repeat(60), 'blue');
   log('ROUND-TRIP DATA INTEGRITY TEST SUITE', 'blue');
@@ -336,6 +381,8 @@ function runRoundTripTests() {
     }
   );
 
+  // Update is skipped here and asserted on its own below: bd trims the title
+  // on update but not on create, so one round-trip cannot describe both.
   verifyRoundTrip(
     'Whitespace preservation',
     {
@@ -345,8 +392,11 @@ function runRoundTripTests() {
     {
       title: '  Leading and trailing spaces  ',
       description: 'Line1\nLine2\nLine3'
-    }
+    },
+    true
   );
+
+  verifyTitleTrimAsymmetry();
 
   // bd's title column holds 500 characters and rejects anything longer rather
   // than truncating. The update phase prefixes 'Updated: ', so 491 here puts

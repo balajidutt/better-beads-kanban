@@ -103,8 +103,7 @@ the event loop to run a handler. The next run sweeps any `bbk-test-*` directory 
 owning process is gone, so a leak costs one stale directory rather than accumulating, and
 running two of these scripts at once is safe.
 
-One test fails: `bd update` strips leading and trailing title whitespace where `bd create`
-preserves it, tracked in `bbk-bah`. `npm run test:all` reports 146/147.
+`npm run test:all` reports 148/148.
 
 `npm run test:all` writes a `test-summary.md` at the repo root. That file is a local
 artifact and is gitignored — do not commit it.
