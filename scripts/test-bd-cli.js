@@ -3,10 +3,9 @@
 /**
  * Comprehensive bd CLI Validation Test Script
  *
- * Tests all CRUD operations and data formats with and without daemon to identify
- * any discrepancies or bugs in the bd CLI.
+ * Tests CRUD operations and data formats against the bd CLI.
  *
- * Usage: node scripts/test-bd-cli.js [--no-daemon-only]
+ * Usage: node scripts/test-bd-cli.js
  */
 
 const path = require('path');
@@ -47,22 +46,13 @@ const testResults = {
   tests: []
 };
 
-let noDaemonOnly = false;
-
 /**
  * Execute bd command and return parsed JSON output
  */
 const { spawnSync } = require('child_process');
 
-function bdExec(args, { expectJson = true, noDaemon = false } = {}) {
+function bdExec(args, { expectJson = true } = {}) {
   const cmdArgs = [...workspace.bdArgs, ...args];
-  // Respect global noDaemonOnly flag or local override
-  if (noDaemon || (typeof noDaemonOnly !== 'undefined' && noDaemonOnly)) {
-    // Only add if not already present to avoid duplicates
-    if (!cmdArgs.includes('--no-daemon')) {
-      cmdArgs.push('--no-daemon');
-    }
-  }
   if (expectJson && !cmdArgs.includes('--json')) cmdArgs.push('--json');
 
   try {
@@ -127,32 +117,6 @@ function test(name, fn) {
       stack: error.stack
     });
   }
-}
-
-/**
- * Compare two values and report differences
- */
-function compareValues(testName, field, withDaemon, withoutDaemon, actual, expected) {
-  if (actual === expected) {
-    return { pass: true };
-  }
-
-  testResults.warnings++;
-  log('yellow', `⚠ ${testName}: ${field} mismatch`);
-  log('yellow', `  With daemon: ${JSON.stringify(withDaemon)}`);
-  log('yellow', `  Without daemon: ${JSON.stringify(withoutDaemon)}`);
-  log('yellow', `  Expected: ${JSON.stringify(expected)}`);
-  log('yellow', `  Actual: ${JSON.stringify(actual)}`);
-
-  return {
-    pass: false,
-    warning: true,
-    message: `${field} mismatch between daemon/no-daemon modes`,
-    withDaemon,
-    withoutDaemon,
-    expected,
-    actual
-  };
 }
 
 /**
@@ -245,10 +209,10 @@ function testIssueCreation() {
 }
 
 /**
- * Test suite for updating issues (daemon vs no-daemon)
+ * Test suite for updating issues
  */
 function testIssueUpdates() {
-  section('Issue Update Tests (Daemon vs No-Daemon Comparison)');
+  section('Issue Update Tests');
 
   // Create a test issue first
   const createResult = bdExec([
@@ -283,62 +247,27 @@ function testIssueUpdates() {
   ];
 
   for (const field of fieldsToTest) {
-    const testName = `Update ${field.jsonField}`;
-
-    // Test WITH daemon
-    let valueWithDaemon;
-    if (!noDaemonOnly) {
-      const withDaemonResult = bdExec(['update', issueId, field.flag, field.value], { noDaemon: false });
-      const afterDaemon = bdExec(['show', issueId]);
-      valueWithDaemon = afterDaemon.data?.[0]?.[field.jsonField];
-    }
-
-    // Test WITHOUT daemon
-    const withoutDaemonResult = bdExec(['update', issueId, field.flag, field.value], { noDaemon: true });
-    const afterNoDaemon = bdExec(['show', issueId, '--no-daemon']);
-    const valueWithoutDaemon = afterNoDaemon.data?.[0]?.[field.jsonField];
-
-    // Compare results
     const expected = field.expectedValue !== undefined ? field.expectedValue : field.value;
 
-    test(testName, () => {
-      const daemonMatch = noDaemonOnly || valueWithDaemon === expected ||
-                         (field.jsonField === 'due_at' && valueWithDaemon && valueWithDaemon.includes(field.value)) ||
-                         (field.jsonField === 'defer_until' && valueWithDaemon && valueWithDaemon.includes(field.value));
-      const noDaemonMatch = valueWithoutDaemon === expected ||
-                           (field.jsonField === 'due_at' && valueWithoutDaemon && valueWithoutDaemon.includes(field.value)) ||
-                           (field.jsonField === 'defer_until' && valueWithoutDaemon && valueWithoutDaemon.includes(field.value));
-
-      if (daemonMatch && noDaemonMatch) {
-        return { pass: true };
+    test(`Update ${field.jsonField}`, () => {
+      const updateResult = bdExec(['update', issueId, field.flag, field.value]);
+      if (!updateResult.success) {
+        return { pass: false, message: updateResult.error, expected };
       }
 
-      if (!noDaemonOnly && !daemonMatch && noDaemonMatch) {
-        return compareValues(
-          testName,
-          field.jsonField,
-          valueWithDaemon,
-          valueWithoutDaemon,
-          valueWithoutDaemon,
-          expected
-        );
-      }
+      const actual = bdExec(['show', issueId]).data?.[0]?.[field.jsonField];
 
-      if (daemonMatch && !noDaemonMatch) {
-        return {
-          pass: false,
-          message: `No-daemon mode failed to update ${field.jsonField}`,
-          valueWithDaemon,
-          valueWithoutDaemon
-        };
-      }
+      // bd normalises dates to a full timestamp, so the input is a prefix of
+      // what comes back rather than equal to it.
+      const isDateField = field.jsonField === 'due_at' || field.jsonField === 'defer_until';
+      const matches = actual === expected ||
+        (isDateField && typeof actual === 'string' && actual.includes(field.value));
 
       return {
-        pass: false,
-        message: `Both modes failed to update ${field.jsonField}`,
-        valueWithDaemon,
-        valueWithoutDaemon,
-        expected
+        pass: matches,
+        message: matches ? undefined : `${field.jsonField} did not take the update`,
+        expected,
+        actual
       };
     });
   }
@@ -381,8 +310,8 @@ function testDateTimeFormats() {
       const hasDueAt = showResult.data?.[0]?.due_at !== undefined;
 
       // Try update with same format
-      const updateResult = bdExec(['update', issueId, '--due', format.input], { noDaemon: true });
-      const afterUpdate = bdExec(['show', issueId, '--no-daemon']);
+      bdExec(['update', issueId, '--due', format.input]);
+      const afterUpdate = bdExec(['show', issueId]);
       const stillHasDueAt = afterUpdate.data?.[0]?.due_at !== undefined;
 
       return {
@@ -495,14 +424,11 @@ function generateReport() {
     }
 
     if (warnings.length > 0) {
-      report += `### Warnings (Daemon vs No-Daemon Discrepancies)\n\n`;
+      report += `### Warnings\n\n`;
       warnings.forEach(t => {
         report += `#### ${t.name}\n\n`;
         report += `- **Status:** ⚠ Warning\n`;
-        report += `- **Issue:** Behavior differs between daemon and no-daemon modes\n`;
         if (t.message) report += `- **Message:** ${t.message}\n`;
-        if (t.withDaemon !== undefined) report += `- **With Daemon:** \`${JSON.stringify(t.withDaemon)}\`\n`;
-        if (t.withoutDaemon !== undefined) report += `- **Without Daemon:** \`${JSON.stringify(t.withoutDaemon)}\`\n`;
         report += `\n`;
       });
     }
@@ -514,14 +440,6 @@ function generateReport() {
     report += `${i + 1}. ${icon} **${t.name}**\n`;
   });
 
-  report += `\n## Recommendations\n\n`;
-  if (warnings.length > 0) {
-    report += `The following issues should be reported to the bd CLI maintainers:\n\n`;
-    report += `1. **Daemon Mode Inconsistencies:** Several fields behave differently when using the daemon vs direct database access.\n`;
-    report += `2. **Affected Fields:** ${warnings.map(w => w.name).join(', ')}\n`;
-    report += `3. **Workaround:** Use \`--no-daemon\` flag for reliable updates.\n\n`;
-  }
-
   fs.writeFileSync(REPORT_FILE, report);
   log('green', `Report written to: ${REPORT_FILE}`);
 
@@ -532,16 +450,9 @@ function generateReport() {
  * Main test execution
  */
 function main() {
-  const args = process.argv.slice(2);
-  noDaemonOnly = args.includes('--no-daemon-only');
-
   log('cyan', '\n╔════════════════════════════════════════════════════════════╗');
   log('cyan', '║          BD CLI Comprehensive Validation Tests              ║');
   log('cyan', '╚════════════════════════════════════════════════════════════╝\n');
-
-  if (noDaemonOnly) {
-    log('yellow', 'Running in no-daemon-only mode\n');
-  }
 
   workspace = createScratchWorkspace('bdcli');
   log('blue', `Scratch workspace: ${workspace.dir}\n`);

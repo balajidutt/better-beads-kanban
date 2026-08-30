@@ -100,7 +100,7 @@ function extractIssueId(raw, data) {
 
 // Get issue details via bd show
 function getIssue(id) {
-  const result = bdExec(['show', id, '--no-daemon']);
+  const result = bdExec(['show', id]);
   if (Array.isArray(result.data)) {
     return result.data[0];
   }
@@ -151,7 +151,7 @@ function verifyRoundTrip(testName, createData, expectedValues, skipUpdate = fals
 
   try {
     // Step 1: Create issue
-    const args = ['create', '--no-daemon'];
+    const args = ['create'];
 
     if (createData.title) args.push('--title', createData.title);
     if (createData.description) args.push('--description', createData.description);
@@ -174,7 +174,7 @@ function verifyRoundTrip(testName, createData, expectedValues, skipUpdate = fals
 
     // If non-default status, update it
     if (createData.status && createData.status !== 'open') {
-      bdExec(['update', issueId, '--no-daemon', '--status', createData.status], { expectJson: false });
+      bdExec(['update', issueId, '--status', createData.status], { expectJson: false });
     }
 
     // Step 2: Read it back
@@ -206,7 +206,7 @@ function verifyRoundTrip(testName, createData, expectedValues, skipUpdate = fals
 
     // Step 4: Update the issue with new values (if not skipped)
     if (!skipUpdate) {
-      const updateArgs = ['update', issueId, '--no-daemon'];
+      const updateArgs = ['update', issueId];
       const updateData = {};
       const updateExpected = {};
 
@@ -332,7 +332,7 @@ function runRoundTripTests() {
     {
       title: 'Title with "quotes" and \'apostrophes\'',
       description: 'Symbols: @#$%^&*()_+-=[]{}|;:,.<>?',
-      notes: 'Backslashes \\\\ and slashes /' // bd CLI double-escapes backslashes
+      notes: 'Backslashes \\ and slashes /'
     }
   );
 
@@ -341,12 +341,10 @@ function runRoundTripTests() {
     {
       title: '  Leading and trailing spaces  ',
       description: 'Line1\nLine2\nLine3'
-      // Note: bd CLI doesn't preserve notes field with special whitespace chars
     },
     {
-      title: '  Leading and trailing spaces  ', // bd preserves leading/trailing spaces
-      description: 'Line1' // bd CLI only stores first line for description
-      // notes field omitted from expectations as bd doesn't preserve it reliably
+      title: '  Leading and trailing spaces  ',
+      description: 'Line1\nLine2\nLine3'
     }
   );
 
@@ -612,7 +610,7 @@ function generateReport() {
 
   markdown += `## Notes\n\n`;
   markdown += `- Each test creates an issue, reads it back, updates it, and reads again\n`;
-  markdown += `- All tests use --no-daemon to avoid daemon bugs\n`;
+  markdown += `- All tests run against a throwaway bd workspace under the OS temp directory\n`;
   markdown += `- Tests verify exact field value preservation\n`;
   markdown += `- Date fields allow timezone variations but require date part match\n`;
   markdown += `- Test issues are automatically cleaned up after each test\n`;

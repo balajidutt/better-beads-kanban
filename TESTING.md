@@ -103,6 +103,9 @@ the event loop to run a handler. The next run sweeps any `bbk-test-*` directory 
 owning process is gone, so a leak costs one stale directory rather than accumulating, and
 running two of these scripts at once is safe.
 
+Some suites have known failures unrelated to the harness — see `bbk-jeq`, `bbk-jca` and
+`bbk-bah`. `npm run test:all` currently reports 140/147.
+
 `npm run test:all` writes a `test-summary.md` at the repo root. That file is a local
 artifact and is gitignored — do not commit it.
 

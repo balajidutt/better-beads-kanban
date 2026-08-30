@@ -52,9 +52,8 @@ const testResults = {
 /**
  * Execute bd command and return parsed JSON output
  */
-function bdExec(args, { expectJson = true, noDaemon = false } = {}) {
+function bdExec(args, { expectJson = true } = {}) {
   const cmdArgs = [...workspace.bdArgs, ...args];
-  if (noDaemon) cmdArgs.push('--no-daemon');
   if (expectJson && !cmdArgs.includes('--json')) cmdArgs.push('--json');
 
   const result = spawnSync(BD, cmdArgs, SPAWN_DEFAULTS);
@@ -180,10 +179,7 @@ function adapterCreateIssue(input) {
  * (Calls bd CLI with same logic as DaemonBeadsAdapter)
  */
 function adapterUpdateIssue(id, input) {
-  // Use --no-daemon when updating date fields due to daemon bug with --due/--defer
-  const hasDateUpdate = (input.due_at !== undefined) || (input.defer_until !== undefined);
   const args = ['update', id];
-  if (hasDateUpdate) args.push('--no-daemon');
 
   if (input.title !== undefined) args.push('--title', input.title);
   if (input.description !== undefined) args.push('--description', input.description);
@@ -677,7 +673,7 @@ function generateReport() {
   report += `| notes | ✓ | ✓ | ✓ | ✅ |\n`;
 
   report += `\n## Notes\n\n`;
-  report += `- Tests use daemon mode for most operations, but --no-daemon for date field updates due to bd daemon bug with --due/--defer flags\n`;
+  report += `- Tests run against a throwaway bd workspace under the OS temp directory\n`;
   report += `- Date/time fields tested with both simple date format (YYYY-MM-DD) and ISO 8601 format\n`;
   report += `- Special characters test skipped due to shell escaping limitations in test harness\n`;
   report += `- Edge cases include: null assignee, empty strings, multi-field updates\n`;
