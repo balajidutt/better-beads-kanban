@@ -89,7 +89,7 @@ package-log.txt
 scripts/**
 
 # Source Images (keep images/ used by README/icon)
-Beads-Kanban-Logo2.png
+images/icon.svg
 # Exclude root-level screenshots (keep only images/ folder)
 Screenshot*.jpg
 Screenshot*.png

@@ -39,6 +39,10 @@ Press `F5` in VS Code to launch the Extension Development Host, then run
 `scripts/seed-test-data.sh` populates a `.beads` database with representative issues
 to develop against.
 
+The extension icon is authored in `images/icon.svg`. `npm run build-icon` renders it
+to `images/icon.png`, which is the file `package.json` points at. Edit the SVG and
+regenerate; never edit the PNG by hand.
+
 ## Development Workflow
 
 ### Branches
