@@ -1905,9 +1905,7 @@ export class DaemonBeadsAdapter {
         throw new Error('Invalid dependency type');
       }
 
-      // Flags MUST come before '--'; bd treats anything after '--' as positional,
-      // so placing --type after the separator silently falls back to the default
-      // 'blocks' type (see CLAUDE.md "CLI Argument Ordering").
+      // bd treats everything after '--' as positional; keep flags before it.
       await this.execBd(['dep', 'add', '--type', type, '--', issueId, dependsOnId]);
 
       // Track mutation and invalidate cache

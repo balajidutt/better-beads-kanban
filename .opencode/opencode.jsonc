@@ -1,0 +1,347 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "default_agent": "build",
+  "instructions": [
+    ".opencode/instructions/development-lifecycle.md"
+  ],
+  "plugin": [
+    ["@plannotator/opencode@0.27.14", {
+      "workflow": "user-managed",
+      "runtime": "cli",
+      "planningAgents": [
+        "plan",
+        "plan-GPT-xhigh",
+        "special-builder",
+        "agent-engineer"
+      ]
+    }]
+  ],
+  "permission": {
+    "read": "deny",
+    "external_directory": "deny",
+    "bash": "deny",
+    "edit": "deny",
+    "doom_loop": "deny",
+    "*": "deny"
+  },
+  "agent": {
+    "plan": {
+      "mode": "primary",
+      "hidden": false,
+      "options": { "reasoningEffort": "high" },
+      "permission": {
+        "read": { "*": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny", "**/.ssh/**": "deny", "**/auth.json": "deny", "**/.beads/**": "deny" },
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "edit": "deny",
+        "external_directory": "deny",
+        "bash": {
+          "*": "deny",
+          "git rev-parse *": "allow",
+          "git branch --show-current": "allow",
+          "git --no-optional-locks -c core.fsmonitor=false status": "allow",
+          "git --no-optional-locks -c core.fsmonitor=false status *": "allow",
+          "git diff --no-ext-diff --no-textconv": "allow",
+          "git diff --no-ext-diff --no-textconv --cached": "allow",
+          "git log --oneline -10": "allow",
+          "command bd -C * --readonly show *": "ask",
+          "command bd -C * --readonly ready *": "ask",
+          "command bd -C * --readonly list *": "ask"
+        },
+        "task": { "*": "deny", "plan-reviewer": "allow", "test-strategist": "allow", "code-reviewer": "allow" },
+        "skill": "deny",
+        "question": "allow",
+        "submit_plan": "allow",
+        "webfetch": "deny",
+        "websearch_cited": "deny",
+        "codesearch": "deny",
+        "doom_loop": "deny"
+      }
+    },
+    "build": {
+      "mode": "primary",
+      "hidden": false,
+      "permission": {
+        "read": { "*": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny", "**/.ssh/**": "deny", "**/auth.json": "deny", "**/.beads/**": "deny" },
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "edit": "deny",
+        "bash": "deny",
+        "external_directory": "deny",
+        "task": {
+          "*": "deny",
+          "plan-reviewer": "allow",
+          "beads-manager": "allow",
+          "code-reviewer": "allow",
+          "typescript-specialist": "allow",
+          "webview-specialist": "allow",
+          "test-strategist": "allow",
+          "ci-build-engineer": "allow",
+          "release-manager": "allow"
+        },
+        "skill": { "*": "deny", "unslop-commit": "allow" },
+        "question": "allow",
+        "submit_plan": "deny",
+        "webfetch": "deny",
+        "websearch_cited": "deny",
+        "codesearch": "deny",
+        "doom_loop": "deny"
+      }
+    },
+    "plan-reviewer": {
+      "model": "anthropic/claude-opus-5",
+      "variant": "high",
+      "permission": {
+        "*": "deny",
+        "read": { "*": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny", "**/.ssh/**": "deny", "**/auth.json": "deny", "**/.beads/**": "deny" },
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "bash": {
+          "*": "deny",
+          "git --no-optional-locks -c core.fsmonitor=false status": "allow",
+          "git --no-optional-locks -c core.fsmonitor=false status *": "allow",
+          "git diff --no-ext-diff --no-textconv": "allow",
+          "git diff --no-ext-diff --no-textconv --cached": "allow",
+          "git log --oneline -10": "allow"
+        },
+        "edit": "deny",
+        "task": "deny",
+        "skill": "deny",
+        "external_directory": "deny"
+      }
+    },
+    "beads-manager": {
+      "model": "openai/gpt-5.6-terra",
+      "variant": "high",
+      "permission": {
+        "*": "deny",
+        "read": { "*": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny", "**/.ssh/**": "deny", "**/auth.json": "deny", "**/.beads/**": "deny" },
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "edit": "deny",
+        "task": "deny",
+        "skill": "deny",
+        "external_directory": "ask",
+        "bash": {
+          "*": "deny",
+          "git rev-parse *": "allow",
+          "git branch --show-current": "allow",
+          "command bd --help": "allow",
+          "command bd -C * --readonly show *": "ask",
+          "command bd -C * --readonly ready *": "ask",
+          "command bd -C * --readonly list *": "ask",
+          "command bd -C * --readonly history *": "ask",
+          "command bd -C * create *": "ask",
+          "command bd -C * update *": "ask",
+          "command bd -C * dep add *": "ask",
+          "command bd -C * dep remove *": "ask",
+          "command bd -C * close *": "ask",
+          "scripts/bd-sync.sh": "ask",
+          "scripts/bd-sync.sh --pull": "ask"
+        }
+      }
+    },
+    "code-reviewer": {
+      "model": "anthropic/claude-opus-5",
+      "variant": "high",
+      "permission": {
+        "*": "deny",
+        "read": { "*": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny", "**/.ssh/**": "deny", "**/auth.json": "deny", "**/.beads/**": "deny" },
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "edit": "deny",
+        "task": "deny",
+        "skill": "deny",
+        "external_directory": "deny",
+        "bash": {
+          "*": "deny",
+          "git --no-optional-locks -c core.fsmonitor=false status": "allow",
+          "git --no-optional-locks -c core.fsmonitor=false status *": "allow",
+          "git diff --no-ext-diff --no-textconv": "allow",
+          "git diff --no-ext-diff --no-textconv --cached": "allow",
+          "git diff --no-ext-diff --no-textconv --stat": "allow",
+          "git diff --no-ext-diff --no-textconv --cached --stat": "allow",
+          "git log --oneline -10": "allow"
+        }
+      }
+    },
+    "typescript-specialist": {
+      "model": "opencode-go/kimi-k3",
+      "variant": "max",
+      "permission": {
+        "*": "deny",
+        "read": { "*": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny", "**/.ssh/**": "deny", "**/auth.json": "deny", "**/.beads/**": "deny" },
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "edit": { "*": "deny", "src/extension.ts": "allow", "src/daemonBeadsAdapter.ts": "allow", "src/types.ts": "allow", "src/sanitizeError.ts": "allow", "src/markdownValidator.ts": "allow", "src/beadsWatch.ts": "allow", "src/beadsWorkspace.ts": "allow", "src/filterMarkup.ts": "allow", "src/filterUniverse.ts": "allow", "src/webview.ts": "allow", "src/test/**": "allow", "docs/development/extension-architecture.md": "allow", "TESTING.md": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny" },
+        "task": "deny",
+        "skill": "deny",
+        "external_directory": "deny",
+        "bash": { "*": "deny", "npm run lint": "ask", "npm run compile": "ask", "npm run verify": "ask", "npm test": "ask", "npm test -- *": "ask", "git diff --no-ext-diff --no-textconv": "allow" }
+      }
+    },
+    "webview-specialist": {
+      "model": "openai/gpt-6-astra",
+      "variant": "high",
+      "permission": {
+        "*": "deny",
+        "read": { "*": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny", "**/.ssh/**": "deny", "**/auth.json": "deny", "**/.beads/**": "deny" },
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "edit": { "*": "deny", "src/webview/**": "allow", "src/webview.ts": "allow", "media/**": "allow", "src/test/**": "allow", "scripts/visual-test-server.js": "allow", "docs/development/extension-architecture.md": "allow", "TESTING.md": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny" },
+        "task": "deny",
+        "skill": "deny",
+        "external_directory": "deny",
+        "bash": { "*": "deny", "npm run lint": "ask", "npm run compile": "ask", "npm run verify": "ask", "npm test": "ask", "npm test -- *": "ask", "node scripts/visual-test-server.js": "ask", "node scripts/visual-test-server.js *": "ask", "git diff --no-ext-diff --no-textconv": "allow" }
+      }
+    },
+    "test-strategist": {
+      "model": "anthropic/claude-opus-5",
+      "variant": "high",
+      "permission": {
+        "*": "deny",
+        "read": { "*": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny", "**/.ssh/**": "deny", "**/auth.json": "deny", "**/.beads/**": "deny" },
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "edit": "deny",
+        "task": "deny",
+        "skill": "deny",
+        "external_directory": "deny",
+        "bash": { "*": "deny", "git diff --no-ext-diff --no-textconv": "allow", "git diff --no-ext-diff --no-textconv --cached": "allow" }
+      }
+    },
+    "ci-build-engineer": {
+      "model": "opencode-go/deepseek-v4-pro",
+      "variant": "high",
+      "temperature": 0.2,
+      "permission": {
+        "*": "deny",
+        "read": { "*": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny", "**/.ssh/**": "deny", "**/auth.json": "deny", "**/.beads/**": "deny" },
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "edit": {
+          "*": "deny",
+          ".github/workflows/**": "allow",
+          "scripts/**": "allow",
+          "assets/**": "allow",
+          "configs/**": "allow",
+          "tests/tooling/**": "allow",
+          "package.json": "allow",
+          "package-lock.json": "allow",
+          "tsconfig.json": "allow",
+          ".vscodeignore": "allow",
+          ".gitignore": "allow",
+          ".opencode/plugins/**": "allow",
+          ".opencode/opencode-tooling.config.jsonc": "allow",
+          ".opencode/package.json": "allow",
+          ".opencode/bun.lock": "allow",
+          "docs/development/github-worktree-merge.md": "allow",
+          "docs/development/tooling-provenance.md": "allow",
+          "THIRD_PARTY_NOTICES.md": "allow",
+          "LICENSES/**": "allow",
+          "CONTRIBUTING.md": "allow",
+          "TESTING.md": "allow",
+          "RELEASING.md": "allow",
+          "*.env": "deny",
+          "*.env.*": "deny",
+          "**/.env*": "deny"
+        },
+        "task": "deny",
+        "skill": { "*": "deny", "worktree-merge": "allow", "unslop-commit": "allow" },
+        "external_directory": "ask",
+        "bash": {
+          "*": "deny",
+          "git --no-optional-locks -c core.fsmonitor=false status": "allow",
+          "git --no-optional-locks -c core.fsmonitor=false status *": "allow",
+          "git diff --no-ext-diff --no-textconv": "allow",
+          "git diff --no-ext-diff --no-textconv --cached": "allow",
+          "git diff --no-ext-diff --no-textconv --cached | grep -E '^\\+.*(#|//|/\\*)'": "ask",
+          "grep -E '^\\+.*(#|//|/\\*)'": "ask",
+          "git log --oneline -10": "allow",
+          "git worktree list --porcelain": "allow",
+          "git rev-parse *": "allow",
+          "npm run lint": "ask",
+          "npm run compile": "ask",
+          "npm run verify": "ask",
+          "npm test": "ask",
+          "npm run test:tooling": "ask",
+          "npm run test:tooling:python": "ask",
+          "npm ci --ignore-scripts": "ask",
+          "bun install --frozen-lockfile --ignore-scripts": "ask",
+          "node --test tests/tooling/*": "ask",
+          "python3 -m unittest discover *": "ask",
+          "npx --no-install vsce ls --no-dependencies": "ask",
+          "git add -- *": "ask",
+          "oc-commit *": "ask",
+          "git log -1 *": "ask",
+          "git push origin main": "ask",
+          "git push origin refs/tags/v*": "ask",
+          "*agent-wt-merge*": "ask",
+          "*agent-wt-merge*--close-beads*": "deny"
+        }
+      }
+    },
+    "release-manager": {
+      "model": "openai/gpt-6-astra",
+      "variant": "high",
+      "permission": {
+        "*": "deny",
+        "read": { "*": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny", "**/.ssh/**": "deny", "**/auth.json": "deny", "**/.beads/**": "deny" },
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "edit": { "*": "deny", "CHANGELOG.md": "allow", "package.json": "allow", "package-lock.json": "allow", "src/webview.ts": "allow", "RELEASING.md": "allow" },
+        "task": "deny",
+        "skill": "deny",
+        "external_directory": "ask",
+        "bash": {
+          "*": "deny",
+          "git rev-parse *": "allow",
+          "git --no-optional-locks -c core.fsmonitor=false status": "allow",
+          "git --no-optional-locks -c core.fsmonitor=false status *": "allow",
+          "git diff --no-ext-diff --no-textconv": "allow",
+          "git log --oneline -10": "allow",
+          "command bd -C * --readonly show *": "ask",
+          "command bd -C * --readonly ready *": "ask",
+          "npm run release:bump -- *": "ask",
+          "npm run lint": "ask",
+          "npm test": "ask",
+          "npm run compile": "ask",
+          "scripts/build-local-vsix.sh": "ask",
+          "*release-fork-vsix.sh*": "ask"
+        }
+      }
+    },
+    "agent-engineer": {
+      "permission": {
+        "read": { "*": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny", "**/.ssh/**": "deny", "**/auth.json": "deny", "**/.beads/**": "deny" },
+        "glob": "allow",
+        "grep": "allow",
+        "list": "allow",
+        "question": "allow",
+        "submit_plan": "allow",
+        "external_directory": "ask",
+        "skill": {
+          "*": "deny",
+          "agent-engineer": "allow",
+          "customize-opencode": "allow",
+          "prompt-optimizer": "allow",
+          "prompt-engineer": "allow",
+          "prompt-evaluator": "allow",
+          "skill-creator": "allow",
+          "skill-reviewer": "allow",
+          "plugin-developer": "allow"
+        }
+      }
+    }
+  }
+}

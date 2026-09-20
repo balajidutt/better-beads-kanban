@@ -222,7 +222,7 @@ npm run test:adapter
 - **Data Adapter** (`src/daemonBeadsAdapter.ts`): CLI-based daemon adapter for all database operations
 - **Webview UI** (`src/webview/board.js`, `src/webview/treeBuilder.ts`, `media/styles.css`): reactive UI with incremental loading
 
-See [CLAUDE.md](CLAUDE.md) for detailed architecture documentation.
+See the [extension architecture reference](https://github.com/balajidutt/better-beads-kanban/blob/main/docs/development/extension-architecture.md) for detailed architecture documentation.
 
 ## Visual Testing
 

@@ -34,8 +34,8 @@ Tested on: <!-- Windows / macOS / Linux, plus VS Code and `bd --version` -->
 ## Checklist
 
 - [ ] New behaviour has a test; bug fixes have a regression test
-- [ ] Docs updated if this changed architecture (`CLAUDE.md`) or user-facing behaviour (`README.md`)
-- [ ] Read the Security Rules section of `CLAUDE.md` if this touches `innerHTML`, a webview
+- [ ] Docs updated if this changed [architecture](https://github.com/balajidutt/better-beads-kanban/blob/main/docs/development/extension-architecture.md) or user-facing behaviour (`README.md`)
+- [ ] Read [Security and correctness](https://github.com/balajidutt/better-beads-kanban/blob/main/AGENTS.md#security-and-correctness) if this touches `innerHTML`, a webview
       message handler, `execBd` arguments, or error text
 
 <!-- Do not add a CHANGELOG.md entry. Entries are written at release-cut time

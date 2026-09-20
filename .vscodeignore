@@ -39,6 +39,7 @@ SHA256SUMS
 # being git-ignored does not keep it out of the VSIX — settings.local.json
 # shipped in every build up to 2.1.4-bd.5, carrying absolute local paths.
 .claude/**
+.opencode/**
 .plannotator/**
 
 # Git worktrees created by orchestrator workflows live at
@@ -62,6 +63,7 @@ CONTRIBUTING.md
 RELEASING.md
 SECURITY.md
 TESTING.md
+docs/development/**
 
 # Build & Test Config
 .node-version

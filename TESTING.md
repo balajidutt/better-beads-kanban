@@ -17,9 +17,12 @@ This document describes the testing infrastructure for the Better Beads Kanban V
 `npm test` runs the VS Code extension tests via `@vscode/test-cli`, which downloads a
 real VS Code build and runs the suites under `out/test/suite/`.
 
-`npm run verify` is the full gate — `tsc --noEmit`, then `eslint`, then the suite. That
-is what `scripts/release-fork-vsix.sh` runs before packaging, so it is the thing to run
-before claiming work is done.
+`npm run verify` runs `tsc --noEmit`, then `eslint`, then the suite. Run
+`npm run compile` separately for the production extension-host bundle. The test
+prestep emits TypeScript and builds the webview; it does not exercise the shipped
+esbuild extension-host bundle. Current lint/typechecking does not cover the
+substantial vanilla-JavaScript UI. Report each evidence boundary rather than a
+single undifferentiated “verified” result.
 
 ### Why `--user-data-dir` points outside the project
 
@@ -28,8 +31,9 @@ dir. That line is load-bearing: without it `npm test` cannot run from any git wo
 
 VS Code opens its IPC socket inside the user-data dir, and macOS caps Unix domain socket
 paths at 103 characters. Left alone, `@vscode/test-electron` puts that dir at
-`<project>/.vscode-test/user-data`, so the socket path grows with the project path — 86
-characters from the main checkout, 129 from a worktree under `.claude/worktrees/`. Past
+`<project>/.vscode-test/user-data`, so the socket path grows with the project path —
+historical measurements were 86 characters from main and 129 from a worktree under
+`.claude/worktrees/`. Past
 the cap it fails with `listen EINVAL: invalid argument` before a single test runs,
 preceded by `WARNING: IPC handle ... is longer than 103 chars`.
 
@@ -45,12 +49,12 @@ The downloaded VS Code build is a separate cache and still lives in each checkou
 ### The bd fixture
 
 `src/test/suite/daemonAdapter.test.ts` exercises `DaemonBeadsAdapter` against a real
-`bd` CLI, so it needs a real database. The suite builds a throwaway one in
-`.test-workspace/` (gitignored):
+`bd` CLI, so it needs a real database. The suite builds a throwaway one under the
+OS temporary directory, outside the repository's shared backlog:
 
 - `bd init --non-interactive --prefix bktest` creates an embedded Dolt database.
   No external dolt server is required.
-- A handful of issues are seeded through the adapter itself, spread across
+- A handful of issues are seeded directly through the CLI, spread across
   `open` / `in_progress` / `blocked` / `closed`, so the board assertions have data
   to check rather than short-circuiting on an empty board.
 - The fixture is removed in `suiteTeardown`.
@@ -72,9 +76,11 @@ to build its fixtures through the `bd` CLI, as the test suite above now does.
 **The suite uses Mocha's `tdd` interface: `suite()` and `test()`, with node's built-in
 `assert`.** This is set by `ui: 'tdd'` in `.vscode-test.mjs` and `src/test/suite/index.ts`.
 
-Do not use `describe()` / `it()`, and do not import `chai`. Both `chai` and `sinon`
-are present in `devDependencies` for historical reasons, but no test file imports
-either — a test written against them will not register and will silently not run.
+Do not use `describe()` / `it()` in these TDD suites. Node `assert` is the established
+assertion convention; existing tests also import Sinon for mocks. Assertion and
+mocking libraries do not determine how Mocha registers a suite. Inspect supported
+runner options before selecting a subset; do not routinely edit the committed
+test runner to filter tests.
 
 Taken from `src/test/suite/messages.test.ts`:
 
@@ -91,7 +97,7 @@ suite('migrateUIState', () => {
 });
 ```
 
-Two rules that have earned their place (see also the Security Rules in `CLAUDE.md`):
+Two mandatory rules from [AGENTS.md](AGENTS.md#security-and-correctness):
 
 - **Assert the specific constraint named in the test title.** `assert.ok(x || !x)`
   always passes and has shipped here before.
@@ -125,7 +131,8 @@ the event loop to run a handler. The next run sweeps any `bbk-test-*` directory 
 owning process is gone, so a leak costs one stale directory rather than accumulating, and
 running two of these scripts at once is safe.
 
-`npm run test:all` reports 148/148.
+Report the actual current run's counts, skips and failures; a historical count is
+not a test result for a new checkout.
 
 `npm run test:all` writes a `test-summary.md` at the repo root. That file is a local
 artifact and is gitignored — do not commit it.
@@ -133,19 +140,11 @@ artifact and is gitignored — do not commit it.
 ### Running Tests
 
 ```bash
-# Full gate: typecheck, lint, extension suite
 npm run verify
-
-# Extension suite only
+npm run compile
 npm test
-
-# A specific integration script
 npm run test:adapter
-
-# All integration scripts
 npm run test:all
-
-# With coverage
 npm run test:coverage
 ```
 
@@ -161,9 +160,11 @@ Nothing in `npm test` renders the webview. Two interactive harnesses do:
 Reach for the standalone server first: it starts in seconds, serves on `localhost:3333`
 with CDP on 9222, and Chrome DevTools MCP can drive it. Reach for the VS Code harness
 when the host itself is the variable — theme variables, Electron rendering, the real
-`bd` data path. Pass it a workspace that already has `.beads` (the repo root works) so
-it does not seed a throwaway database. `--dataset=showcase` swaps the two adversarial
-title fixtures for ordinary ones when capturing screenshots.
+`bd` data path. For mutation tests, pass an approved isolated workspace, not this
+repo's backlog or another real project's issues. Read the harness's fixture and
+cleanup behavior before startup. `--dataset=showcase` on the standalone server
+swaps the two adversarial title fixtures for ordinary screenshot content. Browser
+mock evidence is not proof of actual Extension Host behavior.
 
 ### The standalone server duplicates the dialog markup
 
@@ -222,9 +223,10 @@ activates the extension. Three traps, each of which has already cost a debugging
 session.
 
 **You cannot open the F5 host's own workspace folder in the development host.**
-Testing this repo against this repo does not work, so reach for another folder:
-`dotfiles` when you need a real Beads database, a scratch directory when you need
-one *without* a database.
+Testing this repo against this repo does not work, so use another approved isolated
+folder: a disposable Beads workspace for mutation tests, or a scratch directory
+without a database for repository-discovery failure cases. Read-only inspection of
+a real backlog requires its own scope; it is not permission to seed or clean it.
 
 **`Add Folder to Workspace` keeps the extension host; `File > Open Folder`
 restarts it.** The output channel is the tell — a restart prints a second
@@ -244,7 +246,7 @@ are looking at a dead panel, not a bug. Tracked in the backlog.
 
 The automated suites do not touch the webview. Walk this before cutting a release
 (see [RELEASING.md](RELEASING.md)); `scripts/seed-test-data.sh` gives you a
-representative database to walk it against.
+representative database only within an explicitly approved isolated fixture scope.
 
 1. **Board load and filtering**
    - Board loads with the seeded dataset; column distribution looks right
@@ -292,9 +294,10 @@ representative database to walk it against.
 9. **Read-only mode**
    - Set `beadsKanban.readOnly` and confirm every mutation is blocked with feedback.
 
-10. **Daemon actions**
-    - Show status, list daemons, health check, restart, stop, logs.
-    - The status bar reflects the actual daemon state.
+10. **CLI availability and lifecycle**
+    - Verify the configured executable and CLI readiness/error paths.
+    - Exercise refresh, workspace changes and disposal separately from host restart.
+    - Do not substitute daemon-management commands for the CLI adapter's current probe.
 
 11. **Error handling**
     - Open a folder with no `.beads` directory and confirm the error is actionable.

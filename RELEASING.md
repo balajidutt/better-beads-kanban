@@ -7,6 +7,17 @@ GitHub release on `balajidutt/better-beads-kanban`. Upstream's Marketplace
 runbook was removed in bbk-vi1; if you find instructions anywhere that mention
 `vsce publish` or a publisher account, they are not this path.
 
+[AGENTS.md](AGENTS.md) owns shared approval and identity policy. OpenCode also reads
+its [release executor contract](.opencode/agents/release-manager.md). Preparation,
+real dry runs, publication, and backlog closure are distinct approvals. Examples
+below document procedures, not permission to execute them.
+
+**Rollout capability boundary:** the existing helper does not yet implement the
+approved Beads-aware preflight and historical-source targeting contract. Until
+that work lands, OpenCode's expanded stable-release executor must stop rather than
+substitute an older unguarded path. The helper examples below show current syntax;
+do not pass a prospective `--release-issue` option before the implementation exists.
+
 ## Accounts and remotes
 
 The repo is owned by the `balajidutt` GitHub account, which is separate from the
@@ -25,7 +36,9 @@ account `gh` is normally logged in as. Two consequences:
 
 ## How the backlog maps to a release
 
-**No bead carries a version number.** Not a label, not a title, not a field.
+**Initial scope is versionless.** Do not preassign a release number in labels,
+titles or fields. The release task is retitled only after changelog-derived version
+selection below.
 
 The semver level is an output of a release, not an input. You cannot know whether
 a fix is a patch or a minor until you know what shipped alongside it and whether
@@ -38,13 +51,18 @@ So scope lives in the dependency graph instead:
 **1. The release is a bead.** Title it generically while the number is unknowable.
 
 ```bash
-bd create --type=task --priority=1 --title="Cut the next release"
+command bd -C "/absolute/main-checkout" create --type=task --priority=1 --title="Cut the next release"
 ```
+
+Replace the path with the verified shared main checkout; do not initialize a
+worktree database. OpenCode routes these approved writes through beads-manager.
+Keep the release task **open and unclaimed** through preparation/publication:
+`in_progress` is excluded from `bd ready`.
 
 **2. Issues in scope get an edge into it.** The release depends on the work.
 
 ```bash
-bd dep add <release-id> <issue-id>    # release depends on issue
+command bd -C "/absolute/main-checkout" dep add <release-id> <issue-id>
 ```
 
 Add these as you decide, one at a time. Re-scoping is `bd dep remove`, not a
@@ -58,15 +76,18 @@ A release bead with no edges appears in `bd ready` immediately. That reads as
 "ship now" but means "scope undecided", so attach at least one edge when you
 create it.
 
-**4. At cut time, write the CHANGELOG entry from the `blocks` list.** That list
-*is* the scope, so the entry is not reconstructed from `git log`. Writing it
+**4. At cut time, write the CHANGELOG entry from the release's blocking dependencies.**
+Verify the installed CLI's JSON shape; inspected `bd show` output uses `dependencies`
+records with `dependency_type: blocks`. Do not reverse the relationship or assume
+a field named `blocks` contains the scope.
+The dependency graph defines scope rather than `git log` alone. Writing the entry
 tells you the level: breaking change → major, new capability → minor, fixes only
 → patch.
 
 **5. Now the number exists. Retitle.**
 
 ```bash
-bd update <release-id> --title="Cut the 2.2.1 release"
+command bd -C "/absolute/main-checkout" update <release-id> --title="Cut the X.Y.Z release"
 ```
 
 **6. Bump and ship** (next section).
@@ -80,6 +101,35 @@ Parent-child drives the Tree view's hierarchy (`src/webview/treeBuilder.ts`),
 where it means work decomposition. A release epic parenting unrelated bugs would
 overload that structure with a second, unrelated axis. Use `blocks`.
 
+### Readiness, source selection and verification obligations
+
+A nonempty designated release task appearing in `bd ready --json --limit 0` is the
+signal to begin preparation. Do not require the yet-to-be-derived version, title
+or CHANGELOG heading before preparation can start. Missing or ambiguous release
+designation requires a human decision, not selection by recency.
+
+Preparation changes must receive review, verification and main landing before
+selecting the final publication source. The selected full SHA may be the current
+fork remote-main tip **or an older ancestor**, including a detached source checkout.
+It must already contain the matching prepared metadata and scoped work. Reconcile
+ordinary repository history/diffs against the release scope; closed issues and
+ancestry alone do not prove that an older source includes every scoped change.
+Never silently remove dependencies to make the source appear ready.
+
+Require a fresh remote-main query and local ancestry proof. Missing history stops
+the operation; it does not authorize an automatic fetch, merge or push. Publication
+approval names repository, full SHA, version, tag, Latest promotion, assets,
+reviewed scope and remaining pre/postpublication obligations. Recheck near
+publication and renew approval if those approved fields change. These are
+point-in-time checks, not an atomic remote transaction or per-issue attestation.
+
+Some tests genuinely need a release artifact. An explicit approved transfer records
+that obligation on the release task as a publication or postpublication condition;
+the implementation issue can then close after its ordinary verification and main
+landing. Do not create a cycle where the release waits for a task whose only
+remaining check needs the release. Prepublication-capable checks still run before
+publication; genuine published-artifact checks must pass before release closeout.
+
 ### When to cut
 
 There is no auto-update for a GitHub-release VSIX — every release costs a manual
@@ -91,19 +141,20 @@ bd.5 was pure repackaging; that is the failure mode.
 
 ### Preconditions
 
-`scripts/release-fork-vsix.sh` refuses to run unless all of these hold, so check
-them first rather than discovering them halfway:
+The existing `scripts/release-fork-vsix.sh` checks the following before packaging.
+These implementation checks are narrower than the required release policy above:
 
 - Working tree is clean.
-- `HEAD` is pushed to a remote — the tag must point at a commit others can fetch.
+- A cached remote-tracking branch contains `HEAD`; this is not fresh proof of fork-main ancestry.
 - The tag `v<version>` exists neither locally nor on the GitHub repo.
 - `gh` is installed.
 - The version in `package.json` is `X.Y.Z` or `X.Y.Z-bd.N`.
 
 Not enforced, but required anyway: `gh` must be *authenticated*, and `node`,
 `npx`, and `shasum` or `sha256sum` must be available (the checksum tools are
-checked only at the point of use, after packaging). Release from `main` — that is
-convention, not a guard; nothing stops you tagging a release off a branch.
+checked only at the point of use, after packaging). Use a source reachable from the
+fork's remote main under the policy above. The branch label alone is insufficient;
+the existing helper does not yet mechanically enforce all source/scope conditions.
 
 ### 1. Write the CHANGELOG entry first
 
@@ -133,9 +184,12 @@ must change the other.
 bash scripts/release-fork-vsix.sh --dry-run
 ```
 
-Verifies, packages, and checksums without publishing. Confirm the emitted `TAG`
-and `ASSET` look right, and that the package lands in 35–40 files and
-1.25–1.35 MB. A count in the hundreds means the bundler regressed. A drift of a
+Verifies, packages, and checksums without publishing, but creates local outputs and
+temporarily switches GitHub identity; it is not read-only and needs separate approval.
+Confirm the emitted `TAG` and `ASSET` look right. Historical packages were around
+35–40 files and 1.25–1.35 MB; these are reference observations, not current test results.
+Inspect the actual listing for unintended internal files and missing extension assets.
+A count in the hundreds can indicate a bundling regression. A drift of a
 file or two past the edges usually means something was legitimately added and
 these bounds need widening, which is worth a moment's thought rather than a
 shrug.
@@ -163,26 +217,38 @@ downloading the VSIX to hash it. Keep uploading it.
 > `release-fork-vsix.sh` does its own verify and package; running both just
 > packages twice and can leave a stray VSIX behind.
 
-### 5. Close the release bead
-
-Record the published sha256 in the close reason, so the release is traceable from
-the backlog later:
-
-```bash
-bd close <release-id> --reason="Released vX.Y.Z from <sha>. Published asset sha256: <sha256>."
-```
-
 The script also prints a pin block — tag, asset name, sha256, version — for
 anyone installing this release from a pinned reference rather than from the
 releases page. Nothing in this repo consumes those values.
 
-### 6. Verify the release landed
+### 5. Verify publication and account restoration
 
 ```bash
 gh release view vX.Y.Z --repo balajidutt/better-beads-kanban
 ```
 
-Check the tag resolves to the commit you built, `Latest` is set, and both assets
-are attached. Also check the release author is `balajidutt` — the script's guard
-should make that automatic, and an author of anything else means the guard was
-bypassed and the release needs deleting and recreating.
+Check the tag resolves to the approved source SHA, `Latest` is set, both expected
+assets are attached, and the published VSIX checksum matches the published manifest.
+Verify the release author is `balajidutt` and the previous GitHub account was
+restored; a trap's presence is not proof of restoration. Complete any transferred
+postpublication checks. If upload, verification or restoration partly fails,
+report actual state and stop; do not blindly republish, delete or recreate a release.
+
+### 6. Close the release task
+
+Only after the preceding evidence and remaining obligations pass, obtain closure
+approval with a reason recording tag, source SHA and the actual published checksum.
+OpenCode delegates that approved closure to beads-manager:
+
+```bash
+command bd -C "/absolute/main-checkout" close <release-id> --reason="Released vX.Y.Z from <full-sha>. Published asset sha256: <sha256>."
+```
+
+### Local iteration is a separate lane
+
+`scripts/build-local-vsix.sh` produces a branch/SHA-marked local VSIX and temporarily
+edits `package.json` while packaging. Approve those editing/build effects and use an
+editing executor, not non-editing build. A blocked stable release task does not block
+this local lane. Upload and prerelease selection remain manual; no new automated
+upload or naming scheme is defined here. A local build or manual test upload does
+not close the stable release task.

@@ -8,14 +8,14 @@ open an issue first rather than building it and hoping.
 
 ### Prerequisites
 
-- Node.js 20 or higher (CI uses 22, per `.node-version`)
+- Node.js 20 or higher (`.node-version` selects 22; CI covers Node 20 and 22)
 - VS Code 1.90 or higher
 - Git
 - [Beads CLI](https://github.com/gastownhall/beads) (`bd`) on `PATH`, or configured via
   the `beadsKanban.bdPath` setting
 
 The extension shells out to `bd` for everything. Without it, the board cannot load and
-most of the test suite skips.
+the CLI-dependent integration suite skips; other suites still run.
 
 ### Fork, clone, install
 
@@ -29,15 +29,18 @@ npm install
 ### Build and run
 
 ```bash
-npm run compile      # bundle extension host + webview, copy deps
-npm run watch        # rebuild on change
+npm run compile
+npm run watch
 ```
+
+Compile builds the extension host and webview and copies dependency assets. Watch
+rebuilds only the extension-host bundle; rebuild webview changes separately.
 
 Press `F5` in VS Code to launch the Extension Development Host, then run
 **Beads: Open Kanban Board**.
 
-`scripts/seed-test-data.sh` populates a `.beads` database with representative issues
-to develop against.
+Read the seeding/cleanup scripts before using them and target an approved isolated
+test database, never the repository's real backlog. See [TESTING.md](TESTING.md).
 
 The extension icon is authored in `images/icon.svg`. `npm run build-icon` renders it
 to `images/icon.png`, which is the file `package.json` points at. Edit the SVG and
@@ -62,20 +65,82 @@ docs(readme): update installation instructions
 
 Types in use: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `perf`.
 
+### Portable commit attribution
+
+Ordinary human-authored contributions use the contributor's own Git identity. The
+following guidance is for commits executed on behalf of an AI harness, not a demand
+that every contributor install the maintainer's dotfiles.
+
+Prefer `oc-commit` for OpenCode and `cc-commit` for Claude Code when those wrappers
+are available. They are not included in this repository. Their current installed
+implementations also process optional attestation handoffs and trailers; the
+fallback below deliberately preserves **only author and committer identity**.
+
+Before committing, obtain approval of the intended files and message, complete the
+applicable review/checks, and inspect the staged diff. Higher-priority harness rules
+and actual permissions take precedence: if they require a wrapper, stop when it is
+unavailable. The current repository OpenCode CI profile permits the wrapper command,
+not the native fallback forms below; its fallback is an explicit human handoff,
+not a permission change or invocation through another tool.
+
+For an authorized human operator or another harness that permits it, these POSIX
+examples set identity for the child Git process only. Replace the message placeholder
+with the approved, safely quoted message. Do not add flags that override the selected
+identity or bypass hooks/signing.
+
+OpenCode identity-only fallback:
+
+```bash
+env GIT_AUTHOR_NAME="OpenCode" GIT_AUTHOR_EMAIL="noreply@opencode.ai" GIT_COMMITTER_NAME="OpenCode" GIT_COMMITTER_EMAIL="noreply@opencode.ai" git commit -m "<approved message>"
+```
+
+Claude Code identity-only fallback:
+
+```bash
+env GIT_AUTHOR_NAME="Claude" GIT_AUTHOR_EMAIL="noreply@anthropic.com" GIT_COMMITTER_NAME="Claude" GIT_COMMITTER_EMAIL="noreply@anthropic.com" git commit -m "<approved message>"
+```
+
+Neither recipe adds `AI-Participant`, `Source-Definition`, `Source-Digest`, model or
+other attestation trailers. Do not synthesize metadata, read/delete pending wrapper
+handoff state, or change Git configuration to imitate the wrapper. If the workflow
+requires that full attestation contract, this limited fallback is insufficient:
+use the required tooling or obtain a human handoff. Absence of such trailers is not
+proof that a commit was human-authored. Normal Git hooks remain enabled and may have
+their own approved metadata behavior.
+
+Verify both identities after the authorized commit:
+
+```bash
+git log -1 --format='%an <%ae> | %cn <%ce>'
+```
+
+The commands above are POSIX examples, not PowerShell syntax. Use an installed
+PowerShell wrapper where applicable, or a separately reviewed platform-specific
+identity procedure. If no permitted procedure is available, stop and hand off to
+the human. This does not establish native Windows OpenCode workflow support.
+
+Contributors following the ordinary fork/PR path do not need the global
+`worktree-merge` skill. For separately approved local-main landing, use the
+[repository merge procedure](docs/development/github-worktree-merge.md); a missing
+skill is not permission to bypass a required helper or CI guard.
+
 ### Before you open a PR
 
 ```bash
-npm run verify       # tsc --noEmit, then eslint, then the extension suite
+npm run verify
+npm run compile
 ```
 
-That is the same gate `scripts/release-fork-vsix.sh` runs before packaging. If it
-passes locally it should pass in CI.
+Verify runs type checking, lint, and the extension suite. Compile separately
+exercises the production bundle. Local success does not establish every CI host
+or exercise integration suites that were skipped.
 
 Checklist:
 
 - [ ] `npm run verify` passes
+- [ ] `npm run compile` passes
 - [ ] New behaviour has a test; bug fixes have a regression test
-- [ ] Docs updated if you changed architecture (`CLAUDE.md`) or user-facing behaviour (`README.md`)
+- [ ] [Architecture](docs/development/extension-architecture.md) or user-facing documentation (`README.md`) updated as applicable
 - [ ] Screenshots for UI changes
 - [ ] Breaking changes called out explicitly
 
@@ -86,8 +151,9 @@ from the release's scope — see [RELEASING.md](RELEASING.md).
 
 ### TypeScript
 
-- Use `unknown` rather than `any` in production code, with explicit type assertions at
-  the point of use. `CLAUDE.md` has the patterns this codebase settled on.
+- Use `unknown` rather than `any` in production code, with validation/narrowing before
+  field access. The [architecture reference](docs/development/extension-architecture.md)
+  describes the boundaries; assertions alone do not validate external data.
 - Test files (`**/*.test.ts`, anything under `src/test/`) relax that rule — `any` is
   allowed there.
 - `npm run lint` must pass with no errors. Style beyond what ESLint enforces: match the
@@ -114,8 +180,8 @@ can be unit-tested without an Extension Development Host. Keep it that way.
 
 ### Security rules
 
-`CLAUDE.md` has a "Security Rules" section. These are not suggestions — each one is
-there because it was violated and caused a bug. The short version:
+[AGENTS.md](AGENTS.md#security-and-correctness) owns the mandatory security and
+correctness rules. The short version:
 
 - Every `innerHTML` assignment goes through `DOMPurify.sanitize()`, even for
   pre-escaped values.
@@ -127,14 +193,17 @@ there because it was violated and caused a bug. The short version:
 
 See [TESTING.md](TESTING.md) for the full picture. The one thing that trips people up:
 the suite uses Mocha's **tdd** interface — `suite()` / `test()` with node `assert`. Not
-`describe()` / `it()`, and not chai. A test written the other way silently never runs.
+`describe()` / `it()`. Assertion-library choice is distinct from the TDD interface;
+existing suites also use Sinon where mocking is needed.
 
 ## Working on issues
 
-This repo tracks its own backlog with `bd`, prefix `bbk-`. `AGENTS.md` covers the
-workflow, including one trap worth stating here: **`bd` does not work from a git
-worktree, and running `bd init` there creates a second, empty database that syncs
-nowhere.** Run `bd` against the main checkout instead.
+This repo tracks its own backlog with `bd`, prefix `bbk-`. [AGENTS.md](AGENTS.md)
+covers shared policy. Nested worktrees may resolve the main database; external
+worktrees may not. Always target the verified main checkout explicitly, and
+**never run `bd init` in a worktree**. The [OpenCode workflow](docs/development/opencode-workflow.md)
+describes its role split, approval gates and capability limits; Claude imports
+shared policy through its adapter without claiming OpenCode runtime parity.
 
 External contributors do not need `bd` for issue tracking — use GitHub Issues.
 
