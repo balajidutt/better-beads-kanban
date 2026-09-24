@@ -49,6 +49,41 @@ original extension OS/Node matrix still runs independently. See
 [`docs/shared-core.md`](docs/shared-core.md) for the provisional architecture and
 Checkpoint A packaging decision.
 
+### Independent terminal checks (Phase B)
+
+The private `terminal/` package has its own Node 22+ ESM dependencies, lockfile,
+lint, typecheck, tests and build. It is excluded from root TypeScript compilation
+and VSIX packaging. Run from the repository root:
+
+```bash
+npm --prefix terminal ci --ignore-scripts
+npm --prefix terminal run typecheck
+npm --prefix terminal run lint
+npm --prefix terminal test
+npm --prefix terminal run build
+```
+
+In disposable Linux, run the built-artifact PTY checks with Python 3, plus real-bd
+integration and benchmarks:
+
+```bash
+npm --prefix terminal run test:pty
+npm --prefix terminal run test:integration
+npm --prefix terminal run benchmark
+```
+
+The PTY harness uses Python's standard library and temporary fake CLI fixtures.
+Real integration reuses the scratch-workspace containment helper; missing bd
+fails. Fixture writes are separate from audited runtime commands. The dedicated
+terminal CI job installs a checksum-verified bd 1.2.2 and executes these checks;
+the root extension matrix remains unchanged. The root shared-boundary command
+also checks terminal application imports. Never install native PTY development
+tools on macOS for this project.
+
+See [`terminal/README.md`](terminal/README.md) for recorded results, launch
+instructions, measured limits and the separate Checkpoint B manual checklist.
+Automated PTY/input tests do not establish real clipboard or human acceptance.
+
 ### Phase A manual smoke checklist
 
 Run in an Extension Development Host against a disposable populated workspace:

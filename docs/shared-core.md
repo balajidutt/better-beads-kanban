@@ -128,3 +128,41 @@ Compatibility retains field defaults, first-result show selection, duplicate
 edges, zero-to-null estimates, and missing-status readiness behavior. The runner
 retains a 30-second default timeout, decoded-string 50-MB-per-stream limit and
 SIGTERM-only termination by default.
+
+## Phase B shared API review
+
+The runner accepts optional `signal` and `killGraceMs` inputs. The terminal opts
+into cancellation and a 250 ms SIGKILL grace period; the extension supplies neither
+option and retains SIGTERM-only behavior. Focused review found no default behavior
+regression. Six additional shared subprocess tests cover cancellation/escalation;
+all 68 shared tests and 493 extension tests passed after the addition. The final
+extension run used VS Code 1.139.0 and emitted the same untriaged disposable-store
+diagnostics. Browser tree behavior is unchanged.
+
+Both consumers now use the public source entries. The import checker also scans
+terminal application code, allowing only those entries plus the existing
+UI-independent repository resolver and filter constants. Terminal dependencies
+remain isolated from the root manifest and VSIX: final inspection found 37 files,
+953.19 KB, with no terminal sources, dependencies, outputs or documentation.
+
+The terminal rejects snapshots with more than 512 loaded ancestor links before
+building a candidate projection. This bounds the existing recursive tree helper
+without changing extension behavior. A failed refresh preserves the prior
+snapshot. See [`terminal/README.md`](../terminal/README.md) for prototype evidence,
+limits and the manual validation record.
+
+The two consumers support the private-package recommendation: browser-safe and
+Node-only entry points have held up, while the terminal build must bundle source
+across the root CommonJS/package boundary. Promotion should define browser/Node
+exports, CJS/ESM outputs, build order, workspace dependency ownership and lockfile
+policy, then rerun consumer tests and VSIX checks. This remains a separately
+approved packaging change; Checkpoint B is not a production-layout decision.
+
+## Checkpoint B acceptance
+
+On 2026-09-23, the maintainer accepted the terminal as a proof of concept and
+confirmed actual copy/paste in macOS iTerm. They reported that it functionally
+does most of what they wanted, with UX improvements to discuss separately.
+Manual Linux acceptance and the full item-by-item manual checklist remain
+unverified; automated Linux PTY evidence is recorded separately. Acceptance does
+not authorize commits, pushing, publication, or a packaging migration.
