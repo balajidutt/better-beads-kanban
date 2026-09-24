@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { IssueStatus, EnrichedCard, FullCard, DependencyInfo, Comment, ISSUE_ID_PATTERN } from './shared/model';
+export { IssueStatus, MinimalCard, EnrichedCard, FullCard, DependencyInfo, Comment, ISSUE_ID_PATTERN } from './shared/model';
 import {
   STATUS_ALL_VALUES,
   STATUS_ACTIVE_VALUES,
@@ -12,8 +14,6 @@ export {
   PRIORITY_ALL_VALUES,
   TYPE_ALL_VALUES
 };
-
-export type IssueStatus = "open" | "in_progress" | "blocked" | "closed";
 
 export type IssueType = "task" | "bug" | "feature" | "epic" | "chore";
 
@@ -61,91 +61,6 @@ export interface IssueRow {
   await_id: string | null;
   timeout_ns: number | null;
   waiters: string | null;
-}
-
-// 3-Tier Progressive Loading Card Types
-
-/**
- * Tier 1: Minimal card data from fast bd list query (100-300ms for 400 issues)
- * Contains only essential fields for displaying cards in kanban columns
- */
-export interface MinimalCard {
-  id: string;
-  title: string;
-  description: string;
-  status: string;
-  priority: number;
-  issue_type: string;
-  created_at: string;
-  created_by: string;
-  updated_at: string;
-  closed_at?: string | null;
-  close_reason?: string | null;
-  dependency_count: number;
-  dependent_count: number;
-}
-
-/**
- * Tier 2: Enriched card with optional display enhancement fields
- * Adds labels, assignee, etc. for better UI without full relationship data
- */
-export interface EnrichedCard extends MinimalCard {
-  assignee?: string | null;
-  estimated_minutes?: number | null;
-  labels?: string[];
-  external_ref?: string | null;
-  pinned?: boolean;
-  blocked_by_count?: number;
-  is_ready?: boolean;
-
-  // Relationships derived from `bd list --json --all` so the kanban card
-  // can render the `↳ parent` affordance (and future child / blocker
-  // affordances) without a per-card `bd show` round-trip.
-  parent?: DependencyInfo;
-  children?: DependencyInfo[];
-  blocks?: DependencyInfo[];
-  blocked_by?: DependencyInfo[];
-}
-
-/**
- * Tier 3: Full card with all fields including relationships and comments
- * Loaded on-demand when editing (50ms per issue via bd show)
- */
-export interface FullCard extends EnrichedCard {
-  acceptance_criteria: string;
-  design: string;
-  notes: string;
-  due_at?: string | null;
-  defer_until?: string | null;
-
-  is_ready?: boolean;
-  is_template?: boolean;
-  ephemeral?: boolean;
-
-  // Event/Agent metadata
-  event_kind?: string | null;
-  actor?: string | null;
-  target?: string | null;
-  payload?: string | null;
-  sender?: string | null;
-  mol_type?: string | null;
-  role_type?: string | null;
-  rig?: string | null;
-  agent_state?: string | null;
-  last_activity?: string | null;
-  hook_bead?: string | null;
-  role_bead?: string | null;
-  await_type?: string | null;
-  await_id?: string | null;
-  timeout_ns?: number | null;
-  waiters?: string | null;
-
-  // Relationships
-  parent?: DependencyInfo;
-  children?: DependencyInfo[];
-  blocks?: DependencyInfo[];
-  blocked_by?: DependencyInfo[];
-  comments?: Comment[];
 }
 
 /**
@@ -204,23 +119,6 @@ export interface BoardCard {
   comments?: Comment[];
 }
 
-export interface DependencyInfo {
-  id: string;
-  title: string;
-  created_at?: string;
-  created_by?: string;
-  metadata?: string;
-  thread_id?: string;
-}
-
-export interface Comment {
-  id: number;
-  issue_id: string;
-  author: string;
-  text: string;
-  created_at: string;
-}
-
 export interface BoardColumn {
   key: BoardColumnKey;
   title: string;
@@ -252,11 +150,6 @@ export interface ColumnData extends ColumnLoadState {
 }
 
 export type ColumnDataMap = Record<BoardColumnKey, ColumnData>;
-
-// Issue ID format: [project.]prefix-suffix (e.g. beads-abc, smth-abc.3, my-org.beads-xyz)
-// Alphanumeric segments separated by dots/underscores/hyphens; at least one hyphen required.
-// Prevents consecutive special characters, path traversal, XSS, and command injection.
-export const ISSUE_ID_PATTERN = /^([a-z0-9]+([._-][a-z0-9]+)*\.)?[a-z0-9]+-[a-z0-9]+([._-][a-z0-9]+)*$/i;
 
 // Zod validation schemas for runtime message validation
 export const IssueIdSchema = z.string().regex(

@@ -46,8 +46,8 @@ function run(args, options = {}) {
 function runOrThrow(args, options = {}) {
   const result = run(args, options);
   if (result.status !== 0) {
-    const stderr = (result.stderr || '').trim();
-    throw new Error(`bd ${args.join(' ')} exited ${result.status}${stderr ? `: ${stderr}` : ''}`);
+    const output = (result.stderr || result.stdout || '').trim();
+    throw new Error(`bd ${args.join(' ')} exited ${result.status}${output ? `: ${output}` : ''}`);
   }
   return result;
 }
@@ -84,7 +84,7 @@ function pinRoutingMode(dir) {
 }
 
 function assertIsolated(dir) {
-  const context = JSON.parse(runOrThrow(['-C', dir, 'context', '--json']).stdout);
+  const context = JSON.parse(runOrThrow(['-C', dir, 'context', '--json'], { cwd: dir }).stdout);
   const beadsDir = context.beads_dir;
 
   if (!beadsDir || !isContained(dir, beadsDir)) {

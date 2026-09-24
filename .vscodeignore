@@ -62,6 +62,7 @@ CONTRIBUTING.md
 RELEASING.md
 SECURITY.md
 TESTING.md
+docs/shared-core.md
 
 # Build & Test Config
 .node-version
@@ -98,3 +99,4 @@ Edit Form*.jpg
 
 # Output
 out/test/**
+out/shared/**

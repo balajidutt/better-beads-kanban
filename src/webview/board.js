@@ -24,7 +24,7 @@ import {
     flattenVisibleRows,
     defaultExpanded,
     DEFAULT_TREE_SORT
-} from './treeBuilder';
+} from '../shared/model';
 
 const vscode = acquireVsCodeApi();
 
