@@ -1,0 +1,12 @@
+{
+  "$schema": "./schemas/pipeline-guard.v1.schema.json",
+  "schema_version": 1,
+  "provider": "github",
+  "host": "github.com",
+  "repository": "balajidutt/better-beads-kanban",
+  "guarded_remote": "origin",
+  "guarded_ref": "refs/heads/main",
+  "workflows": ["test.yml"],
+  "timeout_seconds": 5,
+  "max_pages": 10
+}

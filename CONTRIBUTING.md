@@ -8,7 +8,8 @@ open an issue first rather than building it and hoping.
 
 ### Prerequisites
 
-- Node.js 20 or higher (`.node-version` selects 22; CI covers Node 20 and 22)
+- Node.js 22 or higher for the full locked development/packaging toolchain
+  (`.node-version` selects 22; extension tests also retain a Node 20 CI lane)
 - VS Code 1.90 or higher
 - Git
 - [Beads CLI](https://github.com/gastownhall/beads) (`bd`) on `PATH`, or configured via
@@ -23,7 +24,7 @@ the CLI-dependent integration suite skips; other suites still run.
 git clone https://github.com/YOUR-USERNAME/better-beads-kanban.git
 cd better-beads-kanban
 git remote add upstream https://github.com/balajidutt/better-beads-kanban.git
-npm install
+npm ci --ignore-scripts
 ```
 
 ### Build and run
@@ -123,6 +124,20 @@ Contributors following the ordinary fork/PR path do not need the global
 `worktree-merge` skill. For separately approved local-main landing, use the
 [repository merge procedure](docs/development/github-worktree-merge.md); a missing
 skill is not permission to bypass a required helper or CI guard.
+
+The tracked merge policy, runtime and hook template do not install a Git hook.
+Ordinary hook-free fork/PR contributions are unaffected locally. If you already
+have a compatible global pre-push hook, the repository policy can activate it:
+it requires checked-out main and its runtime before filtering refs, and the fixed
+maintainer repository identity can reject fork-main pushes. Read the
+[hook-impact notes](docs/development/github-worktree-merge.md#contributor-and-hook-impact)
+before opting into this workflow; do not rewrite your fork's remote to bypass it.
+
+OpenCode plugin dependencies are separate from the application. When working on
+that integration, run `npm ci --ignore-scripts` from `.opencode/`, retaining its
+own npm lockfile. OpenCode and global attestation tooling are not prerequisites
+for an ordinary PR. Attestation is self-asserted participation/provenance, not
+independent approval of the current diff.
 
 ### Before you open a PR
 

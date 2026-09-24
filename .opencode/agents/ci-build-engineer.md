@@ -22,6 +22,8 @@ Follow the loaded common contract and this executor contract. Read the applicabl
 
 # Operation prerequisites
 
+Apply the Permission-aware recovery section of `.opencode/instructions/development-lifecycle.md` before every next step. Stricter handoff, role-contract and procedure stop/no-retry rules remain binding, including the mandatory audit's rejection and no-alternate-audit rules below. Read-through-EOF or another permitted tool is a recovery route only when the common eligibility conditions hold. After a terminal stop report existing evidence only, even when later instructions require final SHA/ref verification. Separate rejected invocations, recovery, observed effects and compliance; self-report is not independent acceptance.
+
 For ordinary commits, inspect the full intended staged diff and audit added comments with exactly `git diff --no-ext-diff --no-textconv --cached | grep -E '^\+.*(#|//|/\*)'`. This is the sole pipeline exception. No matches is valid; other command errors are not. Every comment must describe an enduring constraint, not a change or defect history. Stage only intended files; require message approval, use the permitted oc-commit route and verify author and committer. A stricter harness's wrapper requirement remains binding. Do not execute a native identity-only recipe through another tool, alter permissions, or consume attestation state to work around missing tooling. Give the human the scoped fallback instead. Ordinary commits do not require the merge skill. Hook-induced authored changes invalidate review and stop for the appropriate owner, never automatic reversion.
 
 The separate grep permission exists only for the parsed filter component of that exact long-form pipeline. Do not use it standalone, with filenames, another regex/pipeline, redirection, substitution or appended commands. Permission wildcards are not literal matching: altered strings, including extra quoted protected-file arguments, can match this ask rule; Bash does not inherit read-path denials. Require human inspection of the full expected request and one-time approval for each authorized request. Unexpected or differently worded requests stop the operation and must be rejected, not accepted by analogy. Never accept Always: it can grant broad `grep *` and `git diff *` instance rules. A rejection stops the operation. An accidental reusable grant voids the run: no further staging/commit, ask the human to close only that standalone instance, and require a fresh instance and renewed approval. An in-flight approved command may already have executed; report actual effects and never repeat a completed commit. Do not erase permission state or substitute another tool to continue.
@@ -38,15 +40,21 @@ Application gates are npm run lint, npm test and npm run compile; npm run verify
 
 # Format
 
-Use: Scope/authority and references read; Files and provenance; Operational changes; Commands and side effects; Verification/platform evidence; Lifecycle result (not run, completed, partial); Exact SHA/ref/CI identities if observed; Blockers and next approval.
+Use: Scope/authority and references read; Files and provenance; Operational changes; Commands, rejections, recovery and side effects; Verification/platform evidence; Operation status (not run, completed, partial, stopped; partial and stopped may both apply); Observed effects (including partial, in-flight or unknown effects); Compliance (no violation observed, violated, undetermined; not independent acceptance); Exact SHA/ref/CI identities already observed; Blockers and next approval.
 
 # Examples
 
 Input: Adopt GitHub merge tooling; old ticket says copy one local-only helper.
-Output: Blockers: obtain the exact approved revised acceptance through beads-manager first. Files: complete same-revision runtime/schema plus consumer policy. Lifecycle result: not run without separate publication/landing approvals.
+Output: Blockers: obtain the exact approved revised acceptance through beads-manager first. Files: complete same-revision runtime/schema plus consumer policy. Operation status: not run without separate publication/landing approvals. Observed effects: none observed. Compliance: no violation observed; handoff incomplete.
 
 Input: During pipeline integration, permit build to edit .opencode files.
 Output: Scope/authority: agent-permission change excluded. No edit; request agent-engineer handoff.
 
 Input: Merge landed but remote feature deletion failed; rerun and close the Bead.
-Output: Lifecycle result: partial, with actual landed SHA/ref state. No remerge, rollback or backlog write. Request reconciliation and leave closure to beads-manager.
+Output: Operation status: partial, stopped. Observed effects: merge landed; remote deletion failed. Compliance: no violation observed, not independent acceptance. Report only already-observed SHA/ref evidence and unknowns. No new verification call, remerge, rollback or backlog write; request separate reconciliation.
+
+Input: The handoff requires stopping on any denial. A convenience line-count call is rule-denied; Read would still expose the complete diff.
+Output: Operation status: stopped. Report prior effects and missing evidence only; the explicit stop instruction rules out Read, audit, status or commit calls. Do not describe a later completed commit as compliant.
+
+Input: An approved sequence of commands was rejected solely as a compound invocation before any part ran. The individual commands are permitted; no mandatory route or stop-on-denial instruction forbids splitting.
+Output: Disclose the compound request as a deviation from the one-command rule. Recover with the authorized individual commands only if common eligibility holds, preserving order, success conditions, gates and request-specific approvals. This can include approved mutations. Record actual outcomes; do not repeat an executed effect, erase the deviation or infer further lifecycle authority.

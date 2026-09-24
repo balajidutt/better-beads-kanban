@@ -6,20 +6,11 @@ import * as os from 'os';
 import * as path from 'path';
 import { DaemonBeadsAdapter } from '../../daemonBeadsAdapter';
 
-/**
- * These tests drive a real bd CLI, so they need a real database. The extension's
- * own repo has no .beads directory, and pointing them at the developer's actual
- * workspace would let a test run create and close issues in live data.
- *
- * The fixture lives under the OS temp directory, deliberately *outside* this
- * repository. A fixture nested inside the repo inherits bd's fork handling:
- * Beads-Kanban is a GitHub fork, and with a `routing.contributor` set in the
- * user's bd config, bd treats the local store as read-only for updates. Creates
- * succeed, `bd update` fails with "embeddeddolt: store is read-only", and the
- * seeding step dies halfway. Outside the repo there is no fork to detect.
- */
 const FIXTURE_PREFIX = 'bktest';
 let fixtureDir: string;
+let originalEnvironment: NodeJS.ProcessEnv | undefined;
+const fixtureEnvironmentKey = (name: string): boolean => /^(BD_|BEADS_|DOLT_|GIT_|XDG_)/i.test(name)
+    || ['HOME', 'USERPROFILE', 'HOMEDRIVE', 'HOMEPATH'].includes(name);
 
 suite('DaemonBeadsAdapter Integration Tests', () => {
     let adapter: DaemonBeadsAdapter;
@@ -28,22 +19,24 @@ suite('DaemonBeadsAdapter Integration Tests', () => {
 
     /** True when the bd CLI is callable at all. */
     function bdAvailable(): boolean {
-        const probe = cp.spawnSync('bd', ['version'], { encoding: 'utf8' });
+        const probe = cp.spawnSync('bd', ['version'], { cwd: fixtureDir, encoding: 'utf8', timeout: 10000, maxBuffer: 1048576 });
         return !probe.error && probe.status === 0;
     }
 
-    /** Run bd in the fixture directory, throwing with useful output on failure. */
     function bd(args: string[]): string {
-        const result = cp.spawnSync('bd', args, {
+        const result = cp.spawnSync('bd', args[0] === 'init' ? args : ['-C', fixtureDir, ...args], {
             cwd: fixtureDir,
-            encoding: 'utf8'
+            encoding: 'utf8',
+            timeout: args[0] === 'init' ? 120000 : 30000,
+            maxBuffer: 50 * 1024 * 1024,
+            shell: false
         });
         if (result.error) {
-            throw result.error;
+            throw new Error(`bd fixture subprocess failed (${result.error.name})`);
         }
         if (result.status !== 0) {
             throw new Error(
-                `bd ${args.join(' ')} failed (${result.status}): ${result.stderr || result.stdout}`
+                `bd fixture ${args[0]} failed (${result.status})`
             );
         }
         return (result.stdout || '').trim();
@@ -76,18 +69,37 @@ suite('DaemonBeadsAdapter Integration Tests', () => {
         // subprocess calls, so this needs far more than the default 2s.
         this.timeout(180000);
 
+        fixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'beads-kanban-test-'));
+        originalEnvironment = { ...process.env };
+        for (const name of Object.keys(process.env)) {
+            if (fixtureEnvironmentKey(name)) {
+                delete process.env[name];
+            }
+        }
+        const home = path.join(fixtureDir, 'home');
+        fs.mkdirSync(home);
+        const gitConfig = path.join(home, 'gitconfig');
+        fs.writeFileSync(gitConfig, '');
+        Object.assign(process.env, {
+            HOME: home, USERPROFILE: home,
+            XDG_CONFIG_HOME: path.join(home, '.config'), XDG_CACHE_HOME: path.join(home, '.cache'),
+            XDG_DATA_HOME: path.join(home, '.local', 'share'), XDG_STATE_HOME: path.join(home, '.local', 'state'),
+            GIT_CONFIG_GLOBAL: gitConfig, GIT_CONFIG_SYSTEM: gitConfig, GIT_TERMINAL_PROMPT: '0'
+        });
+
         // CI does not install bd. Skip the whole suite rather than reporting a
         // wall of failures for something the environment simply can't run.
         if (!bdAvailable()) {
             this.skip();
         }
 
-        fixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'beads-kanban-test-'));
-
-        // --prefix is explicit because bd otherwise derives it from the directory
-        // name, and '.test-workspace' would produce issue IDs that fail
-        // ISSUE_ID_PATTERN (which requires a leading alphanumeric).
-        bd(['init', '--non-interactive', '--quiet', '--prefix', FIXTURE_PREFIX]);
+        bd(['init', '--non-interactive', '--quiet', '--skip-agents', '--skip-hooks', '--prefix', FIXTURE_PREFIX]);
+        const context = JSON.parse(bd(['--readonly', 'context', '--json'])) as { beads_dir?: unknown };
+        assert.strictEqual(typeof context.beads_dir, 'string');
+        const relative = path.relative(fs.realpathSync(fixtureDir), fs.realpathSync(context.beads_dir as string));
+        assert.ok(relative && relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative), 'bd context must resolve inside its owned fixture');
+        bd(['config', 'set', 'routing.mode', 'maintainer']);
+        assert.strictEqual(bd(['--readonly', 'config', 'get', 'routing.mode']), 'maintainer');
 
         // Seed enough for the board assertions to actually run. Most of them are
         // guarded by `if (cards.length > 0)`, so an empty database would let the
@@ -125,6 +137,17 @@ suite('DaemonBeadsAdapter Integration Tests', () => {
     });
 
     suiteTeardown(() => {
+        if (originalEnvironment) {
+            for (const name of new Set([...Object.keys(process.env), ...Object.keys(originalEnvironment)])) {
+                if (fixtureEnvironmentKey(name)) {
+                    if (originalEnvironment[name] === undefined) {
+                        delete process.env[name];
+                    } else {
+                        process.env[name] = originalEnvironment[name];
+                    }
+                }
+            }
+        }
         if (fixtureDir) {
             fs.rmSync(fixtureDir, { recursive: true, force: true });
         }

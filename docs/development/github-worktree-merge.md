@@ -36,12 +36,35 @@ do not embed a helper name in another command to evade a denied operation.
 | Missing/unsupported helper with a CI policy or CI-gated contract | Stop for restoration or approved bootstrap; no raw Git fallback |
 | All eligible helpers absent and genuinely policy-less | Separately approved human/manual path below; not available to the current OpenCode CI command profile |
 
-**Current adoption boundary:** the helper/runtime/policy work belongs to `bbk-c5f`.
-It is not installed in this worktree at this documentation checkpoint. The command
-names below describe the intended capability categories, not proof that a command
-or flag exists locally. Exact operational flag recipes must be verified during
-adoption against the selected helper's advertised contract. Do not invoke missing
-tooling, install a skill automatically, or claim an active main push guard.
+The maintained entrypoint is `assets/agent-wt-merge`, with its complete neighboring
+runtime bundle and `configs/pipeline-guard.json`. The policy selects GitHub
+`balajidutt/better-beads-kanban`, remote `origin`, main and workflow `test.yml`.
+Python 3.10+ is required; `assets/resolve-python3` locates a working Python 3,
+whose minor version must also meet that prerequisite.
+[Provenance](tooling-provenance.md) records the pinned source, file-scoped license
+and local adaptations. Presence on a feature is not main-authoritative installation;
+verify exact executable capabilities and the selected committed bundle before use.
+
+### Contributor and hook impact
+
+Tracking `scripts/hooks/pre-push` does not install it, change `core.hooksPath` or
+activate a global hook. Hook-free fork/PR workflows do not need this helper. An
+already installed compatible hook can activate the repository policy when the
+bundle reaches main. It requires an authoritative checked-out main **before**
+filtering individual refs, so a single-checkout feature workflow, missing runtime
+or Python, and malformed policy can block pushes even when main is not being pushed.
+
+The compatible hook executes main's `assets/resolve-python3` and
+`assets/check-pipeline.py` with neighboring repository modules, not global dotfiles
+runtime assets. Fork-main pushes can fail the fixed repository-identity check. This
+maintainer-oriented guard is not a PR prerequisite; do not rewrite remotes or bypass
+the policy to make it accept a foreign fork. Hook installation/modification and
+actual-clone validation require their own approvals.
+
+The local URL adaptation recognizes only `github-balajidutt` as `github.com` in
+validated SCP/SSH forms. It does not alias HTTPS hosts or arbitrary SSH names and
+does not relax repository, fetch/push URL or destination validation. Legacy Beads
+working-state files are not inspected; helper-owned `--close-beads` is rejected.
 
 ## Establish the source and authoritative tooling
 

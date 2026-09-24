@@ -1,0 +1,10 @@
+{
+  "name": "better-beads-kanban-agent-tooling",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@opencode-ai/plugin": "1.18.30",
+    "jsonc-parser": "3.3.1",
+    "picomatch": "4.0.4"
+  }
+}

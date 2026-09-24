@@ -7,6 +7,7 @@ This document describes the testing infrastructure for the Better Beads Kanban V
 - [Extension Test Suite](#extension-test-suite)
 - [Writing a Test](#writing-a-test)
 - [Integration Tests](#integration-tests)
+- [Workflow Tooling](#workflow-tooling)
 - [Visual Testing](#visual-testing)
 - [The Extension Development Host](#the-extension-development-host)
 - [Manual QA Before a Release](#manual-qa-before-a-release)
@@ -52,12 +53,19 @@ The downloaded VS Code build is a separate cache and still lives in each checkou
 `bd` CLI, so it needs a real database. The suite builds a throwaway one under the
 OS temporary directory, outside the repository's shared backlog:
 
-- `bd init --non-interactive --prefix bktest` creates an embedded Dolt database.
+- `bd init --non-interactive --quiet --skip-agents --skip-hooks --prefix bktest`
+  creates an embedded Dolt database.
   No external dolt server is required.
 - A handful of issues are seeded directly through the CLI, spread across
   `open` / `in_progress` / `blocked` / `closed`, so the board assertions have data
   to check rather than short-circuiting on an empty board.
 - The fixture is removed in `suiteTeardown`.
+
+The fixture owns its temporary HOME/XDG/Git configuration, removes inherited
+Git/Beads/Dolt routing, and checks CLI-reported context containment before seeding.
+Subsequent commands explicitly target the fixture; routing is pinned to maintainer.
+Subprocess time/output limits and environment restoration apply on teardown. Do
+not replace this with repository-local initialization or direct database access.
 
 If `bd` is not on `PATH` the whole suite skips rather than failing. That is what
 keeps CI green, since the workflow does not install bd. Use the `skipIfNoBd` guard
@@ -147,6 +155,50 @@ npm run test:adapter
 npm run test:all
 npm run test:coverage
 ```
+
+## Workflow Tooling
+
+Use Node 22+ and Python 3.10+. Install the root and `.opencode/` dependencies from
+their respective npm locks with `npm ci --ignore-scripts`. The tooling suites are
+separate from the extension's Mocha suite:
+
+```bash
+npm run lint
+npm test
+npm run compile
+npm run test:tooling
+npm run test:tooling:python
+./node_modules/.bin/vsce ls --no-dependencies
+```
+
+Compile after the application tests so package inspection sees the production
+extension-host bundle. The locked VSCE binary is a development dependency; do not
+substitute an implicit `npx` download. `tests/tooling/packaging.test.mjs` checks its
+pin/integrity and the actual file listing, including workflow exclusions and
+required extension assets/license. A filename count alone is not package proof.
+
+Node tests use real plugin modules and JSONC/picomatch dependencies with a fake
+OpenCode client, fake CLI queries, owned temporary worktrees, and fake release
+commands. They cover reminder revision/delivery correlation, bounded subprocesses,
+shared-main priming, release readiness/metadata/ancestry snapshots, output collision
+refusal and account restoration. Python tests use disposable Git remotes and fake
+GitHub responses to check workflow/ref/SHA/run-attempt evidence, helper receipts,
+main selection, SSH alias constraints and absence of legacy Beads-state reads.
+Fixture identities/hooks/credentials are synthetic; neither suite writes the real
+backlog or publishes to GitHub. Read fixture implementations before extending them.
+
+The tooling CI lane uses Node 22 on Ubuntu and macOS. That configured matrix is not
+an observed cross-platform pass. The application matrix still includes Node 20;
+the VSCE transitive development graph requires Node 22, so Node 20 application
+results are not full-toolchain compatibility evidence. Native Windows orchestration
+and interactive devcontainers are not qualified by these checks.
+
+Mocked tests do not establish live OpenCode event delivery, provider routing,
+installed-hook behavior, real Claude startup or release publication. Qualification
+of those operations is manual and separately approved. Use actual sessions for the
+baseline; the historical optional live-agent pilot is not a delivery prerequisite.
+Keep one-off session plans, approval labels and local evidence artifacts out of
+committed documentation.
 
 ## Visual Testing
 

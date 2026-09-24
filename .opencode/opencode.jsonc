@@ -171,8 +171,8 @@
       }
     },
     "typescript-specialist": {
-      "model": "opencode-go/kimi-k3",
-      "variant": "max",
+      "model": "openai/gpt-6-sol",
+      "variant": "high",
       "permission": {
         "*": "deny",
         "read": { "*": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny", "**/.ssh/**": "deny", "**/auth.json": "deny", "**/.beads/**": "deny" },
@@ -187,7 +187,7 @@
       }
     },
     "webview-specialist": {
-      "model": "openai/gpt-6-astra",
+      "model": "openai/gpt-6-sol",
       "variant": "high",
       "permission": {
         "*": "deny",
@@ -291,7 +291,7 @@
       }
     },
     "release-manager": {
-      "model": "openai/gpt-6-astra",
+      "model": "openai/gpt-6-sol",
       "variant": "high",
       "permission": {
         "*": "deny",

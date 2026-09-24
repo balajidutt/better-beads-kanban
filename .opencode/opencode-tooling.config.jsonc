@@ -1,0 +1,25 @@
+{
+  "reviewerAgent": "code-reviewer",
+  "resultMarkerPrefix": "BEADS_KANBAN_REVIEW_RESULT",
+  "sentinelBase": ".bbk-review-required",
+  "enforcerStateBase": ".bbk-review-enforcer",
+  "reviewLabel": "Beads Kanban",
+  "exemptPaths": [
+    ".git/**",
+    ".beads/**",
+    ".dolt/**",
+    "node_modules/**",
+    ".opencode/node_modules/**",
+    ".opencode/.bbk-review-required*",
+    ".opencode/.bbk-review-enforcer*",
+    ".vscode-test/**",
+    "out/**",
+    "coverage/**",
+    ".local/**",
+    "**/__pycache__/**",
+    "*.vsix",
+    "SHA256SUMS"
+  ],
+  "watchEvents": ["file.edited", "file.watcher.updated"],
+  "debounceMs": 500
+}

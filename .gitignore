@@ -75,3 +75,7 @@ media/purify.min.js
 .dolt/
 .beads-credential-key
 .beads/proxieddb/
+
+.local/
+__pycache__/
+*.pyc

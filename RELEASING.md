@@ -12,11 +12,11 @@ its [release executor contract](.opencode/agents/release-manager.md). Preparatio
 real dry runs, publication, and backlog closure are distinct approvals. Examples
 below document procedures, not permission to execute them.
 
-**Rollout capability boundary:** the existing helper does not yet implement the
-approved Beads-aware preflight and historical-source targeting contract. Until
-that work lands, OpenCode's expanded stable-release executor must stop rather than
-substitute an older unguarded path. The helper examples below show current syntax;
-do not pass a prospective `--release-issue` option before the implementation exists.
+The guarded entrypoint is `scripts/release-fork-vsix.sh --release-issue ID`.
+It anchors preflight and the locked packaging tool to its own reviewed tooling
+checkout and uses the current directory as the selected source checkout. Require
+the current clean main-authoritative helper; source implementation on a feature
+does not authorize release execution or substitution of a historical helper.
 
 ## Accounts and remotes
 
@@ -141,20 +141,34 @@ bd.5 was pure repackaging; that is the failure mode.
 
 ### Preconditions
 
-The existing `scripts/release-fork-vsix.sh` checks the following before packaging.
-These implementation checks are narrower than the required release policy above:
+The wrapper and anchored `scripts/release-preflight.js` require:
 
-- Working tree is clean.
-- A cached remote-tracking branch contains `HEAD`; this is not fresh proof of fork-main ancestry.
-- The tag `v<version>` exists neither locally nor on the GitHub repo.
-- `gh` is installed.
-- The version in `package.json` is `X.Y.Z` or `X.Y.Z-bd.N`.
+- Clean tracked source, no unrelated untracked source files, and clean tracked
+  release tooling in the same Git common repository.
+- An open release task with a nonempty blocking scope and membership in the CLI's
+  complete `bd ready` result, queried against verified shared main.
+- Matching package/webview version and CHANGELOG heading; accepted versions are
+  `X.Y.Z` and `X.Y.Z-bd.N`.
+- A fresh GitHub main SHA and local proof that the source is its ancestor. Missing
+  local objects block rather than trigger an automatic fetch.
+- Confirmed absence of the local/remote tag and GitHub release, with query failures
+  distinguished from HTTP 404 absence.
+- No colliding target VSIX or `SHA256SUMS`, including ignored files and symlinks.
+- An authenticated GitHub account and an executable locked VSCE in the reviewed
+  tooling checkout.
 
-Not enforced, but required anyway: `gh` must be *authenticated*, and `node`,
-`npx`, and `shasum` or `sha256sum` must be available (the checksum tools are
-checked only at the point of use, after packaging). Use a source reachable from the
-fork's remote main under the policy above. The branch label alone is insufficient;
-the existing helper does not yet mechanically enforce all source/scope conditions.
+Environment prerequisites, not all checked up front: Node 22+, npm and a checksum
+utility (`shasum` or `sha256sum`). Prepare dependencies with lifecycle scripts
+disabled. Neither the wrapper nor preflight enforces a Node minor-version check.
+
+The wrapper pins its child process's `GH_HOST` to `github.com`, refuses
+`GH_TOKEN`/`GITHUB_TOKEN` overrides and verifies its account switch/restoration.
+Preflight repeats after build, comparing source/tooling SHAs,
+scope and metadata against the initial snapshot and checking unexpected outputs.
+Fresh main may advance only while retaining the selected source as an ancestor.
+These are point-in-time guards, not atomic publication or proof that each closed
+issue's implementation is present. History-backed scope reconciliation and the
+explicit publication approval remain human/agent workflow obligations.
 
 ### 1. Write the CHANGELOG entry first
 
@@ -181,7 +195,7 @@ must change the other.
 ### 3. Dry run
 
 ```bash
-bash scripts/release-fork-vsix.sh --dry-run
+bash scripts/release-fork-vsix.sh --release-issue <release-id> --dry-run
 ```
 
 Verifies, packages, and checksums without publishing, but creates local outputs and
@@ -200,13 +214,20 @@ byte-reproducible across runs. Take the authoritative value from the real run.
 ### 4. Ship
 
 ```bash
-bash scripts/release-fork-vsix.sh
+bash scripts/release-fork-vsix.sh --release-issue <release-id>
 ```
 
 The script runs `npm run verify` itself (`tsc --noEmit`, `eslint`, the Mocha
 suite), packages the VSIX, writes `SHA256SUMS`, creates the tag on the built
 commit via `--target <full-sha>`, marks the release `--latest`, and uploads the
 VSIX and `SHA256SUMS`.
+
+For an older prepared source, invoke the absolute path to the approved main
+checkout's wrapper with CWD at that source's linked worktree. Both checkouts must
+share the Git common directory. The wrapper uses main's preflight and installed
+VSCE, not the selected source's historical release script. Creating the source
+worktree or preparing its dependencies requires explicit approval. Packaging
+runs the selected source's normal prepublish build; review that source accordingly.
 
 `SHA256SUMS` is load-bearing, not decoration. An installer that pins this
 release by checksum can read the value out of a few bytes of manifest instead of

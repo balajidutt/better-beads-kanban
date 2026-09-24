@@ -31,11 +31,11 @@ Plan/build inherit their global model/provider. Plan additionally requests nativ
 | --- | --- | --- | --- |
 | plan-reviewer, code-reviewer, test-strategist | `anthropic/claude-opus-5` | high | Unset |
 | beads-manager | `openai/gpt-5.6-terra` | high | Unset |
-| typescript-specialist | `opencode-go/kimi-k3` | max | Unset |
-| webview-specialist, release-manager | `openai/gpt-6-astra` | high | Unset |
+| typescript-specialist | `openai/gpt-6-sol` | high | Unset |
+| webview-specialist, release-manager | `openai/gpt-6-sol` | high | Unset |
 | ci-build-engineer | `opencode-go/deepseek-v4-pro` | high | 0.2 |
 
-The user requested temperature 0.4 for plan, 0 for reviewers and 0.2 for specialists. Unsupported numeric overrides are omitted; inherited values may still appear in resolved configuration even when a model capability gate suppresses them. Kimi's max is an explicitly approved exception to high. Schema validity, advertised capability and response identity do not prove provider-effective sampling. No silent model fallback is allowed. Cross-provider review is an intention, not a permanent guarantee if global bindings change.
+The user requested temperature 0.4 for plan, 0 for reviewers and 0.2 for specialists. Unsupported numeric overrides are omitted; inherited values may still appear in resolved configuration even when a model capability gate suppresses them. Schema validity, advertised capability and response identity do not prove provider-effective sampling. No silent model fallback is allowed. Cross-provider review is an intention, not a permanent guarantee if global bindings change.
 
 ## Request lifecycle
 
@@ -48,6 +48,8 @@ The user requested temperature 0.4 for plan, 0 for reviewers and 0.2 for special
 7. Commits, landing fetches, main updates/merges, ref publication/deletion, sync, closure, real release runs and hook operations keep their distinct approvals. A reviewed implementation does not authorize these actions implicitly.
 
 If annotations, denial, a pause or a scope conflict arrive at build, stop continuation and request the appropriate planning handoff. A specialist return can continue only the still-valid original scope; it cannot expand approval or override intervening feedback. Product decisions return to plan; agent-authority decisions return to the human-directed agent-engineer.
+
+The common [Permission-aware recovery](../../.opencode/instructions/development-lifecycle.md#permission-aware-recovery) rule applies across OpenCode roles. An invocation rejection can permit recovery through approved, permitted commands or equivalent tools, including already-authorized mutations, without expanding scope or bypassing a required mechanism. Explicit handoff, role and procedure stops still govern. After a terminal stop, report known effects, compliance and missing evidence in text; continuation requires separately scoped human reconciliation. This refinement adds no Claude-adapter enforcement or runtime-parity claim.
 
 ### Context on demand
 
@@ -74,11 +76,21 @@ OpenCode 1.18.31 checks the commands inside that pipeline separately. CI therefo
 
 The commit executor must read every staged-diff hunk and audit result, using successive reads of a complete tool-output artifact when display output is truncated. It reports actual file/range coverage rather than inferring completeness from a suffix. The audit runs only after the final index is assembled; an earlier audit does not cover later restaging. A pipeline exit code alone does not prove the Git producer succeeded.
 
-Stopping an invalidated run does not undo an in-flight operation that already completed. Report actual index/HEAD effects; a new instance is not permission to repeat a completed commit.
+After a terminal stop or an invalidated run, in-flight or completed work is not undone. Report already-observed index/HEAD effects and mark later state unknown; do not run status or diff after stopping. A new instance is not permission to repeat a completed commit.
 
 Protected read paths also constrain grep, diffs and shell inspection. Inventory paths before broad content access; report accidental exposure only by path. External-directory ask for manager covers verified shared-main and exact approved artifacts; for CI/release it covers approved authoritative tooling/source checkouts. It does not authorize unrelated host work. Approved large design payloads are inert transport data: preserve original issue fields, reread immediately before writing and verify afterward.
 
 Permissions are not an OS sandbox. Global/project/plugin/session ordering, custom tools, stored approvals, startup behavior and OpenCode's tool-output-directory exception need separate effective-runtime inspection. Configuration review and mocked permission tests do not establish every denial is enforced. Revalidate after relevant global, plugin, runtime or provider changes; never widen authority just to obtain a green check.
+
+### Recovery and stop boundaries
+
+Evaluate eligible recovery by the authorized replacement sequence, preserved conditions/gates and lack of duplicated effects. Evaluate terminal-stop adherence by attempted calls after the candidate receives the stop condition. Mechanical enforcement concerns admission at the applicable authorization/stop boundary, not an unconditional halt after every denied invocation. Already-admitted in-flight work may finish; an abort before candidate receipt cannot demonstrate voluntary adherence.
+
+In the inspected OpenCode 1.18.31 [permission service](https://github.com/anomalyco/opencode/blob/v1.18.31/packages/opencode/src/permission/index.ts), rule denial produces `DeniedError`; human rejection produces `RejectedError` or, with feedback, `CorrectedError`. The inspected [processor](https://github.com/anomalyco/opencode/blob/v1.18.31/packages/opencode/src/session/processor.ts) blocking branch handles `RejectedError` and question rejection, not every permission-error class. These distinctions alone do not determine whether a specific recovery is authorized. Neither a blanket abort nor indiscriminate continuation implements this policy. These are pinned-source observations, not installed-runtime verification or a proven cause of an incident.
+
+The inspected [tool wrapper](https://github.com/anomalyco/opencode/blob/v1.18.31/packages/opencode/src/session/tools.ts) reaches its after-hook after successful execution; thrown errors bypass that path. [Plugin event dispatch](https://github.com/anomalyco/opencode/blob/v1.18.31/packages/opencode/src/plugin/index.ts) does not await event-callback promises. An after-hook or observer alone is not an established per-operation enforcement gate. Caller/child propagation, concurrent admission, restart and guard failure remain unverified; no enforcement architecture is selected here.
+
+Cross-role text review assumes the common instruction is supplied to each OpenCode role. The configuration's instructions entry is not proof of effective per-role prompt loading. Static installation checks must preserve that entry; separately approved runtime verification must establish the evaluated common text reaches each role before claiming deployed ten-role coverage. No running session acquires these changes merely because files were edited.
 
 ### Plannotator
 
@@ -92,9 +104,9 @@ Fresh discovery on OpenCode 1.18.31 found one pinned registration and the intend
 
 OpenCode loads configuration at process startup. For ordinary installation, start a fresh process after changes. Do not restart an AoE-managed session as a verification shortcut: leave it running with its previously loaded configuration and use a separately authorized fresh process in the same worktree. Verify exact directory/project identity, named candidate definitions, resolved permissions/models and relevant tool registration before claiming deployment. Keep caller-owned processes and sessions untouched.
 
-An exact plugin pin can require cache preparation even when an `@latest` cache contains the same version. Review and authorize startup/dependency effects; do not adopt generated `.opencode` package/lock/ignore files silently. Never copy credentials into fixtures or logs. Keep durable approvals outside disposable test directories; task-local payloads/reports are not permanent approval authority.
+An exact plugin pin can require cache preparation even when an `@latest` cache contains the same version. Review and authorize startup/dependency effects. The configuration-local `.opencode/package.json` and npm lockfile are maintained inputs, not disposable startup output. Install with `npm ci --ignore-scripts` from `.opencode/`; the root application has its own npm lock. Do not substitute Bun or copy installed packages between checkouts. Never copy credentials into fixtures or logs. Keep durable approvals outside disposable test directories; task-local payloads/reports are not permanent approval authority.
 
-At this shared-guidance checkpoint:
+Historical shared-guidance checkpoint, before the checkpoint commit:
 
 - Ten role definitions, three procedures and the pinned Plannotator correction are installed in the feature worktree, not committed or main-landed by this checkpoint.
 - Shared policy, the Claude adapter, technical/workflow references, bounded consumer-document changes, and the `docs/development/**` VSIX exclusion are present but uncommitted in this worktree checkpoint. They belong to the separately approved post-bootstrap shared-guidance package, not an enlargement of the original bootstrap exception.
@@ -102,21 +114,39 @@ At this shared-guidance checkpoint:
 - Review-loop plugins, the complete GitHub merge runtime/policy, stable-release preflight and worktree-safe Claude priming are later work packages. Do not claim their guards are active or use their prospective CLI flags.
 - `.claude/settings.json` still contains the existing SessionStart hook. Its presence does not prove main/nested/external-worktree behavior. Changing or validating that hook needs its scoped approval.
 
+Subsequent execution produced the 27-file branch commit `6eee91238fb5b0c61fb743b6033d075d2be760f1`, but failed operational acceptance by continuing after a rule-based denial. Preserve that history; neither the commit nor later source corrections establish compliant execution retroactively. See the [execution outcome](agent-evaluation.md#ci-execution-outcome-and-recovery-draft). Subsequent source implementation proceeded under separate human approval. Every future CI mutation still needs its exact current handoff and operation approval.
+
 The workflow targets macOS and Linux/WSL. Record actually exercised hosts separately from supplied compatibility-oriented commands and Linux CI. Native Windows orchestration and interactive devcontainer support are not established. Application Windows CI coverage does not imply either.
 
 ### Review and lifecycle tooling
 
-The intended review-loop contract is exactly one terminal `BEADS_KANBAN_REVIEW_RESULT=PASS` or `BEADS_KANBAN_REVIEW_RESULT=FAIL`. The future marker/enforcer/gate must agree with the reviewer, but sentinel text is never authenticated, digest-bound approval. Mandatory independent review covers the whole diff whether or not a plugin event was observed. Missing events, stale/synthetic output and writable reminder state remain limitations to document.
+The three plugins in `.opencode/plugins/` share `.opencode/lib/review-loop.js` and `.opencode/opencode-tooling.config.jsonc`. The contract is exactly one terminal `BEADS_KANBAN_REVIEW_RESULT=PASS` or `BEADS_KANBAN_REVIEW_RESULT=FAIL`. The marker records changed paths and a per-session revision; the enforcer requests authorized parent review; the gate correlates the configured reviewer task with that revision before clearing the reminder. Edits during review retain the pending state. An acknowledged request suppresses duplicate delivery; uncertain delivery is retained without automatic replay. A confirmed rejection remains retryable.
+
+Reminder state uses ignored `.opencode/.bbk-review-required.*.json` and `.opencode/.bbk-review-enforcer.*.json` files. Do not edit or delete these to manufacture approval. Generated/runtime paths are exempt from event marking; documentation, configuration, locks and workflow source are not. Event exemptions never narrow mandatory whole-change review. Missing events, watcher-to-session association, writable state and synthetic reviewer output remain limitations: these plugins are not authenticated, digest-bound approval or a stop-boundary enforcement system. No reminder overrides a pause, missing handoff or a leaf's nondelegation rule.
+
+Fresh-process activation and manual qualification are separate from mocked plugin tests. Check edit/delete/move marking, parent/child routing, a failed review, edits during review, delayed/failed delivery and disposal in an explicitly authorized session. Do not revive the historical optional pilot merely to install this baseline. See [testing](../../TESTING.md#workflow-tooling) and [source provenance](tooling-provenance.md).
 
 The global `worktree-merge` skill is not shipped here. Use it when the harness requires it; otherwise follow the repository merge procedure with the verified main-authoritative helper. This optional-skill prerequisite also applies to the CI leaf, but does not add tool permissions or relax helper/CI/approval gates. A stricter harness still blocks execution if its required skill is unavailable. Missing or feature-only helpers require the specific approved restoration/bootstrap/human path, never an improvised reconstruction. Once CI-gated mode is selected, failure cannot become local-only mode. GitHub evidence is selected-workflow success for exact repository/workflow/SHA/ref/push-event/run/attempt, respecting newer attempts; no job-count approximation, old-green substitution, override or automatic rerun.
 
-`oc-commit` and `cc-commit` are maintainer-provided wrappers, not contributor prerequisites. The portable fallback sets author and committer only; it does not add trailers, consume attestation state or reproduce full wrapper behavior. Actual harness policy and tool permissions control whether an agent may use it. This repository's current OpenCode CI command profile does not permit native fallback commits or raw manual merges; missing required tooling means a human handoff, not another tool route or a permission edit.
+`oc-commit` and `cc-commit` are maintainer-provided wrappers, not contributor prerequisites. Global attestation producers and their wrapper handoffs remain external: they record self-asserted participation/provenance, not approval of the exact current diff. This repository neither vendors their collectors/state/schema nor requires source-pair completion. The portable fallback sets author and committer only; it does not add trailers, consume attestation state or reproduce full wrapper behavior. Actual harness policy and tool permissions control whether an agent may use it. This repository's current OpenCode CI command profile does not permit native fallback commits or raw manual merges; missing required tooling means a human handoff, not another tool route or a permission edit.
 
 Feature preparation publishes the exact SHA to its same-named feature ref. Landing requires separate approval for main/fetch and the mandatory exact-lease feature deletion attempt; omit `--close-beads`. Exact final/batched main may require separately approved reserved-ref CI. Partial landing/receipt/cleanup failure is reported without remerge or rollback. An existing pre-push hook without main's policy/runtime is not an active guard. Actual-clone validation and AoE cleanup remain separate.
 
-Stable preparation/publication follows RELEASING and the executor contract. A ready scope permits preparation, not publication; prepared source must pass review/verification and main landing before publication selection. Older remote-main ancestors are permitted when metadata and history-backed scope match; missing ancestry/history is not permission to fetch automatically. Until the approved source-targeting release guards exist, that planned execution path remains blocked. Local branch VSIX builds use `scripts/build-local-vsix.sh`, require approval for its temporary package edit, and leave upload/prerelease selection to the human.
+Stable preparation/publication follows RELEASING and the executor contract. A ready scope permits preparation, not publication; prepared source must pass review/verification and main landing before publication selection. Older remote-main ancestors are permitted when metadata and history-backed scope match; missing ancestry/history is not permission to fetch automatically. The maintained release wrapper anchors `release-preflight.js` and the locked VSCE binary to the reviewed tooling checkout while using the selected source as CWD. Source availability alone does not authorize a real dry run or publication. Local branch VSIX builds use `scripts/build-local-vsix.sh`, require approval for its temporary package edit, and leave upload/prerelease selection to the human.
 
 Check the required release helper and flags before constructing or invoking a real release command. Missing guards or `--release-issue` capability mean stop, not “try the older script and see.” The release executor's prospective invocation applies only after those prerequisites hold.
+
+### Claude session priming
+
+The tracked Claude SessionStart command invokes `scripts/beads-session-prime.js`
+through Node and `CLAUDE_PROJECT_DIR`. The helper resolves the session and tooling
+checkout to the same Git common directory, verifies the shared-main target through
+`bd context --json`, and invokes `bd -C MAIN --readonly prime --hook-json`. Hook
+stdin/stdout are preserved; inherited Git/Beads routing is removed for subprocesses.
+Missing CLI/database or foreign-repository input fails without initialization,
+synchronization or issue mutation. `scripts/beads-session-prime.sh` is a POSIX
+entrypoint to the same implementation. Fake-CLI main/nested/external-worktree tests
+do not establish real Claude startup or native Windows shell compatibility.
 
 ## Backlog operations
 

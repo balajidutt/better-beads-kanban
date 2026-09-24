@@ -41,6 +41,7 @@ SHA256SUMS
 .claude/**
 .opencode/**
 .plannotator/**
+.github/**
 
 # Git worktrees created by orchestrator workflows live at
 # worktrees/<branch>-<hash>/ alongside the main clone. Excluded from the
@@ -64,6 +65,23 @@ RELEASING.md
 SECURITY.md
 TESTING.md
 docs/development/**
+tests/tooling/**
+assets/agent-wt-merge
+assets/resolve-python3
+assets/check-pipeline.py
+assets/pipeline_guard.py
+assets/pipeline_policy.py
+assets/pipeline_runtime.py
+assets/github_pipeline.py
+assets/pipeline_evidence.py
+assets/gitlab_pipeline_runtime.py
+assets/check-gitlab-pipeline.py
+assets/__pycache__/**
+configs/pipeline-guard.json
+configs/schemas/pipeline-guard.v1.schema.json
+THIRD_PARTY_NOTICES.md
+LICENSES/dotfiles-workflow-MIT.txt
+**/.env*
 
 # Build & Test Config
 .node-version
