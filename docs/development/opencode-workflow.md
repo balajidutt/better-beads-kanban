@@ -29,7 +29,7 @@ Plan/build inherit their global model/provider. Plan additionally requests nativ
 
 | Leaf | Model | Variant | Local temperature |
 | --- | --- | --- | --- |
-| plan-reviewer, code-reviewer, test-strategist | `anthropic/claude-opus-5` | high | Unset |
+| plan-reviewer, code-reviewer, test-strategist | `anthropic/claude-opus-5-5` | high | Unset |
 | beads-manager | `openai/gpt-5.6-terra` | high | Unset |
 | typescript-specialist | `openai/gpt-6-sol` | high | Unset |
 | webview-specialist, release-manager | `openai/gpt-6-sol` | high | Unset |

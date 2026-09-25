@@ -175,3 +175,68 @@ test('injected review request preserves parent authority and whole-change scope'
   for (const phrase of ['grants no', 'stopped, paused', 'Leaves return', 'whole intended change', 'reviewer must not edit', `${prefix}=PASS`, `${prefix}=FAIL`]) assert.ok(text.includes(phrase));
   assert.equal(text.includes('fix Must-fix issues'), false);
 });
+
+test('the three reviewer agents declare anthropic/claude-opus-5-5 high with no local temperature', async () => {
+  const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
+  for (const name of ['plan-reviewer', 'code-reviewer', 'test-strategist']) {
+    assert.equal(settings.agent[name].model, 'anthropic/claude-opus-5-5');
+    assert.equal(settings.agent[name].variant, 'high');
+    assert.equal(Object.hasOwn(settings.agent[name], 'temperature'), false);
+  }
+  assert.equal(settings.agent['beads-manager'].model, 'openai/gpt-5.6-terra');
+});
+
+test('CI push permission declares dry-run allow while real and tag pushes stay ask with no broad grant', async () => {
+  const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
+  const bash = settings.agent['ci-build-engineer'].permission.bash;
+  assert.equal(bash['*'], 'deny');
+  assert.equal(bash['git push --dry-run origin main'], 'allow');
+  assert.equal(bash['git push origin main'], 'ask');
+  assert.equal(bash['git push origin refs/tags/v*'], 'ask');
+  assert.equal(Object.hasOwn(bash, 'git push'), false);
+  assert.equal(Object.hasOwn(bash, 'git push *'), false);
+  assert.equal(Object.hasOwn(bash, 'git push origin *'), false);
+  assert.deepEqual(Object.keys(bash).filter(key => key.startsWith('git push')).sort(), ['git push --dry-run origin main', 'git push origin main', 'git push origin refs/tags/v*']);
+  for (const [name, agent] of Object.entries(settings.agent)) {
+    if (name === 'ci-build-engineer') continue;
+    const perms = agent.permission && typeof agent.permission === 'object' ? agent.permission : {};
+    const rules = perms.bash && typeof perms.bash === 'object' ? perms.bash : {};
+    for (const key of Object.keys(rules)) assert.ok(!key.startsWith('git push'), `${name} grants ${key}`);
+  }
+});
+
+test('CI tooling permission uses npm lock and installed VSCE instead of Bun and npx', async () => {
+  const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
+  const ci = settings.agent['ci-build-engineer'].permission;
+  assert.equal(ci.edit['.opencode/package-lock.json'], 'allow');
+  assert.equal(ci.edit['.opencode/package.json'], 'allow');
+  assert.equal(Object.hasOwn(ci.edit, '.opencode/bun.lock'), false);
+  assert.equal(Object.hasOwn(ci.bash, 'bun install --frozen-lockfile --ignore-scripts'), false);
+  assert.equal(Object.hasOwn(ci.bash, 'npx --no-install vsce ls --no-dependencies'), false);
+  assert.equal(ci.bash['./node_modules/.bin/vsce ls --no-dependencies'], 'ask');
+  assert.equal(ci.bash['npm ci --ignore-scripts'], 'ask');
+  assert.equal(ci.bash["git diff --no-ext-diff --no-textconv --cached | grep -E '^\\+.*(#|//|/\\*)'"], 'ask');
+  assert.equal(ci.bash['*agent-wt-merge*--close-beads*'], 'deny');
+  assert.equal(ci.task, 'deny');
+  assert.equal(ci.edit['*'], 'deny');
+  for (const key of ['.opencode/opencode.jsonc', '.opencode/agents/**', '.opencode/instructions/**', 'AGENTS.md', 'CLAUDE.md', 'docs/development/opencode-workflow.md', 'docs/development/agent-evaluation.md']) assert.equal(Object.hasOwn(ci.edit, key), false, key);
+});
+
+test('OpenCode tooling manifest and lock pin plugin and sdk 1.18.31 with exact integrity', async () => {
+  const manifest = JSON.parse(await readFile(new URL('../../.opencode/package.json', import.meta.url), 'utf8'));
+  const lock = JSON.parse(await readFile(new URL('../../.opencode/package-lock.json', import.meta.url), 'utf8'));
+  assert.deepEqual(manifest.dependencies, {
+    '@opencode-ai/plugin': '1.18.31',
+    'jsonc-parser': '3.3.1',
+    'picomatch': '4.0.4'
+  });
+  assert.equal(lock.lockfileVersion, 3);
+  assert.deepEqual(lock.packages[''].dependencies, manifest.dependencies);
+  assert.equal(lock.packages['node_modules/@opencode-ai/plugin'].version, '1.18.31');
+  assert.equal(lock.packages['node_modules/@opencode-ai/sdk'].version, '1.18.31');
+  assert.equal(lock.packages['node_modules/@opencode-ai/plugin'].integrity, 'sha512-Rdc1bPK06PByaGyGd0kf7JUZ4pTkexz2OOUNlqZWLpHOiMEZ+/rFGjt46ypZ3QwA697gNdWwwwQbHbKG5NMwGA==');
+  assert.equal(lock.packages['node_modules/@opencode-ai/sdk'].integrity, 'sha512-Raouthf8Lhe9edjvYeeSK7SgvdoU6bBjH9qV3f70dHoa6h+z0X2TMz/e22/wKp/StlFUZ4kIRpYYxFnY8/k01w==');
+  assert.equal(lock.packages['node_modules/@opencode-ai/plugin'].dependencies['@opencode-ai/sdk'], '1.18.31');
+  assert.equal(lock.packages['node_modules/jsonc-parser'].version, '3.3.1');
+  assert.equal(lock.packages['node_modules/picomatch'].version, '4.0.4');
+});

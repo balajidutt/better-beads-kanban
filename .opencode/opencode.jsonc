@@ -91,7 +91,7 @@
       }
     },
     "plan-reviewer": {
-      "model": "anthropic/claude-opus-5",
+      "model": "anthropic/claude-opus-5-5",
       "variant": "high",
       "permission": {
         "*": "deny",
@@ -146,7 +146,7 @@
       }
     },
     "code-reviewer": {
-      "model": "anthropic/claude-opus-5",
+      "model": "anthropic/claude-opus-5-5",
       "variant": "high",
       "permission": {
         "*": "deny",
@@ -203,7 +203,7 @@
       }
     },
     "test-strategist": {
-      "model": "anthropic/claude-opus-5",
+      "model": "anthropic/claude-opus-5-5",
       "variant": "high",
       "permission": {
         "*": "deny",
@@ -243,7 +243,7 @@
           ".opencode/plugins/**": "allow",
           ".opencode/opencode-tooling.config.jsonc": "allow",
           ".opencode/package.json": "allow",
-          ".opencode/bun.lock": "allow",
+          ".opencode/package-lock.json": "allow",
           "docs/development/github-worktree-merge.md": "allow",
           "docs/development/tooling-provenance.md": "allow",
           "THIRD_PARTY_NOTICES.md": "allow",
@@ -276,14 +276,14 @@
           "npm run test:tooling": "ask",
           "npm run test:tooling:python": "ask",
           "npm ci --ignore-scripts": "ask",
-          "bun install --frozen-lockfile --ignore-scripts": "ask",
           "node --test tests/tooling/*": "ask",
           "python3 -m unittest discover *": "ask",
-          "npx --no-install vsce ls --no-dependencies": "ask",
+          "./node_modules/.bin/vsce ls --no-dependencies": "ask",
           "git add -- *": "ask",
           "oc-commit *": "ask",
           "git log -1 *": "ask",
           "git push origin main": "ask",
+          "git push --dry-run origin main": "allow",
           "git push origin refs/tags/v*": "ask",
           "*agent-wt-merge*": "ask",
           "*agent-wt-merge*--close-beads*": "deny"
