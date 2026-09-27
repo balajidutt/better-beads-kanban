@@ -37,7 +37,8 @@
     "Visualization"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "onWebviewPanel:beadsKanban.board"
   ],
   "main": "./out/extension.js",
   "contributes": {

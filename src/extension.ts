@@ -288,20 +288,7 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
-  const openCmd = vscode.commands.registerCommand("beadsKanban.openBoard", async () => {
-    const resolution = resolveRoot();
-    if (!resolution.root) {
-      vscode.window.showErrorMessage('Beads Kanban requires an open workspace folder.');
-      return;
-    }
-
-    const adapter = ensureAdapter();
-    if (!adapter) {
-      vscode.window.showErrorMessage('Beads Kanban requires an open workspace folder.');
-      return;
-    }
-
-    // Surface an ambiguous or failed lookup without blocking activation.
+  const warnAboutResolution = (resolution: BeadsResolution): void => {
     if (resolution.kind === 'none') {
       void vscode.window.showWarningMessage(
         `No Beads repository was found in this workspace. Using ${resolution.root}, where bd commands will fail until one exists.`,
@@ -317,20 +304,14 @@ export function activate(context: vscode.ExtensionContext) {
         if (choice) { void selectBeadsRepository(); }
       });
     }
+  };
 
-    try {
-      output.appendLine('[Extension] === Opening Beads Kanban Board ===');
-      output.appendLine('[Extension] Creating webview panel...');
-    const panel = vscode.window.createWebviewPanel(
-      "beadsKanban.board",
-      "Beads Kanban",
-      vscode.ViewColumn.One,
-      {
-        enableScripts: true,
-        retainContextWhenHidden: true
-      }
-    );
-    output.appendLine('[Extension] Webview panel created');
+  const livePanels = new Set<vscode.WebviewPanel>();
+
+  const wireBoardPanel = (panel: vscode.WebviewPanel, resolution: BeadsResolution, adapter: DaemonBeadsAdapter): void => {
+    livePanels.add(panel);
+    panel.onDidDispose(() => livePanels.delete(panel));
+    panel.webview.options = { enableScripts: true };
 
     const readOnly = vscode.workspace.getConfiguration().get<boolean>("beadsKanban.readOnly", false);
 
@@ -1190,6 +1171,37 @@ export function activate(context: vscode.ExtensionContext) {
         sendBoard(`init-${Date.now()}`);
       }
     }, 500);
+  };
+
+  const openCmd = vscode.commands.registerCommand("beadsKanban.openBoard", async () => {
+    const resolution = resolveRoot();
+    if (!resolution.root) {
+      vscode.window.showErrorMessage('Beads Kanban requires an open workspace folder.');
+      return;
+    }
+
+    const adapter = ensureAdapter();
+    if (!adapter) {
+      vscode.window.showErrorMessage('Beads Kanban requires an open workspace folder.');
+      return;
+    }
+
+    warnAboutResolution(resolution);
+
+    try {
+      output.appendLine('[Extension] === Opening Beads Kanban Board ===');
+      output.appendLine('[Extension] Creating webview panel...');
+      const panel = vscode.window.createWebviewPanel(
+        "beadsKanban.board",
+        "Beads Kanban",
+        vscode.ViewColumn.One,
+        {
+          enableScripts: true,
+          retainContextWhenHidden: true
+        }
+      );
+      output.appendLine('[Extension] Webview panel created');
+      wireBoardPanel(panel, resolution, adapter);
     } catch (error) {
       output.appendLine(`[Extension] Error in openBoard command: ${sanitizeError(error)}`);
       vscode.window.showErrorMessage(`Failed to open Beads Kanban: ${sanitizeError(error)}`);
@@ -1197,6 +1209,52 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   context.subscriptions.push(openCmd);
+
+  context.subscriptions.push(vscode.window.registerWebviewPanelSerializer("beadsKanban.board", {
+    async deserializeWebviewPanel(panel: vscode.WebviewPanel): Promise<void> {
+      const resolution = resolveRoot();
+      const adapter = resolution.root ? ensureAdapter() : null;
+      if (!resolution.root || !adapter) {
+        output.appendLine('[Extension] Closing restored board: no Beads repository to attach it to');
+        panel.dispose();
+        return;
+      }
+      output.appendLine('[Extension] === Restoring Beads Kanban Board ===');
+      warnAboutResolution(resolution);
+      try {
+        wireBoardPanel(panel, resolution, adapter);
+      } catch (error) {
+        output.appendLine(`[Extension] Error restoring board: ${sanitizeError(error)}`);
+        panel.dispose();
+      }
+    }
+  }));
+
+  // A host restart leaves board tabs from the previous host that VS Code never offers to the serializer.
+  const replaceStaleBoards = async (): Promise<void> => {
+    // VS Code reports extension webview view types with a "mainThreadWebview-" prefix.
+    const boardViewTypes = ["beadsKanban.board", "mainThreadWebview-beadsKanban.board"];
+    const boardTabs = vscode.window.tabGroups.all
+      .flatMap((group) => group.tabs)
+      .filter((tab) => tab.input instanceof vscode.TabInputWebview && boardViewTypes.includes(tab.input.viewType));
+    // Hidden tabs revive lazily on reload, so one live board means the rest will revive when shown.
+    if (boardTabs.length === 0 || livePanels.size > 0) {
+      return;
+    }
+    output.appendLine(`[Extension] Replacing stale board: ${boardTabs.length} board tab(s) with no live panel`);
+    await vscode.window.tabGroups.close(boardTabs);
+    if (resolveRoot().root) {
+      await vscode.commands.executeCommand("beadsKanban.openBoard");
+    }
+  };
+
+  // The delay lets a window reload finish reviving boards through the serializer first.
+  const staleBoardCheck = setTimeout(() => {
+    replaceStaleBoards().catch((error) => {
+      output.appendLine(`[Extension] Error replacing stale board: ${sanitizeError(error)}`);
+    });
+  }, 1500);
+  context.subscriptions.push({ dispose: () => clearTimeout(staleBoardCheck) });
 }
 
 export function deactivate() {
