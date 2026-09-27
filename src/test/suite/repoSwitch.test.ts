@@ -18,11 +18,17 @@ suite('Repository switch reaches the open board', () => {
         return source.slice(from, source.indexOf('\n  };', from));
     }
 
-    test('one retarget sequence rebinds watchers and reloads the attached board', () => {
+    test('one retarget sequence rebinds watchers and reloads every attached board', () => {
         const body = functionBody(extensionTs, 'const retargetRepository = ');
         assert.match(body, /setWorkspaceRoot\(root\)/);
-        assert.match(body, /rebindWatchers\?\.\(root\)/);
-        assert.match(body, /reloadBoard\?\.\(\)/);
+        assert.match(body, /for \(const board of attachedBoards\.values\(\)\) \{\s*board\.rebindWatchers\(root\);\s*board\.reload\(\);/);
+    });
+
+    test('each board registers itself for retargeting until it is disposed', () => {
+        const wire = extensionTs.slice(extensionTs.indexOf('const wireBoardPanel = '), extensionTs.indexOf('const openCmd = '));
+        assert.match(wire, /attachedBoards\.set\(panel, \{ rebindWatchers: attachWatchers, reload: resendBoard \}\)/);
+        const dispose = wire.slice(wire.indexOf("output.appendLine('[Extension] Panel disposed')"));
+        assert.match(dispose, /attachedBoards\.delete\(panel\)/);
     });
 
     test('the repository picker and the workspace-folder listener both use it', () => {

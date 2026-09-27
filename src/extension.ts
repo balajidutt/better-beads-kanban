@@ -211,20 +211,16 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push({ dispose: () => adapter?.dispose() });
 
-  // Set by an open board so a repository switch can rebind its file watchers,
-  // which would otherwise stay pointed at the previous repository.
-  let rebindWatchers: ((root: string) => void) | null = null;
-
-  // Companion to rebindWatchers: retargeting the adapter leaves an open board
-  // showing the previous repository's cards, and only the panel can re-send them.
-  let reloadBoard: (() => void) | null = null;
+  const attachedBoards = new Map<vscode.WebviewPanel, { rebindWatchers: (root: string) => void; reload: () => void }>();
 
   // Retarget in place: ensureAdapter() would dispose the instance an open board holds.
   const retargetRepository = (root: string): void => {
     adapter?.setWorkspaceRoot(root);
     adapterWorkspaceRoot = root;
-    rebindWatchers?.(root);
-    reloadBoard?.();
+    for (const board of attachedBoards.values()) {
+      board.rebindWatchers(root);
+      board.reload();
+    }
   };
 
   /**
@@ -281,7 +277,7 @@ export function activate(context: vscode.ExtensionContext) {
       }
 
       output.appendLine(
-        `[Extension] Workspace folders changed; retargeting to ${resolution.root} (attached board: ${reloadBoard ? 'yes' : 'no'})`
+        `[Extension] Workspace folders changed; retargeting to ${resolution.root} (attached boards: ${attachedBoards.size})`
       );
 
       retargetRepository(resolution.root);
@@ -1115,13 +1111,12 @@ export function activate(context: vscode.ExtensionContext) {
       };
 
       attachWatchers(watchedRoot);
-      rebindWatchers = attachWatchers;
 
       const resendBoard = () => {
         output.appendLine('[Extension] Repository changed; reloading board');
         void sendBoard(`root-${Date.now()}`);
       };
-      reloadBoard = resendBoard;
+      attachedBoards.set(panel, { rebindWatchers: attachWatchers, reload: resendBoard });
 
       panel.onDidDispose(() => {
         output.appendLine('[Extension] Panel disposed');
@@ -1143,14 +1138,7 @@ export function activate(context: vscode.ExtensionContext) {
         if (refreshTimeout) {
           clearTimeout(refreshTimeout);
         }
-        // Only clear the slot if it is still ours; a second board opened later
-        // will have replaced it and is still using it.
-        if (rebindWatchers === attachWatchers) {
-          rebindWatchers = null;
-        }
-        if (reloadBoard === resendBoard) {
-          reloadBoard = null;
-        }
+        attachedBoards.delete(panel);
         for (const existing of watchers) {
           existing.dispose();
         }
