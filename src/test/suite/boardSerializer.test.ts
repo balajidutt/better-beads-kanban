@@ -60,7 +60,7 @@ suite('Board panel survives an extension host restart', () => {
         const panel = vscode.window.createWebviewPanel('beadsKanbanTabProbe', 'probe', vscode.ViewColumn.One, {});
         try {
             let webviewTypes: string[] = [];
-            for (let attempt = 0; attempt < 40 && webviewTypes.length === 0; attempt++) {
+            for (let attempt = 0; attempt < 40 && !webviewTypes.includes('mainThreadWebview-beadsKanbanTabProbe'); attempt++) {
                 await new Promise((resolve) => setTimeout(resolve, 50));
                 const inputs = vscode.window.tabGroups.all.flatMap((group) => group.tabs).map((tab) => tab.input);
                 webviewTypes = inputs.filter((input): input is vscode.TabInputWebview => input instanceof vscode.TabInputWebview).map((input) => input.viewType);
