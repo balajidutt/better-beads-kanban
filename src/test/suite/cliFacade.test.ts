@@ -43,6 +43,16 @@ suite('CLI facade characterization', () => {
     assert.strictEqual(clock.countTimers(), 0);
   });
 
+  test('titles with multi-byte characters split across output chunks reach the board intact', async () => {
+    const operation = adapter.execBd(['list', '--json']);
+    const bytes = Buffer.from(JSON.stringify([{ id: 'test-a', title: 'Café 😀 日本' }]));
+    const insideEmoji = bytes.indexOf(0xf0) + 3;
+    child.stdout.emit('data', bytes.subarray(0, insideEmoji));
+    child.stdout.emit('data', bytes.subarray(insideEmoji));
+    child.emit('close', 0);
+    assert.deepStrictEqual(await operation, [{ id: 'test-a', title: 'Café 😀 日本' }]);
+  });
+
   test('empty and friendly success output resolve null', async () => {
     const empty = adapter.execBd([]);
     child.emit('close', 0);

@@ -1,4 +1,5 @@
 import { spawn } from 'child_process';
+import { StringDecoder } from 'string_decoder';
 import { sanitizeError } from './sanitizeError';
 
 export interface BdCliOptions {
@@ -26,6 +27,8 @@ export function executeBd(args: string[], options: BdCliOptions): Promise<unknow
     const child = spawn(executable, sanitizedArgs, { cwd, shell: false });
     let stdout = '';
     let stderr = '';
+    const stdoutDecoder = new StringDecoder('utf8');
+    const stderrDecoder = new StringDecoder('utf8');
     let settled = false;
     let killHandle: ReturnType<typeof setTimeout> | undefined;
     const terminate = () => {
@@ -62,7 +65,7 @@ export function executeBd(args: string[], options: BdCliOptions): Promise<unknow
 
     child.stdout.on('data', data => {
       if (settled) { return; }
-      const text = data.toString();
+      const text = typeof data === 'string' ? data : stdoutDecoder.write(data);
       if (stdout.length + text.length > maxBufferSize) {
         settled = true;
         clearTimeout(timeoutHandle);
@@ -77,7 +80,7 @@ export function executeBd(args: string[], options: BdCliOptions): Promise<unknow
 
     child.stderr.on('data', data => {
       if (settled) { return; }
-      const text = data.toString();
+      const text = typeof data === 'string' ? data : stderrDecoder.write(data);
       if (stderr.length + text.length > maxBufferSize) {
         settled = true;
         clearTimeout(timeoutHandle);
@@ -108,6 +111,8 @@ export function executeBd(args: string[], options: BdCliOptions): Promise<unknow
       if (settled) { return; }
       settled = true;
       clearTimeout(timeoutHandle);
+      stdout += stdoutDecoder.end();
+      stderr += stderrDecoder.end();
       if (code !== 0) {
         log(`Command context: ${command} (cwd: ${cwd})`);
         log(`Command failed (exit ${code}): ${stderr || stdout}`);

@@ -30,6 +30,30 @@ suite('Shared CLI runner', () => {
     assert.strictEqual(sanitizeCliArg(5 as any), '5');
   });
 
+  test('multi-byte characters split across stdout chunks decode intact', async () => {
+    const operation = executeBd(['list', '--json'], { ...options, jsonPolicy: 'strict' });
+    const bytes = Buffer.from(JSON.stringify(['é€😀 title']));
+    const insideEmoji = bytes.indexOf(0xf0) + 2;
+    child.stdout.emit('data', bytes.subarray(0, insideEmoji));
+    child.stdout.emit('data', bytes.subarray(insideEmoji));
+    child.emit('close', 0);
+    assert.deepStrictEqual(await operation, ['é€😀 title']);
+  });
+
+  test('multi-byte characters split across stderr chunks survive into the error', async () => {
+    const operation = executeBd(['show', '--json', 'x-1'], options);
+    const bytes = Buffer.from('Fehler: ungültig 😀');
+    const insideEmoji = bytes.indexOf(0xf0) + 1;
+    child.stderr.emit('data', bytes.subarray(0, insideEmoji));
+    child.stderr.emit('data', bytes.subarray(insideEmoji));
+    child.emit('close', 1);
+    await assert.rejects(operation, (error: Error) => {
+      assert.match(error.message, /ungültig 😀/);
+      assert.doesNotMatch(error.message, /�/);
+      return true;
+    });
+  });
+
   test('pre-aborted signal does not spawn', async () => {
     const controller = new AbortController();
     controller.abort();
