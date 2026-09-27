@@ -411,7 +411,7 @@ function confirmDiscard() {
                 resolve(false);
             }
         }, 30000);
-        pendingRequests.set(reqId, { resolve, timeoutId });
+        pendingRequests.set(reqId, { resolve, reject: () => resolve(false), timeoutId });
         vscode.postMessage({ type: "ui.confirmDiscard", requestId: reqId });
     });
 }
@@ -844,7 +844,7 @@ const pendingRequests = new Map();
 // Cleanup pending requests to prevent memory leaks
 function cleanupPendingRequests() {
     for (const [reqId, { reject }] of pendingRequests.entries()) {
-        reject(new Error('Request cancelled: webview hidden or disposed'));
+        reject?.(new Error('Request cancelled: webview hidden or disposed'));
     }
     pendingRequests.clear();
 }
@@ -2750,7 +2750,9 @@ document.addEventListener("keydown", (e) => {
     // Ctrl/Cmd+N: New issue
     if (modKey && e.key.toLowerCase() === 'n') {
         e.preventDefault();
-        newBtn.click();
+        if (!readOnly) {
+            newBtn.click();
+        }
         return;
     }
     
@@ -2930,6 +2932,7 @@ window.addEventListener("message", (event) => {
             columns: columns,
             cards: cards
         };
+        readOnly = msg.payload.readOnly || false;
 
         // Apply persisted UI state before first paint so saved sort / filters /
         // view mode are reflected immediately on fast-loading boot.
@@ -3016,7 +3019,7 @@ window.addEventListener("message", (event) => {
                 clearTimeout(timeoutId);
             }
             pendingRequests.delete(msg.requestId);
-            reject(new Error(msg.error || "Operation failed"));
+            reject?.(new Error(msg.error || "Operation failed"));
         }
         return;
     }

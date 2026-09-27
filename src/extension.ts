@@ -64,7 +64,7 @@ type WebMsg =
 
 type ExtMsg =
   | { type: "board.data"; requestId: string; payload: BoardData }
-  | { type: "board.minimal"; requestId: string; payload: { cards: MinimalCard[]; uiState?: UIState } }
+  | { type: "board.minimal"; requestId: string; payload: { cards: MinimalCard[]; readOnly: boolean; uiState?: UIState } }
   | { type: "board.columnData"; requestId: string; payload: { column: BoardColumnKey; cards: BoardCard[]; offset: number; totalCount: number; hasMore: boolean } }
   | { type: "table.pageData"; requestId: string; payload: { cards: BoardCard[]; offset: number; totalCount: number; hasMore: boolean } }
   | { type: "issue.full"; requestId: string; payload: { card: FullCard } }
@@ -413,7 +413,7 @@ export function activate(context: vscode.ExtensionContext) {
           // Check cancellation before posting
           if (!cancellationToken.cancelled) {
             const uiState = readPersistedUIState();
-            post({ type: "board.minimal", requestId, payload: uiState ? { cards, uiState } : { cards } });
+            post({ type: "board.minimal", requestId, payload: uiState ? { cards, readOnly, uiState } : { cards, readOnly } });
           } else {
             output.appendLine(`[Extension] Skipped posting board.minimal - operation cancelled`);
           }
@@ -742,7 +742,7 @@ export function activate(context: vscode.ExtensionContext) {
           // Check cancellation before posting
           if (!cancellationToken.cancelled) {
             const uiState = readPersistedUIState();
-            post({ type: "board.minimal", requestId: msg.requestId, payload: uiState ? { cards, uiState } : { cards } });
+            post({ type: "board.minimal", requestId: msg.requestId, payload: uiState ? { cards, readOnly, uiState } : { cards, readOnly } });
           } else {
             output.appendLine(`[Extension] Skipped posting board.minimal - operation cancelled`);
           }
@@ -837,6 +837,22 @@ export function activate(context: vscode.ExtensionContext) {
         return;
       }
 
+      // Webviews stub out window.confirm, so the host prompts. Keep this above the
+      // read-only gate: it is not a mutation, and a dirty dialog must be able to close.
+      if (msg.type === "ui.confirmDiscard") {
+        const choice = await vscode.window.showWarningMessage(
+          "Discard unsaved changes?",
+          { modal: true },
+          "Discard"
+        );
+        post({
+          type: "ui.confirm.result",
+          requestId: msg.requestId,
+          payload: { confirmed: choice === "Discard" }
+        });
+        return;
+      }
+
       if (readOnly) {
         post({ type: "mutation.error", requestId: msg.requestId, error: "Extension is in read-only mode." });
         return;
@@ -904,23 +920,6 @@ export function activate(context: vscode.ExtensionContext) {
             post({ type: "mutation.ok", requestId: msg.requestId });
             vscode.window.showInformationMessage("Issue context copied to clipboard.");
             return;
-        }
-
-        // The webview cannot prompt for itself: window.confirm is stubbed out in
-        // VS Code webviews and returns false without showing anything, which made
-        // the edit dialog's discard guard impossible to satisfy.
-        if (msg.type === "ui.confirmDiscard") {
-          const choice = await vscode.window.showWarningMessage(
-            "Discard unsaved changes?",
-            { modal: true },
-            "Discard"
-          );
-          post({
-            type: "ui.confirm.result",
-            requestId: msg.requestId,
-            payload: { confirmed: choice === "Discard" }
-          });
-          return;
         }
 
         if (msg.type === "issue.update") {
