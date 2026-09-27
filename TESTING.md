@@ -141,9 +141,15 @@ The downloaded VS Code build (~300 MB per version) is cached in the **main check
 `.vscode-test/`, found through `git rev-parse --git-common-dir`. Linked worktrees reuse
 that copy instead of downloading their own; the log shows
 `Found existing install in <main>/.vscode-test/...`. A checkout that is not a normal git
-clone falls back to its own `.vscode-test/`. Deleting `.vscode-test/` in the main checkout
-removes the cache for every worktree, and the next `npm test` downloads it again. The
-per-checkout `.vscode-test/extensions` directory is unaffected.
+clone, or that sits inside another repository, falls back to its own `.vscode-test/`.
+Deleting `.vscode-test/` in the main checkout removes the cache for every worktree, and the
+next `npm test` downloads it again. The per-checkout `.vscode-test/extensions` directory is
+unaffected.
+
+`@vscode/test-electron` does not lock the cache while it downloads and unpacks. After a new
+VS Code stable release, run `npm test` once in the main checkout before starting suites in
+several worktrees at once; two first-time downloads of the same version into the shared
+directory can overwrite each other mid-run.
 
 ### The bd fixture
 

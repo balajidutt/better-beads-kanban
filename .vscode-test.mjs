@@ -5,6 +5,7 @@ import vscodeTestPaths from './scripts/lib/vscode-test-paths.js';
 
 const projectRoot = dirname(fileURLToPath(import.meta.url));
 const userDataDir = vscodeTestPaths.profileDir('vsct', projectRoot);
+const cachePath = await vscodeTestPaths.vscodeCachePath(projectRoot);
 
 export default defineConfig({
   tests: [
@@ -12,7 +13,7 @@ export default defineConfig({
       label: 'Extension Tests',
       files: 'out/test/suite/**/*.test.js',
       workspaceFolder: '.',
-      cachePath: vscodeTestPaths.vscodeCachePath(projectRoot),
+      cachePath,
       launchArgs: ['--disable-extensions', `--user-data-dir=${userDataDir}`],
       mocha: {
         ui: 'tdd',

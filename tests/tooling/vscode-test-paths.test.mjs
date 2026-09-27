@@ -2,11 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import vscodeTestPaths from '../../scripts/lib/vscode-test-paths.js';
+import workflowProcess from '../../scripts/lib/workflow-process.js';
 
+const repoRoot = fileURLToPath(new URL('../../', import.meta.url));
 const worktreeRoot = '/Users/example/Documents/development/Beads-Kanban/.claude/worktrees/a-feature-branch-with-a-long-name';
 
 test('profile directory keeps the VS Code IPC socket under the 103-character macOS limit from a worktree', () => {
@@ -26,21 +29,48 @@ test('the extension suite profile keeps its established tmpdir location', () => 
   assert.equal(vscodeTestPaths.profileDir('vsct', worktreeRoot), expected);
 });
 
-test('linked worktrees share the main checkout download cache; non-git directories keep their own', t => {
+function fixtureRepos(t) {
   const base = realpathSync(mkdtempSync(path.join(tmpdir(), 'bbk-vscode-cache-')));
   t.after(() => rmSync(base, { recursive: true, force: true }));
+  const emptyConfig = path.join(base, 'empty-gitconfig');
+  const emptyTemplate = path.join(base, 'empty-template');
+  writeFileSync(emptyConfig, '');
+  mkdirSync(emptyTemplate);
+  const env = {
+    ...workflowProcess.gitEnvironment(),
+    GIT_CONFIG_GLOBAL: emptyConfig, GIT_CONFIG_SYSTEM: emptyConfig, GIT_TEMPLATE_DIR: emptyTemplate,
+  };
+  const git = (cwd, ...args) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.invalid', ...args],
+    { cwd, env, stdio: 'ignore', timeout: 30000 });
+  return { base, git };
+}
+
+test('linked worktrees share the main checkout download cache; other layouts keep their own', async t => {
+  const { base, git } = fixtureRepos(t);
   const main = path.join(base, 'main');
   const linked = path.join(main, '.claude', 'worktrees', 'feature');
+  const nested = path.join(main, 'vendor', 'copy');
   const plain = path.join(base, 'plain');
-  mkdirSync(main);
-  mkdirSync(plain);
-  const git = (...args) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.invalid', '-c', 'commit.gpgsign=false', ...args],
-    { cwd: main, stdio: 'ignore', timeout: 30000 });
-  git('init', '-q');
-  git('commit', '-q', '--allow-empty', '-m', 'init');
-  git('worktree', 'add', '-q', '-b', 'feature', linked);
+  const separate = path.join(base, 'separate');
+  for (const dir of [main, nested, plain, separate]) mkdirSync(dir, { recursive: true });
+  git(main, 'init', '-q');
+  git(main, 'commit', '-q', '--allow-empty', '--no-verify', '-m', 'init');
+  git(main, 'worktree', 'add', '-q', '-b', 'feature', linked);
+  git(separate, 'init', '-q', `--separate-git-dir=${path.join(base, 'separate-store')}`);
 
-  assert.equal(vscodeTestPaths.vscodeCachePath(main), path.join(main, '.vscode-test'));
-  assert.equal(vscodeTestPaths.vscodeCachePath(linked), path.join(main, '.vscode-test'));
-  assert.equal(vscodeTestPaths.vscodeCachePath(plain), path.join(plain, '.vscode-test'));
+  assert.equal(await vscodeTestPaths.vscodeCachePath(main), path.join(main, '.vscode-test'));
+  assert.equal(await vscodeTestPaths.vscodeCachePath(linked), path.join(main, '.vscode-test'));
+  assert.equal(await vscodeTestPaths.vscodeCachePath(nested), path.join(nested, '.vscode-test'));
+  assert.equal(await vscodeTestPaths.vscodeCachePath(separate), path.join(separate, '.vscode-test'));
+  assert.equal(await vscodeTestPaths.vscodeCachePath(plain), path.join(plain, '.vscode-test'));
+});
+
+test('the suite config and the visual harness use the shared profile and cache helpers', async () => {
+  const config = (await import('../../.vscode-test.mjs')).default.tests[0];
+  assert.equal(config.cachePath, await vscodeTestPaths.vscodeCachePath(path.dirname(fileURLToPath(new URL('../../.vscode-test.mjs', import.meta.url)))));
+  assert.ok(config.launchArgs.includes(`--user-data-dir=${vscodeTestPaths.profileDir('vsct', path.resolve(repoRoot))}`));
+  const harness = readFileSync(path.join(repoRoot, 'scripts', 'visual-test-harness.js'), 'utf8');
+  assert.match(harness, /--user-data-dir=' \+ userDataDir/);
+  assert.match(harness, /var userDataDir = vscodeTestPaths\.profileDir\('vsch', PROJECT_ROOT\);/);
+  assert.match(harness, /cachePath: await vscodeTestPaths\.vscodeCachePath\(PROJECT_ROOT\)/);
 });

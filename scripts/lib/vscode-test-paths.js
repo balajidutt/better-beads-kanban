@@ -1,9 +1,10 @@
 'use strict';
 
-const childProcess = require('child_process');
 const crypto = require('crypto');
+const { realpath } = require('fs/promises');
 const os = require('os');
 const path = require('path');
+const workflowProcess = require('./workflow-process');
 
 // VS Code's IPC socket lives in --user-data-dir and macOS caps socket paths at 103 chars.
 function profileDir(prefix, projectRoot) {
@@ -11,22 +12,16 @@ function profileDir(prefix, projectRoot) {
   return path.join(os.tmpdir(), `${prefix}-${hash}`);
 }
 
-function gitCommonDir(cwd) {
+async function vscodeCachePath(projectRoot) {
+  const fallback = path.join(projectRoot, '.vscode-test');
   try {
-    return childProcess.execFileSync(
-      'git', ['rev-parse', '--path-format=absolute', '--git-common-dir'],
-      { cwd, encoding: 'utf8', timeout: 5000, maxBuffer: 64 * 1024, stdio: ['ignore', 'pipe', 'ignore'] }
-    ).trim();
+    const top = await workflowProcess.git(projectRoot, ['rev-parse', '--path-format=absolute', '--show-toplevel']);
+    if (!path.isAbsolute(top) || await realpath(top) !== await realpath(projectRoot)) return fallback;
+    const { main } = await workflowProcess.sharedMain(projectRoot);
+    return path.join(main, '.vscode-test');
   } catch {
-    return null;
+    return fallback;
   }
-}
-
-function vscodeCachePath(projectRoot) {
-  const commonDir = gitCommonDir(projectRoot);
-  return commonDir && path.basename(commonDir) === '.git'
-    ? path.join(path.dirname(commonDir), '.vscode-test')
-    : path.join(projectRoot, '.vscode-test');
 }
 
 module.exports = { profileDir, vscodeCachePath };
