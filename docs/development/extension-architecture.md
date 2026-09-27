@@ -27,7 +27,9 @@ Production code uses `unknown` rather than `any`. Narrow runtime values before a
 | Path | Responsibility |
 | --- | --- |
 | `src/extension.ts` | Activation, commands, panel lifecycle, messages, read-only enforcement, workspace/repository choice and refresh watchers |
-| `src/daemonBeadsAdapter.ts` | `DaemonBeadsAdapter` is the class name; its transport is CLI subprocesses, not a daemon connection. Owns caching, circuit-breaker behavior, mapping and mutations |
+| `src/daemonBeadsAdapter.ts` | `DaemonBeadsAdapter` is the class name; its transport is CLI subprocesses, not a daemon connection. Owns settings, caching, circuit-breaker behavior, logging and mutations. The CLI runner, the minimal-board and single-issue reads, and the list and dependency mapping helpers come from `src/shared/node.ts`; the full-board, column-page and comment paths still issue their own `list`/`show` calls |
+| `src/shared/model.ts` | Browser-safe entry: issue types, ID validation and the display-tree builder. No Node or `vscode` imports; `npm run test:shared:boundaries` enforces this |
+| `src/shared/node.ts` | Node entry: `executeBd` runner, `BeadsReader` list/show reads and bd response mapping. No `vscode` import |
 | `src/beadsWorkspace.ts` | Pure workspace/repository resolution; no `vscode` import |
 | `src/beadsWatch.ts` | Pure watch patterns and refresh-noise exclusions; no `vscode` import |
 | `src/types.ts` | Card/message-adjacent types, Zod schemas, persisted-state migration and graph types |
@@ -35,11 +37,12 @@ Production code uses `unknown` rather than `any`. Narrow runtime values before a
 | `src/webview.ts` | Production HTML, CSP, nonce and webview resource URIs |
 | `src/filterUniverse.ts`, `src/filterMarkup.ts` | Shared filter universes and generated filter markup |
 | `src/webview/board.js` | DOM rendering, filters, dialogs, state, interaction and message handling |
-| `src/webview/treeBuilder.ts` | Pure hierarchy, filtering, sibling sorting and connector structure |
+| `src/webview/treeBuilder.ts` | Re-exports the pure hierarchy, filtering, sibling sorting and connector structure from `src/shared/treeBuilder.ts` |
 | `src/webview/filterStateMachine.ts` | Inclusive-selection transitions and derived presets |
 | `src/webview/cardRelationships.ts` | Pure relationship projection shared with UI behavior |
 | `src/webview/graph-view.js`, `src/webview/graph-layout.js` | Graph rendering and layout |
 | `media/styles.css`, `media/marked.min.js`, `media/purify.min.js` | Theme-aware styling, Markdown rendering and sanitization |
+| `terminal/` | Private read-only terminal browser with its own package and lockfile; excluded from the VSIX. See `terminal/README.md` |
 
 The UI is not all TypeScript. `board.js` and graph JavaScript are outside the current TS-only lint/typecheck coverage. `getWebviewHtml` tests and source-text assertions are not rendered DOM coverage. The browser harness has its own page/dialog markup; production changes must keep the relevant harness markup aligned.
 
@@ -84,7 +87,7 @@ The current toolbar stamp is **`topBarFiltersVersion: 3`**. Inclusive multi-sele
 
 ## Data adapter and load paths
 
-The extension never opens Dolt, SQLite, or JSONL files as data. `execBd` runs the configured `bd` executable with argument arrays and `shell: false`; `ensureConnected()` probes `bd stats --json`. The name `DaemonBeadsAdapter` and some diagnostic strings are historical names, not a daemon-start protocol. The executable comes from `beadsKanban.bdPath` or PATH; the extension does not manage a separate Dolt executable.
+The extension never opens Dolt, SQLite, or JSONL files as data. `execBd` passes the configured `bd` executable to the shared `executeBd`, which runs it with argument arrays and `shell: false`; `ensureConnected()` probes `bd stats --json`. The name `DaemonBeadsAdapter` and some diagnostic strings are historical names, not a daemon-start protocol. The executable comes from `beadsKanban.bdPath` or PATH; the extension does not manage a separate Dolt executable.
 
 The card types express different data/evidence levels:
 

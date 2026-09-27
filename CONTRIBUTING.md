@@ -183,6 +183,7 @@ src/
 ├── beadsWorkspace.ts       # which folder holds .beads (no vscode import)
 ├── beadsWatch.ts           # file-watch globs for auto-refresh (no vscode import)
 ├── sanitizeError.ts        # scrubs CLI errors before they reach the webview
+├── shared/                 # bd reads, mapping, types, tree logic (no vscode import)
 ├── types.ts                # types and Zod schemas
 ├── webview.ts              # webview HTML, CSP, asset URIs
 ├── webview/                # UI: board.js, graph-view.js, treeBuilder.ts, ...

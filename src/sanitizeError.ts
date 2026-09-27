@@ -12,7 +12,7 @@ export const SPAWN_EACCES_RE = /\bspawn\s+.+?\s+(?:EACCES|EPERM)\b/;
  * True when the error means the bd executable could not be found.
  *
  * Match against the RAW message, before sanitizeError() runs: an absolute
- * `beadsKanban.bdPath` is rewritten to "[PATH]" by the path scrubbers above,
+ * `beadsKanban.bdPath` is rewritten to "[PATH]" by sanitizeError's path scrubbers,
  * so matching the binary name is not reliable. The legacy shell phrasings are
  * kept so a message routed in from a shell wrapper still resolves correctly.
  */

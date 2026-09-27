@@ -17,7 +17,7 @@ test('packaging tool is a locked development dependency with the approved integr
   assert.equal(lock.packages['node_modules/@vscode/vsce'].integrity, 'sha512-gvBfarWF+Ii20ESqjA3dpnPJpQJ8fFJYtcWtjwbRADommCzGg1emtmb34E+DKKhECYvaVyAl+TF9lWS/3GSPvg==');
 });
 
-test('actual package listing excludes workflow tooling and retains extension assets and license', async () => {
+test('actual package listing excludes workflow tooling, shared-core internals and the terminal, and retains extension assets and license', async () => {
   const result = await processTools.run(process.execPath, [path.join(root, 'node_modules/@vscode/vsce/vsce'), 'ls', '--no-dependencies'], { cwd: root, timeout: 30000 });
   assert.equal(result.code, 0, 'VSCE listing must succeed');
   const files = result.stdout.trim().split(/\r?\n/);
@@ -25,7 +25,8 @@ test('actual package listing excludes workflow tooling and retains extension ass
   const exact = new Set(['THIRD_PARTY_NOTICES.md', 'LICENSES/dotfiles-workflow-MIT.txt', 'configs/pipeline-guard.json', 'configs/schemas/pipeline-guard.v1.schema.json', ...['agent-wt-merge', 'resolve-python3', 'check-pipeline.py', 'pipeline_guard.py', 'pipeline_policy.py', 'pipeline_runtime.py', 'github_pipeline.py', 'pipeline_evidence.py', 'gitlab_pipeline_runtime.py', 'check-gitlab-pipeline.py'].map(name => `assets/${name}`)]);
   for (const file of files) {
     assert.equal(exact.has(file), false, file);
-    assert.equal(/^(?:\.opencode|\.claude|\.github|node_modules|scripts|tests\/tooling|docs\/development|assets\/__pycache__)\//.test(file), false, file);
+    assert.equal(/^(?:\.opencode|\.claude|\.github|node_modules|scripts|tests\/tooling|docs\/development|assets\/__pycache__|terminal|out\/shared)\//.test(file), false, file);
+    assert.notEqual(file, 'docs/shared-core.md', file);
     assert.equal(/(?:^|\/)\.env/.test(file), false, file);
   }
 });

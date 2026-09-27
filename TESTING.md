@@ -85,7 +85,7 @@ See [`terminal/README.md`](terminal/README.md) for recorded results, launch
 instructions, measured limits and the separate Checkpoint B manual checklist.
 Automated PTY/input tests do not establish real clipboard or human acceptance.
 
-### Phase A manual smoke checklist
+### Shared-core manual smoke checklist
 
 Run in an Extension Development Host against a disposable populated workspace:
 
