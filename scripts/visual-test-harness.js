@@ -42,6 +42,7 @@ const fs = require('fs');
 const http = require('http');
 const os = require('os');
 const childProcess = require('child_process');
+const vscodeTestPaths = require('./lib/vscode-test-paths');
 
 // ---------------------------------------------------------------------------
 // Argument parsing
@@ -340,10 +341,8 @@ async function main() {
   // process stays alive and we can monitor its lifecycle.
   var executable = vscodeExecutablePath;
 
-  // Build isolated profile directories (same approach as @vscode/test-electron)
-  var vscodeTestDir = path.join(PROJECT_ROOT, '.vscode-test');
-  var userDataDir = path.join(vscodeTestDir, 'user-data');
-  var extensionsDir = path.join(vscodeTestDir, 'extensions');
+  var userDataDir = vscodeTestPaths.profileDir('vsch', PROJECT_ROOT);
+  var extensionsDir = path.join(PROJECT_ROOT, '.vscode-test', 'extensions');
 
   var launchArgs = [
     workspacePath,
