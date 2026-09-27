@@ -2855,7 +2855,14 @@ window.addEventListener("message", (event) => {
                 columnState[col].totalCount = columnState[col].cards.length;
             }
         }
-        
+
+        for (const col of ['ready', 'in_progress', 'blocked', 'closed']) {
+            for (const card of columnState[col].cards) {
+                cardCache.set(card.id, card);
+                cardStateLevel.set(card.id, 'minimal');
+            }
+        }
+
         // Maintain backward compatibility
         boardData = msg.payload;
         readOnly = msg.payload.readOnly || false; // Extract read-only flag

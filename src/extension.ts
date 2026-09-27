@@ -219,6 +219,14 @@ export function activate(context: vscode.ExtensionContext) {
   // showing the previous repository's cards, and only the panel can re-send them.
   let reloadBoard: (() => void) | null = null;
 
+  // Retarget in place: ensureAdapter() would dispose the instance an open board holds.
+  const retargetRepository = (root: string): void => {
+    adapter?.setWorkspaceRoot(root);
+    adapterWorkspaceRoot = root;
+    rebindWatchers?.(root);
+    reloadBoard?.();
+  };
+
   /**
    * Prompt for a folder containing `.beads`, persist it, and retarget the
    * adapter. Returns the chosen path, or null if the user cancelled or picked
@@ -249,14 +257,7 @@ export function activate(context: vscode.ExtensionContext) {
     // it precedence over discovery.
     await context.workspaceState.update(REPO_PATH_STATE_KEY, folderPath);
     lastDescribedResolution = null;
-
-    // Retarget the existing adapter in place rather than going through
-    // ensureAdapter(): recreating it here would leave an open board holding a
-    // disposed instance. If no adapter exists yet, the next ensureAdapter()
-    // call builds one at the newly persisted root.
-    adapter?.setWorkspaceRoot(folderPath);
-    adapterWorkspaceRoot = folderPath;
-    rebindWatchers?.(folderPath);
+    retargetRepository(folderPath);
 
     vscode.window.showInformationMessage(`Switched to repository: ${folderPath}`);
     return folderPath;
@@ -283,12 +284,7 @@ export function activate(context: vscode.ExtensionContext) {
         `[Extension] Workspace folders changed; retargeting to ${resolution.root} (attached board: ${reloadBoard ? 'yes' : 'no'})`
       );
 
-      // Retargeted in place: ensureAdapter() disposes, and an open board holds
-      // this instance.
-      adapter.setWorkspaceRoot(resolution.root);
-      adapterWorkspaceRoot = resolution.root;
-      rebindWatchers?.(resolution.root);
-      reloadBoard?.();
+      retargetRepository(resolution.root);
     })
   );
 
@@ -815,25 +811,8 @@ export function activate(context: vscode.ExtensionContext) {
       }
 
       if (msg.type === "repo.select") {
-        // The picker itself persists the choice, retargets the adapter and
-        // rebinds the watchers; only the board reload is panel-specific.
-        const folderPath = await selectBeadsRepository();
-
-        if (!folderPath) {
-          post({ type: "mutation.ok", requestId: msg.requestId });
-          return;
-        }
-
-        try {
-          const data = await adapter.getBoard();
-          data.readOnly = readOnly; // Propagate read-only mode to webview UI
-          const persistedUIState = readPersistedUIState();
-          if (persistedUIState) { data.uiState = persistedUIState; }
-          post({ type: "board.data", requestId: msg.requestId, payload: data });
-        } catch (err) {
-          output.appendLine(`[Extension] Error loading board after repo switch: ${sanitizeError(err)}`);
-          post({ type: "mutation.error", requestId: msg.requestId, error: "Failed to load new repository" });
-        }
+        await selectBeadsRepository();
+        post({ type: "mutation.ok", requestId: msg.requestId });
         return;
       }
 
