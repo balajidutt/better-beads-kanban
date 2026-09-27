@@ -793,6 +793,18 @@ main {
     padding-left: 20px;
 }
 
+.markdown-body li:has(> input[type="checkbox"]) {
+    list-style: none;
+}
+
+.markdown-body li > input[type="checkbox"] {
+    width: auto;
+    margin: 0 0.4em 0 -1.4em;
+    padding: 0;
+    border: 0;
+    vertical-align: middle;
+}
+
 .markdown-body code {
     background: rgba(255, 255, 255, 0.1);
     padding: 2px 4px;
