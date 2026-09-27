@@ -152,7 +152,7 @@ export function mapBdShowIssueToFullCard(issue: Record<string, unknown>, issueId
   const comments: Comment[] = Array.isArray(issue.comments) ? issue.comments.map((c: unknown) => {
     const comment = c as Record<string, unknown>;
     return {
-      id: typeof comment.id === 'string' ? parseInt(comment.id, 10) : (comment.id as number),
+      id: comment.id as string | number,
       issue_id: issueId, author: (comment.author as string) || 'unknown',
       text: (comment.text as string) || '', created_at: comment.created_at as string
     };

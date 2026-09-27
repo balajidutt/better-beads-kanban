@@ -115,13 +115,14 @@ authorizes commits, publication, or a production packaging decision.
 
 ## Retained CLI limitations
 
-On bd 1.2.2, `show --json` supplies forward dependencies but omits comment bodies
-and reverse-edge `dependents`. Full-card comments/children/blocks therefore remain
-empty when absent in the response, matching the extension mapper. List snapshots
-still supply parent/child and blocker relationships. The integration fixture
-verifies stored comments separately during setup and reports omissions rather
-than adding reads to the list/show contract. Supporting additional comment or
-reverse-edge queries would require a separately reviewed API change.
+On bd 1.2.2, plain `show --json` supplies forward dependencies but omits comment
+bodies and reverse-edge `dependents`. `BeadsReader` with `includeRelated: true`
+adds `--include-comments --include-dependents` to the same single `show` call,
+which fills comments, children and blocks. The extension's detail view opts in;
+the terminal keeps the plain call, so its full-card comments/children/blocks stay
+empty when absent. List snapshots still supply parent/child and blocker
+relationships either way. Comment ids from bd are passed through unparsed (UUID
+strings on 1.2.2).
 
 Strict mode validates JSON and the issue-array envelope, not every optional field.
 Compatibility retains field defaults, first-result show selection, duplicate

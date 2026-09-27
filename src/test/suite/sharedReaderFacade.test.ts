@@ -35,7 +35,8 @@ suite('Shared reader facade characterization', () => {
     assert.deepStrictEqual(await adapter.getBoardMinimal(), [defaultCard]);
     assert.deepStrictEqual(await adapter.getIssueFull('test-empty'), defaultFullCard);
     assert.deepStrictEqual(calls, [
-      ['list', '--json', '--all', '--limit', '5000'], ['show', '--json', 'test-empty']
+      ['list', '--json', '--all', '--limit', '5000'],
+      ['show', '--json', '--include-comments', '--include-dependents', 'test-empty']
     ]);
     assert.strictEqual((adapter as any).lastInteractionTime, Date.now());
     assert.deepStrictEqual(logs, [

@@ -72,7 +72,7 @@ export interface DependencyInfo {
 }
 
 export interface Comment {
-  id: number;
+  id: string | number;
   issue_id: string;
   author: string;
   text: string;

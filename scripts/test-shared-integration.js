@@ -114,7 +114,25 @@ async function main() {
       ['list', '--json', '--all', '--limit', '100'],
       ...[child, parent, blocker, closedParent, activeChild].map(id => ['show', '--json', id])
     ]);
-    console.log('Shared real-bd integration passed: exact list/show, relationships, closed parent/active child, labels, comments and full text');
+
+    const relatedCalls = [];
+    const related = new BeadsReader(async args => {
+      relatedCalls.push(args);
+      return executeBd(['--sandbox', '--readonly', '--dolt-auto-commit', 'off', ...args], {
+        executable: BD, cwd: workspace.dir, timeoutMs: 30000, jsonPolicy: 'strict'
+      });
+    }, { strict: true, includeRelated: true });
+    const relatedChild = await related.getIssueFull(child);
+    assert.deepEqual(relatedChild.comments.map(value => ({ text: value.text, issue_id: value.issue_id })),
+      [{ text: comment, issue_id: child }]);
+    assert.ok(typeof relatedChild.comments[0].id === 'string' && relatedChild.comments[0].id.length > 0,
+      'comment ids are passed through unparsed');
+    assert.deepEqual((await related.getIssueFull(parent)).children.map(ref => ref.id), [child]);
+    assert.deepEqual((await related.getIssueFull(blocker)).blocks.map(ref => ref.id), [child]);
+    assert.deepEqual((await related.getIssueFull(closedParent)).children.map(ref => ref.id), [activeChild]);
+    assert.deepEqual(relatedCalls, [child, parent, blocker, closedParent].map(id =>
+      ['show', '--json', '--include-comments', '--include-dependents', id]));
+    console.log('Shared real-bd integration passed: exact list/show, relationships, closed parent/active child, labels, comments and full text; related reads return comments, children and blocks');
   } finally {
     workspace?.destroy();
     build.cleanup();

@@ -5,6 +5,7 @@ export type BeadsReadExecutor = (args: string[]) => Promise<unknown>;
 
 export interface BeadsReaderOptions {
   strict?: boolean;
+  includeRelated?: boolean;
   onNonArrayList?: () => void;
 }
 
@@ -34,7 +35,8 @@ export class BeadsReader {
     validateIssueId(issueId);
     let result;
     try {
-      result = await this.execute(['show', '--json', issueId]);
+      const related = this.options.includeRelated ? ['--include-comments', '--include-dependents'] : [];
+      result = await this.execute(['show', '--json', ...related, issueId]);
     } catch (error) {
       if (error instanceof Error && error.message.includes('no issue found')) {
         throw new Error(`Issue not found: ${issueId}`);

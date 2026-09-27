@@ -55,5 +55,5 @@ export const expectedShowCard = {
   children: [showRef('test-descendant', 'Descendant')],
   blocks: [showRef('test-blocked', 'Blocked')],
   blocked_by: [showRef('test-blocker', 'Blocker')],
-  comments: [{ id: 12, issue_id: 'test-child', author: 'unknown', text: 'hello', created_at: 'then' }]
+  comments: [{ id: '12x', issue_id: 'test-child', author: 'unknown', text: 'hello', created_at: 'then' }]
 };

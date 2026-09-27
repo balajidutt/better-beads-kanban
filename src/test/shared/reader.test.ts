@@ -26,6 +26,13 @@ suite('Independent shared reader', () => {
     ]);
   });
 
+  test('related reads opt in to comment bodies and dependents before the issue id', async () => {
+    const calls: string[][] = [];
+    const reader = new BeadsReader(async args => { calls.push(args); return [{ id: 'test-empty' }]; }, { includeRelated: true });
+    await reader.getIssueFull('test-empty');
+    assert.deepStrictEqual(calls, [['show', '--json', '--include-comments', '--include-dependents', 'test-empty']]);
+  });
+
   test('detail golden fixture includes relationship direction and metadata precedence', async () => {
     const reader = new BeadsReader(async () => [showFixture]);
     assert.deepStrictEqual(await reader.getIssueFull('test-child'), expectedShowCard);

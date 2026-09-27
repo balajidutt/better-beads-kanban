@@ -472,7 +472,7 @@ export class DaemonBeadsAdapter {
       this.validateIssueId(issueId);
       this.trackInteraction();
 
-      const fullCard = await new BeadsReader(args => this.execBd(args)).getIssueFull(issueId);
+      const fullCard = await new BeadsReader(args => this.execBd(args), { includeRelated: true }).getIssueFull(issueId);
 
       this.output.appendLine(`[DaemonBeadsAdapter] getIssueFull: Loaded full details for ${issueId}`);
       return fullCard;

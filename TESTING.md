@@ -38,12 +38,13 @@ that scratch workspace. Reads exercise the shared public Node entry with sandbox
 and read-only flags with Dolt auto-commit off. Fixtures cover parent/child and blocking edges, a closed parent
 with an active child, labels, comments and full text fields.
 
-bd 1.2.2 `show --json` omits comment bodies and reverse-edge `dependents` on the
-tested builds. Fixture setup verifies the seeded comment through `bd comments`;
-the measured reader still issues only list/show. Integration asserts empty mapped
-arrays when those fields are absent and reports that limitation. Golden unit tests
-cover supplied comments/dependents. List snapshot relationships remain available;
-the reader does not fetch missing detail fields through additional commands.
+bd 1.2.2 plain `show --json` omits comment bodies and reverse-edge `dependents` on
+the tested builds. Fixture setup verifies the seeded comment through `bd comments`;
+the measured reader still issues only list/show. For the plain call, integration
+asserts empty mapped arrays and reports that limitation. A second reader with
+`includeRelated` asserts that the same `show` with `--include-comments
+--include-dependents` returns the comment, the parent's children and the blocker's
+blocks. Golden unit tests cover supplied comments/dependents.
 
 CI has a dedicated Ubuntu job with a checksum-verified prebuilt bd 1.2.2. The
 original extension OS/Node matrix still runs independently. See
