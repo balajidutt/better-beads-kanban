@@ -331,7 +331,10 @@ async function main() {
   var downloadAndUnzipVSCode = testElectron.downloadAndUnzipVSCode;
 
   console.log('Downloading/locating VS Code...');
-  var vscodeExecutablePath = await downloadAndUnzipVSCode('stable');
+  var vscodeExecutablePath = await downloadAndUnzipVSCode({
+    version: 'stable',
+    cachePath: vscodeTestPaths.vscodeCachePath(PROJECT_ROOT)
+  });
   console.log('VS Code:   ' + vscodeExecutablePath);
   console.log('');
 

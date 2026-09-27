@@ -131,10 +131,19 @@ Passing `--user-data-dir` on the `npx vscode-test` command line does not work; t
 does not forward it to Electron. It has to be in `launchArgs`.
 
 The hash keys the directory to the checkout, so two worktrees running tests at the same
-time do not fight over one socket.
+time do not fight over one socket. `scripts/visual-test-harness.js` uses the same scheme
+with a `vsch-` prefix instead of `vsct-`, so a harness session and a suite run from one
+checkout do not share a socket either. Both come from `scripts/lib/vscode-test-paths.js`.
 
-The downloaded VS Code build is a separate cache and still lives in each checkout's
-`.vscode-test/`, so a fresh worktree pays a ~300 MB download on its first `npm test`.
+### Where the VS Code download lives
+
+The downloaded VS Code build (~300 MB per version) is cached in the **main checkout's**
+`.vscode-test/`, found through `git rev-parse --git-common-dir`. Linked worktrees reuse
+that copy instead of downloading their own; the log shows
+`Found existing install in <main>/.vscode-test/...`. A checkout that is not a normal git
+clone falls back to its own `.vscode-test/`. Deleting `.vscode-test/` in the main checkout
+removes the cache for every worktree, and the next `npm test` downloads it again. The
+per-checkout `.vscode-test/extensions` directory is unaffected.
 
 ### The bd fixture
 

@@ -12,6 +12,7 @@ export default defineConfig({
       label: 'Extension Tests',
       files: 'out/test/suite/**/*.test.js',
       workspaceFolder: '.',
+      cachePath: vscodeTestPaths.vscodeCachePath(projectRoot),
       launchArgs: ['--disable-extensions', `--user-data-dir=${userDataDir}`],
       mocha: {
         ui: 'tdd',
