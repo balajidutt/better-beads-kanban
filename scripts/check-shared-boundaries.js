@@ -10,6 +10,8 @@ const shared = path.join(src, 'shared');
 const model = path.join(shared, 'model.ts');
 const nodeEntry = path.join(shared, 'node.ts');
 const tree = path.join(shared, 'treeBuilder.ts');
+const terminal = path.join(root, 'terminal', 'src');
+const terminalCoreEntries = new Set([model, nodeEntry, path.join(src, 'beadsWorkspace.ts'), path.join(src, 'filterUniverse.ts')]);
 const inside = (dir, file) => !path.relative(dir, file).startsWith('..') && !path.isAbsolute(path.relative(dir, file));
 const failures = [];
 const options = { moduleResolution: ts.ModuleResolutionKind.Node10 };
@@ -36,11 +38,14 @@ function imports(source) {
 }
 
 async function main() {
-  const files = ts.sys.readDirectory(src, ['.ts', '.tsx', '.js', '.jsx']);
+  const files = [src, terminal].flatMap(dir => ts.sys.readDirectory(dir, ['.ts', '.tsx', '.js', '.jsx']));
   for (const file of files) {
     const source = ts.createSourceFile(file, ts.sys.readFile(file), ts.ScriptTarget.Latest, true);
     for (const specifier of imports(source)) {
       const resolved = ts.resolveModuleName(specifier, file, options, ts.sys).resolvedModule?.resolvedFileName;
+      if (inside(terminal, file) && resolved && inside(src, resolved) && !terminalCoreEntries.has(resolved)) {
+        failures.push(`${path.relative(root, file)} imports extension-owned code or shared implementation: ${specifier}`);
+      }
       if (inside(shared, file) && ((resolved && !inside(shared, resolved) && !resolved.includes(`${path.sep}node_modules${path.sep}`)) || /^(vscode|react|react-dom|ink)(\/|$)/.test(specifier))) {
         failures.push(`${path.relative(root, file)} imports outside shared: ${specifier}`);
       }

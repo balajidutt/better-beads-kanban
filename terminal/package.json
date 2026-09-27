@@ -1,0 +1,34 @@
+{
+  "name": "beads-terminal-poc",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "start": "node dist/cli.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src test --ext .ts,.tsx --max-warnings 0",
+    "test": "node scripts/test.mjs",
+    "test:integration": "node scripts/integration.mjs",
+    "test:pty": "python3 scripts/pty.py",
+    "benchmark": "node scripts/benchmark.mjs"
+  },
+  "dependencies": {
+    "ink": "7.1.1",
+    "react": "19.2.4",
+    "string-width": "7.2.0",
+    "strip-ansi": "7.1.2",
+    "wrap-ansi": "9.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.15",
+    "@types/react": "19.2.14",
+    "@typescript-eslint/eslint-plugin": "8.57.0",
+    "@typescript-eslint/parser": "8.57.0",
+    "esbuild": "0.27.3",
+    "eslint": "8.57.1",
+    "ink-testing-library": "4.0.0",
+    "typescript": "5.9.3"
+  }
+}

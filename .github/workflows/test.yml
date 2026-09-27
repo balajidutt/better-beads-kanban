@@ -50,6 +50,39 @@ jobs:
     - run: npm run test:shared
     - run: npm run test:shared:integration
 
+  terminal:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v7
+    - uses: actions/setup-node@v7
+      with:
+        node-version: '22.x'
+        cache: npm
+        cache-dependency-path: |
+          package-lock.json
+          terminal/package-lock.json
+    - run: npm ci --ignore-scripts
+    - run: npm ci --ignore-scripts
+      working-directory: terminal
+    - name: Install verified bd 1.2.2 Linux binary
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p "$RUNNER_TEMP/bd-terminal"
+        cd "$RUNNER_TEMP/bd-terminal"
+        curl --fail --location --retry 3 https://github.com/gastownhall/beads/releases/download/v1.2.2/beads_1.2.2_linux_amd64.tar.gz -o beads.tar.gz
+        printf '%s  %s\n' '8140098a51d3b81d5548d1c5e6db1a2d9930e5d141efe2a4bff7d079c4d321e8' beads.tar.gz | sha256sum --check --strict
+        tar -xzf beads.tar.gz
+        ./bd version
+        echo "$RUNNER_TEMP/bd-terminal" >> "$GITHUB_PATH"
+    - run: npm run test:shared:boundaries
+    - run: npm run typecheck && npm run lint && npm test && npm run build
+      working-directory: terminal
+    - run: node dist/cli.mjs --help
+      working-directory: terminal
+    - run: npm run test:integration && npm run test:pty && npm run benchmark
+      working-directory: terminal
+
   test:
     runs-on: ${{ matrix.os }}
     strategy:
