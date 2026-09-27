@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import { spawn } from 'child_process';
 import {
   BoardData,
   BoardColumn,
@@ -8,26 +7,14 @@ import {
   FullCard,
   IssueStatus,
   DependencyInfo,
-  Comment,
-  ISSUE_ID_PATTERN
+  Comment
 } from './types';
-import { sanitizeError } from './sanitizeError';
-
-/**
- * Read a boolean flag that bd 1.0+ stores under issue.metadata.<key>. Falls back
- * to the legacy top-level column for issues written by older bd versions. Accepts
- * true, 1, or the strings "true"/"1" as truthy (bd metadata is stringly-typed).
- */
-function readBoolFromMetadata(issue: Record<string, unknown>, key: string): boolean {
-  const metadata = issue.metadata as Record<string, unknown> | undefined;
-  const candidate = metadata?.[key] ?? issue[key];
-  if (candidate === true || candidate === 1) {return true;}
-  if (typeof candidate === 'string') {
-    const v = candidate.toLowerCase();
-    return v === 'true' || v === '1';
-  }
-  return false;
-}
+import {
+  BeadsReader, validateIssueId, executeBd, sanitizeCliArg,
+  readBoolFromMetadata, mapBdListIssuesToEnrichedCards,
+  extractParentDependency, extractChildrenDependencies,
+  extractBlocksDependencies, extractBlockedByDependencies
+} from './shared/node';
 
 /**
  * BeadsAdapter that shells out to the bd CLI for all issue operations.
@@ -80,12 +67,7 @@ export class DaemonBeadsAdapter {
    * 3. We use validateFlagValue() to check for flag injection attempts
    */
   private sanitizeCliArg(arg: string): string {
-    if (typeof arg !== 'string') {
-      return String(arg);
-    }
-
-    // Only remove null bytes - preserve newlines and whitespace for markdown
-    return arg.replace(/\0/g, '');
+    return sanitizeCliArg(arg);
   }
 
   /**
@@ -94,35 +76,7 @@ export class DaemonBeadsAdapter {
    * @throws Error if issue ID is invalid or potentially dangerous
    */
   private validateIssueId(issueId: string): void {
-    if (typeof issueId !== 'string' || !issueId) {
-      throw new Error('Issue ID must be a non-empty string');
-    }
-
-    // Prevent flag injection - IDs starting with hyphens could be interpreted as CLI flags
-    if (issueId.startsWith('-')) {
-      throw new Error(`Invalid issue ID: cannot start with hyphen (${issueId})`);
-    }
-
-    // Defense-in-depth: reject whitespace that could enable argument injection
-    if (issueId.includes(' ') || issueId.includes('\t') || issueId.includes('\n') || issueId.includes('\r')) {
-      throw new Error(`Invalid issue ID: whitespace not allowed (${issueId})`);
-    }
-
-    // Validate format: prefix-suffix (e.g., beads-abc, smth-abc, project.beads-abc)
-    // The prefix is configurable per-project, so we don't hardcode "beads-"
-    // This prevents arbitrary strings from being passed to bd commands
-    // Allow hyphens and dots in the ID (e.g., beads-kanban-3ae, smth-abc, beads-hct.2)
-    // BUT prevent consecutive special characters to avoid argument injection
-    const validPattern = ISSUE_ID_PATTERN;
-    if (!validPattern.test(issueId)) {
-      throw new Error(`Invalid issue ID format: ${issueId}. Expected format: prefix-xxxx or project.prefix-xxxx`);
-    }
-
-    // Defense in depth: reject shell metacharacters
-    const dangerousChars = /[;&|`$(){}[\]<>\\'"]/;
-    if (dangerousChars.test(issueId)) {
-      throw new Error(`Invalid issue ID: contains dangerous characters (${issueId})`);
-    }
+    validateIssueId(issueId);
   }
 
   /**
@@ -279,110 +233,9 @@ export class DaemonBeadsAdapter {
    * @param timeoutMs Timeout in milliseconds (default: 30000ms = 30s)
    */
   private async execBd(args: string[], timeoutMs: number = 30000): Promise<unknown> {
-    // Sanitize all arguments before passing to CLI
-    const sanitizedArgs = args.map(arg => this.sanitizeCliArg(arg));
-    const bdCmd = this.getBdCommand();
-    return new Promise((resolve, reject) => {
-      const command = `${bdCmd} ${sanitizedArgs.join(' ')}`;
-      const child = spawn(bdCmd, sanitizedArgs, {
-        cwd: this.workspaceRoot,
-        shell: false
-      });
-
-      let stdout = '';
-      let stderr = '';
-      let killed = false;
-
-      // Buffer size limit: 50MB to handle large bd list queries
-      // Note: bd list --limit 10000 can produce ~8-12MB of JSON output
-      // With default initialLoadLimit of 100, we use ~100KB
-      const MAX_BUFFER_SIZE = 50 * 1024 * 1024;
-
-      // Set up timeout
-      const timeoutHandle = setTimeout(() => {
-        if (!killed) {
-          killed = true;
-          child.kill('SIGTERM');
-          this.output.appendLine(`[DaemonBeadsAdapter] Command timed out after ${timeoutMs}ms: ${command}`);
-          reject(new Error(`Command timed out after ${timeoutMs}ms: ${command}`));
-        }
-      }, timeoutMs);
-
-      child.stdout.on('data', (data) => {
-        // Check buffer size limit BEFORE concatenation to prevent memory spikes
-        // If data arrives in large chunks (e.g., 15MB), checking after would temporarily exceed limit
-        const dataStr = data.toString();
-        if (stdout.length + dataStr.length > MAX_BUFFER_SIZE) {
-          if (!killed) {
-            killed = true;
-            clearTimeout(timeoutHandle);
-            child.kill('SIGTERM');
-            this.output.appendLine(`[DaemonBeadsAdapter] Command exceeded buffer limit (${MAX_BUFFER_SIZE} bytes): ${command}`);
-            reject(new Error(`Command output exceeded ${MAX_BUFFER_SIZE} bytes limit`));
-          }
-          return; // Don't append the data
-        }
-        stdout += dataStr;
-      });
-
-      child.stderr.on('data', (data) => {
-        // Check buffer size limit BEFORE concatenation to prevent memory spikes
-        const dataStr = data.toString();
-        if (stderr.length + dataStr.length > MAX_BUFFER_SIZE) {
-          if (!killed) {
-            killed = true;
-            clearTimeout(timeoutHandle);
-            child.kill('SIGTERM');
-            this.output.appendLine(`[DaemonBeadsAdapter] Command error output exceeded buffer limit: ${command}`);
-            reject(new Error(`Command error output exceeded ${MAX_BUFFER_SIZE} bytes limit`));
-          }
-          return; // Don't append the data
-        }
-        stderr += dataStr;
-      });
-
-      child.on('error', (error) => {
-        if (!killed) {
-          killed = true;
-          clearTimeout(timeoutHandle);
-          this.output.appendLine(`[DaemonBeadsAdapter] Command error: ${error.message}`);
-          this.output.appendLine(`[DaemonBeadsAdapter] Command context: ${command} (cwd: ${this.workspaceRoot})`);
-          this.output.appendLine(`[DaemonBeadsAdapter] PATH: ${process.env.PATH ?? ''}`);
-          this.output.appendLine(`[DaemonBeadsAdapter] PATHEXT: ${process.env.PATHEXT ?? ''}`);
-          reject(error);
-        }
-      });
-
-      child.on('close', (code) => {
-        if (!killed) {
-          clearTimeout(timeoutHandle);
-
-          if (code === 0) {
-            const trimmed = stdout.trim();
-            if (!trimmed) {
-              // No output - success for mutation commands
-              resolve(null);
-              return;
-            }
-
-            try {
-              // Try parsing as JSON (for query commands like list/show)
-              const result = JSON.parse(trimmed);
-              resolve(result);
-            } catch {
-              // Not JSON - likely a friendly message from mutation commands
-              // This is fine, just return null to indicate success
-              this.output.appendLine(`[DaemonBeadsAdapter] Non-JSON output: ${trimmed}`);
-              resolve(null);
-            }
-          } else {
-            this.output.appendLine(`[DaemonBeadsAdapter] Command context: ${command} (cwd: ${this.workspaceRoot})`);
-            this.output.appendLine(`[DaemonBeadsAdapter] Command failed (exit ${code}): ${stderr || stdout}`);
-            const sanitizedOutput = sanitizeError(stderr || stdout);
-            reject(new Error(`bd command failed with exit code ${code}: ${sanitizedOutput}`));
-          }
-        }
-      });
+    return executeBd(args, {
+      executable: this.getBdCommand(), cwd: this.workspaceRoot, timeoutMs,
+      log: message => this.output.appendLine(`[DaemonBeadsAdapter] ${message}`)
     });
   }
 
@@ -579,19 +432,17 @@ export class DaemonBeadsAdapter {
   public async getBoardMinimal(limit: number = 5000): Promise<EnrichedCard[]> {
     try {
       this.trackInteraction();
-      // Single fast query - no batching needed
-      // Note: Default limit of 5000 keeps us safely under the 10MB buffer limit
-      // Callers should pass config.initialLoadLimit to honor user preferences
-      const issues = await this.execBd(['list', '--json', '--all', '--limit', limit.toString()]);
-
-      if (!Array.isArray(issues)) {
-        this.output.appendLine('[DaemonBeadsAdapter] getBoardMinimal: bd list returned non-array');
-        return [];
+      let nonArray = false;
+      const reader = new BeadsReader(args => this.execBd(args), {
+        onNonArrayList: () => {
+          nonArray = true;
+          this.output.appendLine('[DaemonBeadsAdapter] getBoardMinimal: bd list returned non-array');
+        }
+      });
+      const enrichedCards = await reader.getBoardMinimal(limit);
+      if (!nonArray) {
+        this.output.appendLine(`[DaemonBeadsAdapter] getBoardMinimal: Loaded ${enrichedCards.length} enriched cards`);
       }
-
-      const enrichedCards = this.mapBdListIssuesToEnrichedCards(issues);
-
-      this.output.appendLine(`[DaemonBeadsAdapter] getBoardMinimal: Loaded ${enrichedCards.length} enriched cards`);
       return enrichedCards;
     } catch (error) {
       throw new Error(`Failed to get minimal board data: ${error instanceof Error ? error.message : String(error)}`);
@@ -608,122 +459,7 @@ export class DaemonBeadsAdapter {
    * `dependencies` arrays.
    */
   private mapBdListIssuesToEnrichedCards(issuesRaw: unknown[]): EnrichedCard[] {
-    const issues = issuesRaw as Record<string, unknown>[];
-
-    // Title / metadata index for resolving DependencyInfo titles by id.
-    const issueById = new Map<string, Record<string, unknown>>();
-    for (const i of issues) {
-      const id = i.id;
-      if (typeof id === 'string') {
-        issueById.set(id, i);
-      }
-    }
-
-    const makeRef = (id: string): DependencyInfo => {
-      const ref = issueById.get(id);
-      return {
-        id,
-        title: (ref?.title as string) || id,
-        created_at: ref?.created_at as string | undefined,
-        created_by: (ref?.created_by as string) || 'unknown'
-      };
-    };
-
-    // Reverse indices: depends_on_id -> issues that point AT it.
-    const childrenByParentId = new Map<string, DependencyInfo[]>();
-    const blocksByBlockerId = new Map<string, DependencyInfo[]>();
-
-    for (const i of issues) {
-      const deps = i.dependencies;
-      if (!Array.isArray(deps)) {
-        continue;
-      }
-      for (const d of deps) {
-        const dep = d as Record<string, unknown>;
-        const sourceId = dep.issue_id as string | undefined;
-        const targetId = dep.depends_on_id as string | undefined;
-        if (!sourceId || !targetId) {
-          continue;
-        }
-        const type = dep.type;
-        if (type === 'parent-child') {
-          // source is child of target
-          const arr = childrenByParentId.get(targetId) || [];
-          arr.push(makeRef(sourceId));
-          childrenByParentId.set(targetId, arr);
-        } else if (type === 'blocks') {
-          // source is blocked by target → target blocks source
-          const arr = blocksByBlockerId.get(targetId) || [];
-          arr.push(makeRef(sourceId));
-          blocksByBlockerId.set(targetId, arr);
-        }
-      }
-    }
-
-    return issues.map((i: Record<string, unknown>) => {
-      const id = i.id as string;
-
-      // parent: prefer the top-level `parent` string from bd list; fall back
-      // to the parent-child edge in this issue's own `dependencies` array.
-      let parent: DependencyInfo | undefined;
-      let parentId: string | undefined;
-      if (typeof i.parent === 'string' && i.parent.length > 0) {
-        parentId = i.parent;
-      } else if (Array.isArray(i.dependencies)) {
-        for (const d of i.dependencies) {
-          const dep = d as Record<string, unknown>;
-          if (dep.type === 'parent-child' && typeof dep.depends_on_id === 'string' && dep.depends_on_id !== id) {
-            parentId = dep.depends_on_id;
-            break;
-          }
-        }
-      }
-      if (parentId) {
-        parent = makeRef(parentId);
-      }
-
-      // blocked_by: walk this issue's own `dependencies` array for
-      // type='blocks' edges.
-      const blockedBy: DependencyInfo[] = [];
-      if (Array.isArray(i.dependencies)) {
-        for (const d of i.dependencies) {
-          const dep = d as Record<string, unknown>;
-          if (dep.type === 'blocks' && typeof dep.depends_on_id === 'string' && dep.depends_on_id !== id) {
-            blockedBy.push(makeRef(dep.depends_on_id));
-          }
-        }
-      }
-
-      const children = childrenByParentId.get(id);
-      const blocks = blocksByBlockerId.get(id);
-
-      return {
-        id,
-        title: (i.title as string) || '',
-        description: (i.description as string) || '',
-        status: (i.status as IssueStatus) || 'open',
-        priority: typeof i.priority === 'number' ? i.priority : 2,
-        issue_type: (i.issue_type as string) || 'task',
-        created_at: (i.created_at as string) || new Date().toISOString(),
-        created_by: (i.created_by as string) || 'unknown',
-        updated_at: (i.updated_at as string) || (i.created_at as string) || new Date().toISOString(),
-        closed_at: (i.closed_at as string | null) || null,
-        close_reason: (i.close_reason as string | null) || null,
-        dependency_count: (i.dependency_count as number) || 0,
-        dependent_count: (i.dependent_count as number) || 0,
-        assignee: (i.assignee as string | null) || null,
-        estimated_minutes: (i.estimated_minutes as number | null) || null,
-        labels: Array.isArray(i.labels) ? i.labels as string[] : [],
-        external_ref: (i.external_ref as string | null) || null,
-        pinned: readBoolFromMetadata(i, 'pinned'),
-        blocked_by_count: (i.blocked_by_count as number) || 0,
-        is_ready: i.status === 'open' && ((i.blocked_by_count as number) || 0) === 0,
-        parent,
-        children: children && children.length > 0 ? children : undefined,
-        blocked_by: blockedBy.length > 0 ? blockedBy : undefined,
-        blocks: blocks && blocks.length > 0 ? blocks : undefined
-      };
-    });
+    return mapBdListIssuesToEnrichedCards(issuesRaw);
   }
 
   /**
@@ -736,110 +472,7 @@ export class DaemonBeadsAdapter {
       this.validateIssueId(issueId);
       this.trackInteraction();
 
-      // Single fast query for one issue
-      let result;
-      try {
-        result = await this.execBd(['show', '--json', issueId]);
-      } catch (error) {
-        // bd returns error for non-existent issues - normalize to consistent error message
-        if (error instanceof Error && error.message.includes('no issue found')) {
-          throw new Error(`Issue not found: ${issueId}`);
-        }
-        throw error;
-      }
-
-      if (!Array.isArray(result) || result.length === 0) {
-        throw new Error(`Issue not found: ${issueId}`);
-      }
-
-      const issue = result[0] as Record<string, unknown>;
-
-      // Build dependency information
-      const parent = this.extractParentDependency(issue);
-      const children = this.extractChildrenDependencies(issue);
-      const blocks = this.extractBlocksDependencies(issue);
-      const blocked_by = this.extractBlockedByDependencies(issue);
-
-      // Map labels
-      let labels: string[] = [];
-      if (issue.labels && Array.isArray(issue.labels)) {
-        labels = issue.labels.map((l: unknown) => typeof l === 'string' ? l : (l as { label: string }).label);
-      }
-
-      // Map comments
-      const comments: Comment[] = [];
-      if (issue.comments && Array.isArray(issue.comments)) {
-        comments.push(...issue.comments.map((c: unknown) => {
-          const comment = c as Record<string, unknown>;
-          return {
-            id: typeof comment.id === 'string' ? parseInt(comment.id, 10) : (comment.id as number),
-            issue_id: issueId,
-            author: (comment.author as string) || 'unknown',
-            text: (comment.text as string) || '',
-            created_at: comment.created_at as string
-          };
-        }));
-      }
-
-      const fullCard: FullCard = {
-        // MinimalCard fields
-        id: issue.id as string,
-        title: (issue.title as string) || '',
-        description: (issue.description as string) || '',
-        status: (issue.status as string) || 'open',
-        priority: typeof issue.priority === 'number' ? issue.priority : 2,
-        issue_type: (issue.issue_type as string) || 'task',
-        created_at: (issue.created_at as string) || new Date().toISOString(),
-        created_by: (issue.created_by as string) || 'unknown',
-        updated_at: (issue.updated_at as string) || (issue.created_at as string) || new Date().toISOString(),
-        closed_at: (issue.closed_at as string | null) || null,
-        close_reason: (issue.close_reason as string | null) || null,
-        dependency_count: (issue.dependency_count as number) || 0,
-        dependent_count: (issue.dependent_count as number) || 0,
-
-        // EnrichedCard fields
-        assignee: (issue.assignee as string | null) || null,
-        estimated_minutes: (issue.estimated_minutes as number | null) || null,
-        labels,
-        external_ref: (issue.external_ref as string | null) || null,
-        pinned: readBoolFromMetadata(issue, 'pinned'),
-        blocked_by_count: blocked_by.length,
-
-        // FullCard fields
-        acceptance_criteria: (issue.acceptance_criteria as string) || '',
-        design: (issue.design as string) || '',
-        notes: (issue.notes as string) || '',
-        due_at: (issue.due_at as string | null) || null,
-        defer_until: (issue.defer_until as string | null) || null,
-        is_ready: issue.status === 'open' && blocked_by.length === 0,
-        is_template: readBoolFromMetadata(issue, 'template'),
-        ephemeral: issue.ephemeral === 1 || issue.ephemeral === true,
-
-        // Event/Agent metadata
-        event_kind: (issue.event_kind as string | null) || null,
-        actor: (issue.actor as string | null) || null,
-        target: (issue.target as string | null) || null,
-        payload: (issue.payload as string | null) || null,
-        sender: (issue.sender as string | null) || null,
-        mol_type: (issue.mol_type as string | null) || null,
-        role_type: (issue.role_type as string | null) || null,
-        rig: (issue.rig as string | null) || null,
-        agent_state: (issue.agent_state as string | null) || null,
-        last_activity: (issue.last_activity as string | null) || null,
-        hook_bead: (issue.hook_bead as string | null) || null,
-        role_bead: (issue.role_bead as string | null) || null,
-        await_type: (issue.await_type as string | null) || null,
-        await_id: (issue.await_id as string | null) || null,
-        timeout_ns: (issue.timeout_ns as number | null) || null,
-        waiters: (issue.waiters as string | null) || null,
-
-        // Relationships
-        parent,
-        children,
-        blocks,
-        blocked_by,
-        comments
-      };
+      const fullCard = await new BeadsReader(args => this.execBd(args)).getIssueFull(issueId);
 
       this.output.appendLine(`[DaemonBeadsAdapter] getIssueFull: Loaded full details for ${issueId}`);
       return fullCard;
@@ -853,80 +486,21 @@ export class DaemonBeadsAdapter {
    * NOTE: Parent is in "dependencies" (issues THIS issue depends on)
    */
   private extractParentDependency(issue: Record<string, unknown>): DependencyInfo | undefined {
-    if (!issue.dependencies || !Array.isArray(issue.dependencies)) {
-      return undefined;
-    }
-
-    // Find parent-child dependency where this issue is the child
-    for (const d of issue.dependencies) {
-      const dep = d as Record<string, unknown>;
-      if (dep.dependency_type === 'parent-child' && dep.id !== issue.id) {
-        return {
-          id: dep.id as string,
-          title: dep.title as string,
-          created_at: dep.created_at as string,
-          created_by: (dep.created_by as string) || 'unknown',
-          metadata: dep.metadata as string | undefined,
-          thread_id: dep.thread_id as string | undefined
-        };
-      }
-    }
-
-    return undefined;
+    return extractParentDependency(issue);
   }
 
   /**
    * Extract children dependencies from issue data
    */
   private extractChildrenDependencies(issue: Record<string, unknown>): DependencyInfo[] {
-    const children: DependencyInfo[] = [];
-
-    if (!issue.dependents || !Array.isArray(issue.dependents)) {
-      return children;
-    }
-
-    for (const d of issue.dependents) {
-      const dep = d as Record<string, unknown>;
-      if (dep.dependency_type === 'parent-child' && dep.id !== issue.id) {
-        children.push({
-          id: dep.id as string,
-          title: dep.title as string,
-          created_at: dep.created_at as string,
-          created_by: (dep.created_by as string) || 'unknown',
-          metadata: dep.metadata as string | undefined,
-          thread_id: dep.thread_id as string | undefined
-        });
-      }
-    }
-
-    return children;
+    return extractChildrenDependencies(issue);
   }
 
   /**
    * Extract blocks dependencies from issue data
    */
   private extractBlocksDependencies(issue: Record<string, unknown>): DependencyInfo[] {
-    const blocks: DependencyInfo[] = [];
-
-    if (!issue.dependents || !Array.isArray(issue.dependents)) {
-      return blocks;
-    }
-
-    for (const d of issue.dependents) {
-      const dep = d as Record<string, unknown>;
-      if (dep.dependency_type === 'blocks' && dep.id !== issue.id) {
-        blocks.push({
-          id: dep.id as string,
-          title: dep.title as string,
-          created_at: dep.created_at as string,
-          created_by: (dep.created_by as string) || 'unknown',
-          metadata: dep.metadata as string | undefined,
-          thread_id: dep.thread_id as string | undefined
-        });
-      }
-    }
-
-    return blocks;
+    return extractBlocksDependencies(issue);
   }
 
   /**
@@ -934,28 +508,7 @@ export class DaemonBeadsAdapter {
    * NOTE: Blockers are in "dependencies" (issues THIS issue depends on)
    */
   private extractBlockedByDependencies(issue: Record<string, unknown>): DependencyInfo[] {
-    const blockedBy: DependencyInfo[] = [];
-
-    if (!issue.dependencies || !Array.isArray(issue.dependencies)) {
-      return blockedBy;
-    }
-
-    // Find "blocks" dependencies where this issue is being blocked
-    for (const d of issue.dependencies) {
-      const dep = d as Record<string, unknown>;
-      if (dep.dependency_type === 'blocks' && dep.id !== issue.id) {
-        blockedBy.push({
-          id: dep.id as string,
-          title: dep.title as string,
-          created_at: dep.created_at as string,
-          created_by: (dep.created_by as string) || 'unknown',
-          metadata: dep.metadata as string | undefined,
-          thread_id: dep.thread_id as string | undefined
-        });
-      }
-    }
-
-    return blockedBy;
+    return extractBlockedByDependencies(issue);
   }
 
   /**

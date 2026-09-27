@@ -15,6 +15,60 @@ This document describes the testing infrastructure for the Better Beads Kanban V
 
 ## Extension Test Suite
 
+### Independent shared-core checks
+
+After `npm ci --ignore-scripts`, run:
+
+```bash
+npm run test:shared:boundaries
+npm run test:shared
+npm run test:shared:integration
+```
+
+`test:shared` compiles `src/shared`, `src/test/shared/*.test.ts` and the existing
+treeBuilder suite into a disposable directory, then runs plain Node/Mocha. It does
+not launch VS Code or install DOM mocks. `test:shared:boundaries` checks resolved
+imports and the browser-safe model/tree graph with TypeScript and esbuild.
+
+The real-bd command is mandatory: missing bd fails rather than skips. Set `BD_BIN`
+to an absolute executable path if needed. It reuses
+`scripts/lib/bd-scratch-workspace.js`, which creates a temporary database, pins
+maintainer routing, verifies containment and cleans up. All fixture writes target
+that scratch workspace. Reads exercise the shared public Node entry with sandbox
+and read-only flags with Dolt auto-commit off. Fixtures cover parent/child and blocking edges, a closed parent
+with an active child, labels, comments and full text fields.
+
+bd 1.2.2 `show --json` omits comment bodies and reverse-edge `dependents` on the
+tested builds. Fixture setup verifies the seeded comment through `bd comments`;
+the measured reader still issues only list/show. Integration asserts empty mapped
+arrays when those fields are absent and reports that limitation. Golden unit tests
+cover supplied comments/dependents. List snapshot relationships remain available;
+the reader does not fetch missing detail fields through additional commands.
+
+CI has a dedicated Ubuntu job with a checksum-verified prebuilt bd 1.2.2. The
+original extension OS/Node matrix still runs independently. See
+[`docs/shared-core.md`](docs/shared-core.md) for the provisional architecture and
+Checkpoint A packaging decision.
+
+### Phase A manual smoke checklist
+
+Run in an Extension Development Host against a disposable populated workspace:
+
+- Open the board and compare issue counts, statuses and labels with bd list.
+- Open details; verify description, design, acceptance criteria, notes and comments.
+- Verify both directions of parent/child and blocks/blocked-by relationships.
+- Switch table, kanban, tree and graph views; confirm a closed parent does not hide
+  its active child under the established tree filtering behavior.
+- Change a fixture with bd and verify refresh/watch behavior.
+- Exercise pagination and repository selection; verify subsequent reads use the
+  selected root and current bd executable setting.
+- Change tree filters and expansion, switch views and reopen the board; verify
+  expansion persistence and loaded-ancestor context.
+- Verify read-only configuration and the existing write workflow in the scratch
+  workspace; verify errors remain visible for a missing bd executable.
+
+These are manual checks, not assertions that a smoke run has been performed.
+
 `npm test` runs the VS Code extension tests via `@vscode/test-cli`, which downloads a
 real VS Code build and runs the suites under `out/test/suite/`.
 
@@ -67,9 +121,11 @@ Subsequent commands explicitly target the fixture; routing is pinned to maintain
 Subprocess time/output limits and environment restoration apply on teardown. Do
 not replace this with repository-local initialization or direct database access.
 
-If `bd` is not on `PATH` the whole suite skips rather than failing. That is what
-keeps CI green, since the workflow does not install bd. Use the `skipIfNoBd` guard
-for any new test that shells out to `bd`.
+If `bd` is not on `PATH` this extension-host suite skips rather than failing. The
+extension matrix does not install bd, so that keeps it green. Use the `skipIfNoBd`
+guard for any new extension-host test that shells out to `bd`. The independent
+shared integration job does install bd and fails on missing prerequisites; it never
+uses `skipIfNoBd`.
 
 ### A note on performance testing
 

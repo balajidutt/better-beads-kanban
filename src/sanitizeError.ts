@@ -1,30 +1,5 @@
-/**
- * Sanitizes error messages by removing file paths and sensitive information.
- * Consolidates path removal logic to prevent information leakage in error messages.
- */
-export function sanitizeError(error: unknown): string {
-  const msg = error instanceof Error ? error.message : String(error);
-
-  // Comprehensive path removal patterns:
-  // 1. Windows absolute paths (C:\..., D:\...)
-  // 2. UNC paths (\\server\share...)
-  // 3. Unix absolute paths starting with common root directories
-  // 4. Any path with common file extensions (fallback)
-  const sanitized = msg
-    // Windows absolute paths: C:\... or C:/...
-    .replace(/[A-Za-z]:[\\/][^\s]*/g, '[PATH]')
-    // UNC paths: \\server\share...
-    .replace(/\\\\[^\s]+/g, '[PATH]')
-    // Unix absolute paths starting with common root directories
-    .replace(/\/(?:usr|home|opt|var|tmp|etc|lib|bin|sbin|mnt|srv|root|proc|sys|dev|Applications|Users|Library)(?:\/[^\s]*)?/g, '[PATH]')
-    // Fallback: catch any remaining paths with common file extensions
-    .replace(/(?:\/|\\)[^\s]*\.(ts|js|tsx|jsx|db|sqlite|sqlite3|json|log|txt)/g, '[FILE]')
-    // Remove stack trace lines
-    .replace(/\s+at\s+.*/g, '');
-
-  // Return cleaned message
-  return sanitized.trim() || 'An error occurred while processing your request.';
-}
+import { sanitizeError } from './shared/node';
+export { sanitizeError } from './shared/node';
 
 // Node reports a failed `spawn` as "spawn <command> ENOENT" (or EACCES/EPERM),
 // never with the shell phrasing "bd: command not found". The command is matched
