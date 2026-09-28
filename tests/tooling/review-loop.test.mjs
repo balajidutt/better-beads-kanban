@@ -284,22 +284,33 @@ test('beads-manager Git forms named in its contract are allowed', async () => {
   for (const form of forms) assert.equal(bashAction(bash, form), 'allow', form);
 });
 
-test('beads-manager CLI help is allowed per subcommand only in the exact form its contract names', async () => {
+test('every agent with bd rules has exact help rules for its subcommands, named in its contract', async () => {
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
-  const bash = settings.agent['beads-manager'].permission.bash;
-  const contract = await readFile(new URL('../../.opencode/agents/beads-manager.md', import.meta.url), 'utf8');
-  const listed = ['show', 'ready', 'list', 'history', 'create', 'update', 'dep', 'dep add', 'dep remove', 'close'];
-  assert.ok(contract.includes(`\`command bd <subcommand> --help\`, without \`-C\`, for ${listed.slice(0, -1).join(', ')} or close.`));
-  const permitted = Object.keys(bash).map(key => key.match(/^command bd -C \* (?:--readonly )?(.+) \*$/)?.[1]).filter(Boolean);
-  assert.deepEqual([...new Set([...permitted, 'dep'])].sort(), [...listed].sort());
-  for (const sub of listed) {
-    assert.equal(bashAction(bash, `command bd ${sub} --help`), 'allow', sub);
-    assert.notEqual(bashAction(bash, `command bd -C "/main" ${sub} --help`), 'allow', sub);
-    assert.notEqual(bashAction(bash, `command bd -C "/main" --readonly ${sub} --help`), 'allow', sub);
+  const expected = {
+    plan: ['show', 'ready', 'list'],
+    'beads-manager': ['show', 'ready', 'list', 'history', 'create', 'update', 'dep', 'dep add', 'dep remove', 'close'],
+    'release-manager': ['show', 'ready']
+  };
+  const withBd = Object.entries(settings.agent).filter(([, agent]) => typeof agent.permission?.bash === 'object' && Object.keys(agent.permission.bash).some(key => key.startsWith('command bd -C ')));
+  assert.deepEqual(withBd.map(([name]) => name).sort(), Object.keys(expected).sort());
+  for (const [name, agent] of withBd) {
+    const bash = agent.permission.bash;
+    const listed = expected[name];
+    const contract = await readFile(new URL(`../../.opencode/agents/${name}.md`, import.meta.url), 'utf8');
+    assert.ok(contract.includes(`\`command bd --help\` or \`command bd <subcommand> --help\`, without \`-C\`, for ${listed.slice(0, -1).join(', ')} or ${listed.at(-1)}.`), name);
+    const permitted = Object.keys(bash).map(key => key.match(/^command bd -C \* (?:--readonly )?(.+) \*$/)?.[1]).filter(Boolean);
+    const parents = permitted.filter(sub => sub.includes(' ')).map(sub => sub.split(' ')[0]);
+    assert.deepEqual([...new Set([...permitted, ...parents])].sort(), [...listed].sort(), name);
+    assert.equal(bashAction(bash, 'command bd --help'), 'allow', name);
+    for (const sub of listed) {
+      assert.equal(bashAction(bash, `command bd ${sub} --help`), 'allow', `${name} ${sub}`);
+      assert.notEqual(bashAction(bash, `command bd -C "/main" ${sub} --help`), 'allow', `${name} ${sub}`);
+      assert.notEqual(bashAction(bash, `command bd -C "/main" --readonly ${sub} --help`), 'allow', `${name} ${sub}`);
+    }
+    // bd close --reason consumes the next argument, so a help wildcard would admit a real close.
+    assert.notEqual(bashAction(bash, 'command bd close bbk-x --reason --help'), 'allow', name);
+    assert.equal(Object.keys(bash).some(key => key.includes('*') && key.includes('--help')), false, name);
   }
-  // bd close --reason consumes the next argument, so a help wildcard would admit a real close.
-  assert.equal(bashAction(bash, 'command bd close bbk-x --reason --help'), 'deny');
-  assert.equal(Object.keys(bash).some(key => key.includes('*') && key.includes('--help')), false);
 });
 
 test('dependency preparation is named in the routing contracts and the project configuration grants it only to CI', async () => {
