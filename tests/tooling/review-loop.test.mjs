@@ -240,6 +240,50 @@ test('release history and diff families ask while the later exact diff stays all
   for (const key of keys.filter(key => /^git (log|diff)\b/.test(key) && key.endsWith('*'))) assert.equal(bash[key], 'ask', key);
 });
 
+// Copy of Wildcard.match from OpenCode v1.18.31 packages/core/src/util/wildcard.ts.
+function wildcardMatch(input, pattern) {
+  const normalized = input.replaceAll('\\', '/');
+  let escaped = pattern.replaceAll('\\', '/').replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.');
+  if (escaped.endsWith(' .*')) escaped = escaped.slice(0, -3) + '( .*)?';
+  return new RegExp('^' + escaped + '$', 's').test(normalized);
+}
+
+function bashAction(rules, command) {
+  return Object.entries(rules).findLast(([pattern]) => wildcardMatch(command, pattern))?.[1] ?? 'ask';
+}
+
+async function contractGitForms(name) {
+  const text = await readFile(new URL(`../../.opencode/agents/${name}.md`, import.meta.url), 'utf8');
+  return [...text.matchAll(/`(git [^`]+)`/g)].map(([, form]) => form
+    .replaceAll('<base>', '5d31f0be42def32d1d9b1cc7f5e11dbf8c131034')
+    .replaceAll('<sha>', 'f334ab5')
+    .replaceAll('<paths>', 'CHANGELOG.md package.json'));
+}
+
+test('wildcard copy keeps trailing-space optionality and anchors the whole command', () => {
+  assert.equal(wildcardMatch('git diff --no-ext-diff --no-textconv', 'git diff --no-ext-diff --no-textconv *'), true);
+  assert.equal(wildcardMatch('git diff --name-status HEAD', 'git diff --no-ext-diff --no-textconv *'), false);
+  assert.equal(wildcardMatch('git -C /repo rev-parse --show-toplevel', 'git rev-parse *'), false);
+});
+
+test('release-manager Git forms named in its contract resolve to their documented actions', async () => {
+  const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
+  const bash = settings.agent['release-manager'].permission.bash;
+  assert.equal(Object.keys(bash)[0], '*');
+  const forms = await contractGitForms('release-manager');
+  assert.equal(forms.length, 10);
+  for (const form of forms) assert.equal(bashAction(bash, form), /^git (log|diff) /.test(form) ? 'ask' : 'allow', form);
+  assert.equal(bashAction(bash, 'git -c core.fsmonitor=false status --porcelain=v1 -uall'), 'deny');
+});
+
+test('beads-manager Git forms named in its contract are allowed', async () => {
+  const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
+  const bash = settings.agent['beads-manager'].permission.bash;
+  const forms = await contractGitForms('beads-manager');
+  assert.deepEqual(forms, ['git rev-parse --path-format=absolute --git-common-dir', 'git worktree list --porcelain']);
+  for (const form of forms) assert.equal(bashAction(bash, form), 'allow', form);
+});
+
 test('CI tooling permission uses npm lock and installed VSCE instead of Bun and npx', async () => {
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
   const ci = settings.agent['ci-build-engineer'].permission;
