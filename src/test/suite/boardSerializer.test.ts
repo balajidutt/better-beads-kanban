@@ -60,12 +60,17 @@ suite('Board panel survives an extension host restart', () => {
         const panel = vscode.window.createWebviewPanel('beadsKanbanTabProbe', 'probe', vscode.ViewColumn.One, {});
         try {
             let webviewTypes: string[] = [];
-            for (let attempt = 0; attempt < 40 && !webviewTypes.includes('mainThreadWebview-beadsKanbanTabProbe'); attempt++) {
-                await new Promise((resolve) => setTimeout(resolve, 50));
+            // On CI runners a new tab can take seconds to reach the extension host's tab list.
+            const deadline = Date.now() + 10000;
+            while (!webviewTypes.includes('mainThreadWebview-beadsKanbanTabProbe') && Date.now() < deadline) {
+                await new Promise((resolve) => setTimeout(resolve, 100));
                 const inputs = vscode.window.tabGroups.all.flatMap((group) => group.tabs).map((tab) => tab.input);
                 webviewTypes = inputs.filter((input): input is vscode.TabInputWebview => input instanceof vscode.TabInputWebview).map((input) => input.viewType);
             }
-            assert.ok(webviewTypes.includes('mainThreadWebview-beadsKanbanTabProbe'), `webview tab types: ${webviewTypes.join(', ')}`);
+            assert.ok(
+                webviewTypes.includes('mainThreadWebview-beadsKanbanTabProbe'),
+                `${webviewTypes.length} webview tab(s), types: ${[...new Set(webviewTypes)].join(', ')}`
+            );
         } finally {
             panel.dispose();
         }
