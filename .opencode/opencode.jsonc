@@ -69,7 +69,8 @@
         "list": "allow",
         "edit": "deny",
         "bash": "deny",
-        "external_directory":{
+        "external_directory": {
+          "*": "deny",
           "$HOME/.plannotator/plans/**": "allow"
         },
         "task": {
@@ -132,6 +133,7 @@
           "*": "deny",
           "git rev-parse *": "allow",
           "git branch --show-current": "allow",
+          "git worktree list --porcelain": "allow",
           "command bd --help": "allow",
           "command bd -C * --readonly show *": "ask",
           "command bd -C * --readonly ready *": "ask",
@@ -307,6 +309,10 @@
         "external_directory": "ask",
         "bash": {
           "*": "deny",
+          "git log --oneline --decorate --reverse *": "ask",
+          "git diff --no-ext-diff --no-textconv --stat *": "ask",
+          "git diff --no-ext-diff --no-textconv --name-status *": "ask",
+          "git diff --no-ext-diff --no-textconv *": "ask",
           "git rev-parse *": "allow",
           "git --no-optional-locks -c core.fsmonitor=false status": "allow",
           "git --no-optional-locks -c core.fsmonitor=false status *": "allow",

@@ -205,6 +205,41 @@ test('CI push permission declares dry-run allow while real and tag pushes stay a
   }
 });
 
+test('build external directory access falls back to deny around the Plannotator plans grant', async () => {
+  const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
+  const external = settings.agent.build.permission.external_directory;
+  assert.deepEqual(Object.entries(external), [['*', 'deny'], ['$HOME/.plannotator/plans/**', 'allow']]);
+});
+
+test('beads-manager lists worktrees only through the exact porcelain query', async () => {
+  const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
+  const bash = settings.agent['beads-manager'].permission.bash;
+  assert.equal(bash['*'], 'deny');
+  assert.deepEqual(Object.entries(bash).filter(([key]) => key.startsWith('git worktree')), [['git worktree list --porcelain', 'allow']]);
+  const keys = Object.keys(bash);
+  assert.ok(keys.indexOf('git worktree list --porcelain') > keys.indexOf('*'));
+});
+
+test('release history and diff families ask while the later exact diff stays allowed', async () => {
+  const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
+  const bash = settings.agent['release-manager'].permission.bash;
+  const keys = Object.keys(bash);
+  const families = [
+    'git log --oneline --decorate --reverse *',
+    'git diff --no-ext-diff --no-textconv --stat *',
+    'git diff --no-ext-diff --no-textconv --name-status *',
+    'git diff --no-ext-diff --no-textconv *'
+  ];
+  for (const family of families) {
+    assert.equal(bash[family], 'ask', family);
+    assert.ok(keys.indexOf(family) > keys.indexOf('*'), family);
+  }
+  // OpenCode applies the last matching rule, and a trailing " *" also matches the bare command.
+  assert.equal(bash['git diff --no-ext-diff --no-textconv'], 'allow');
+  assert.ok(keys.indexOf('git diff --no-ext-diff --no-textconv') > keys.indexOf('git diff --no-ext-diff --no-textconv *'));
+  for (const key of keys.filter(key => /^git (log|diff)\b/.test(key) && key.endsWith('*'))) assert.equal(bash[key], 'ask', key);
+});
+
 test('CI tooling permission uses npm lock and installed VSCE instead of Bun and npx', async () => {
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
   const ci = settings.agent['ci-build-engineer'].permission;
