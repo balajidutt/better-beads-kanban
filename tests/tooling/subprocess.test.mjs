@@ -34,3 +34,12 @@ test('subprocess preserves stdin and exit status without shell interpretation', 
   assert.equal(result.code, 7);
   assert.deepEqual(gitEnvironment({ PATH: 'synthetic', GIT_DIR: '/foreign', GIT_CONFIG_COUNT: '1' }), { PATH: 'synthetic', GIT_TERMINAL_PROMPT: '0', GIT_OPTIONAL_LOCKS: '0' });
 });
+
+test('subprocess without input connects the child stdin to the null device, not a pipe', async t => {
+  const root = await scratch(t);
+  const script = path.join(root, 'stdin.cjs');
+  await writeFile(script, "const fs = require('fs'); process.stdout.write(`${fs.fstatSync(0).isCharacterDevice()}:${fs.readFileSync(0).length}`);");
+  const result = await run(process.execPath, [script], { cwd: root });
+  assert.equal(result.stdout, 'true:0');
+  assert.equal(result.code, 0);
+});

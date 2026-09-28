@@ -19,11 +19,12 @@ function beadsEnvironment(source = process.env) {
 
 function run(command, args, { cwd, env = process.env, input = '', timeout = 10000, maxBytes = 1048576, signal } = {}) {
   if (!Number.isInteger(timeout) || timeout < 1 || timeout > 30000 || !Number.isInteger(maxBytes) || maxBytes < 1 || maxBytes > 1048576) return Promise.reject(new WorkflowError('INVALID_PROCESS_BOUNDS'));
-  if (Buffer.byteLength(input) > maxBytes) return Promise.reject(new WorkflowError('INPUT_LIMIT'));
+  const inputBytes = Buffer.byteLength(input);
+  if (inputBytes > maxBytes) return Promise.reject(new WorkflowError('INPUT_LIMIT'));
   if (signal?.aborted) return Promise.reject(new WorkflowError('PROCESS_CANCELLED'));
   return new Promise((resolve, reject) => {
     let child;
-    try { child = spawn(command, args, { cwd, env, shell: false, stdio: ['pipe', 'pipe', 'pipe'] }); }
+    try { child = spawn(command, args, { cwd, env, shell: false, stdio: [inputBytes ? 'pipe' : 'ignore', 'pipe', 'pipe'] }); }
     catch { reject(new WorkflowError('PROCESS_START_FAILED')); return; }
     const stdout = [];
     const stderr = [];
@@ -47,7 +48,7 @@ function run(command, args, { cwd, env = process.env, input = '', timeout = 1000
     };
     child.stdout.on('data', collect(stdout));
     child.stderr.on('data', collect(stderr));
-    child.stdin.on('error', () => stop('PROCESS_INPUT_FAILED'));
+    child.stdin?.on('error', () => stop('PROCESS_INPUT_FAILED'));
     child.on('error', error => { failure ??= new WorkflowError(error.code === 'ENOENT' ? 'TOOL_UNAVAILABLE' : 'PROCESS_START_FAILED'); });
     child.on('close', code => {
       clearTimeout(timer);
@@ -56,7 +57,7 @@ function run(command, args, { cwd, env = process.env, input = '', timeout = 1000
       if (failure) reject(failure);
       else resolve({ code, stdout: Buffer.concat(stdout).toString('utf8'), stderr: Buffer.concat(stderr).toString('utf8') });
     });
-    child.stdin.end(input);
+    child.stdin?.end(input);
   });
 }
 
