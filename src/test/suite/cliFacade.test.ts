@@ -10,12 +10,25 @@ suite('CLI facade characterization', () => {
   let child: EventEmitter & { stdout: PassThrough; stderr: PassThrough; kill: sinon.SinonSpy };
   let spawn: sinon.SinonStub;
   let clock: sinon.SinonFakeTimers;
+  let setTimer: sinon.SinonSpy;
+  let clearTimer: sinon.SinonSpy;
   let logs: string[];
   let adapter: any;
   let executable: string;
 
+  const adapterTimers = () => setTimer.getCalls()
+    .filter(call => (call as unknown as { stack: string }).stack.includes('bdCli'))
+    .map(call => call.returnValue);
+  const assertAdapterTimersCleared = (count: number) => {
+    const timers = adapterTimers();
+    assert.strictEqual(timers.length, count);
+    for (const timer of timers) { assert.ok(clearTimer.calledWith(timer)); }
+  };
+
   setup(() => {
-    clock = sinon.useFakeTimers();
+    clock = sinon.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    setTimer = sinon.spy(globalThis, 'setTimeout');
+    clearTimer = sinon.spy(globalThis, 'clearTimeout');
     child = Object.assign(new EventEmitter(), {
       stdout: new PassThrough(), stderr: new PassThrough(), kill: sinon.spy()
     });
@@ -40,7 +53,7 @@ suite('CLI facade characterization', () => {
     child.emit('close', 0);
     await second;
     assert.deepStrictEqual(spawn.secondCall.args, ['/tools/other bd', ['comments', 'add', 'test-a', '--', 'literal\n$(date)'], { cwd: '/other', shell: false }]);
-    assert.strictEqual(clock.countTimers(), 0);
+    assertAdapterTimersCleared(2);
   });
 
   test('titles with multi-byte characters split across output chunks reach the board intact', async () => {
@@ -73,7 +86,7 @@ suite('CLI facade characterization', () => {
     const error = new Error('spawn bd ENOENT');
     child.emit('error', error);
     await assert.rejects(missing, (actual: unknown) => actual === error);
-    assert.strictEqual(clock.countTimers(), 0);
+    assertAdapterTimersCleared(2);
   });
 
   test('default timeout rejects once, sends SIGTERM and leaves no timer', async () => {
@@ -84,7 +97,7 @@ suite('CLI facade characterization', () => {
     assert.deepStrictEqual(child.kill.firstCall.args, ['SIGTERM']);
     child.emit('close', 0);
     assert.strictEqual(child.kill.callCount, 1);
-    assert.strictEqual(clock.countTimers(), 0);
+    assert.strictEqual(adapterTimers().length, 1);
   });
 
   for (const stream of ['stdout', 'stderr'] as const) {
@@ -96,7 +109,7 @@ suite('CLI facade characterization', () => {
       child[stream].emit('data', 'x'.repeat(50 * 1024 * 1024 + 1));
       await rejected;
       assert.deepStrictEqual(child.kill.firstCall.args, ['SIGTERM']);
-      assert.strictEqual(clock.countTimers(), 0);
+      assertAdapterTimersCleared(1);
     });
   }
 });
