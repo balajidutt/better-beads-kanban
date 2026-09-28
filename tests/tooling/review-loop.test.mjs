@@ -284,6 +284,21 @@ test('beads-manager Git forms named in its contract are allowed', async () => {
   for (const form of forms) assert.equal(bashAction(bash, form), 'allow', form);
 });
 
+test('dependency preparation is named in the routing contracts and the project configuration grants it only to CI', async () => {
+  const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
+  const install = 'npm ci --ignore-scripts';
+  for (const file of ['instructions/development-lifecycle.md', 'agents/build.md', 'agents/ci-build-engineer.md']) {
+    const text = await readFile(new URL(`../../.opencode/${file}`, import.meta.url), 'utf8');
+    assert.ok(text.includes(`\`${install}\``), file);
+  }
+  for (const [name, agent] of Object.entries(settings.agent)) {
+    const bash = agent.permission?.bash ?? settings.permission.bash;
+    if (typeof bash !== 'string') assert.equal(Object.keys(bash)[0], '*', name);
+    const action = typeof bash === 'string' ? bash : bashAction(bash, install);
+    assert.equal(action, name === 'ci-build-engineer' ? 'ask' : 'deny', name);
+  }
+});
+
 test('CI tooling permission uses npm lock and installed VSCE instead of Bun and npx', async () => {
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
   const ci = settings.agent['ci-build-engineer'].permission;
