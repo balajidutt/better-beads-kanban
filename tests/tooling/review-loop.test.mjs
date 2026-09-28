@@ -176,10 +176,10 @@ test('injected review request preserves parent authority and whole-change scope'
   assert.equal(text.includes('fix Must-fix issues'), false);
 });
 
-test('the three reviewer agents declare anthropic/claude-opus-5-5 high with no local temperature', async () => {
+test('the three reviewer agents declare anthropic/claude-opus-5 high with no local temperature', async () => {
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
   for (const name of ['plan-reviewer', 'code-reviewer', 'test-strategist']) {
-    assert.equal(settings.agent[name].model, 'anthropic/claude-opus-5-5');
+    assert.equal(settings.agent[name].model, 'anthropic/claude-opus-5');
     assert.equal(settings.agent[name].variant, 'high');
     assert.equal(Object.hasOwn(settings.agent[name], 'temperature'), false);
   }
