@@ -257,6 +257,7 @@ async function contractGitForms(name) {
   return [...text.matchAll(/`(git [^`]+)`/g)].map(([, form]) => form
     .replaceAll('<base>', '5d31f0be42def32d1d9b1cc7f5e11dbf8c131034')
     .replaceAll('<sha>', 'f334ab5')
+    .replaceAll('<tag>', 'v2.2.2')
     .replaceAll('<paths>', 'CHANGELOG.md package.json'));
 }
 
@@ -271,7 +272,8 @@ test('release-manager Git forms named in its contract resolve to their documente
   const bash = settings.agent['release-manager'].permission.bash;
   assert.equal(Object.keys(bash)[0], '*');
   const forms = await contractGitForms('release-manager');
-  assert.equal(forms.length, 10);
+  assert.equal(forms.length, 11);
+  assert.ok(forms.includes('git rev-parse --verify "refs/tags/v2.2.2^{commit}"'));
   for (const form of forms) assert.equal(bashAction(bash, form), /^git (log|diff) /.test(form) ? 'ask' : 'allow', form);
   assert.equal(bashAction(bash, 'git -c core.fsmonitor=false status --porcelain=v1 -uall'), 'deny');
 });
