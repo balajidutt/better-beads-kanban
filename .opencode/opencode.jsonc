@@ -69,7 +69,9 @@
         "list": "allow",
         "edit": "deny",
         "bash": "deny",
-        "external_directory": "deny",
+        "external_directory":{
+          "$HOME/.plannotator/plans/**": "allow"
+        },
         "task": {
           "*": "deny",
           "plan-reviewer": "allow",
