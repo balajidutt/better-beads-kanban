@@ -256,6 +256,7 @@ async function contractGitForms(name) {
   const text = await readFile(new URL(`../../.opencode/agents/${name}.md`, import.meta.url), 'utf8');
   return [...text.matchAll(/`(git [^`]+)`/g)].map(([, form]) => form
     .replaceAll('<base>', '5d31f0be42def32d1d9b1cc7f5e11dbf8c131034')
+    .replaceAll('<main-sha>', '208ecf71193170aba2ca005c44dbef71fe3a3ccb')
     .replaceAll('<sha>', 'f334ab5')
     .replaceAll('<tag>', 'v2.2.2')
     .replaceAll('<paths>', 'CHANGELOG.md package.json'));
@@ -272,10 +273,28 @@ test('release-manager Git forms named in its contract resolve to their documente
   const bash = settings.agent['release-manager'].permission.bash;
   assert.equal(Object.keys(bash)[0], '*');
   const forms = await contractGitForms('release-manager');
-  assert.equal(forms.length, 11);
+  assert.equal(forms.length, 14);
   assert.ok(forms.includes('git rev-parse --verify "refs/tags/v2.2.2^{commit}"'));
-  for (const form of forms) assert.equal(bashAction(bash, form), /^git (log|diff) /.test(form) ? 'ask' : 'allow', form);
+  for (const form of forms) assert.equal(bashAction(bash, form), /^git (log|diff|ls-remote) /.test(form) ? 'ask' : 'allow', form);
   assert.equal(bashAction(bash, 'git -c core.fsmonitor=false status --porcelain=v1 -uall'), 'deny');
+});
+
+test('release-manager postpublication gh forms named in its contract ask and stay on the fork', async () => {
+  const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
+  const bash = settings.agent['release-manager'].permission.bash;
+  const text = await readFile(new URL('../../.opencode/agents/release-manager.md', import.meta.url), 'utf8');
+  const forms = [...text.matchAll(/`(gh [^`]+)`/g)].map(([, form]) => form.replaceAll('<tag>', 'v2.3.0'));
+  assert.equal(forms.length, 3);
+  for (const form of forms) {
+    assert.ok(form.includes('--repo balajidutt/better-beads-kanban'), form);
+    assert.equal(bashAction(bash, form), 'ask', form);
+  }
+  for (const key of Object.keys(bash).filter(key => key.startsWith('gh '))) {
+    assert.equal(bash[key], 'ask', key);
+    assert.match(key, /^gh release (view|download) /, key);
+  }
+  assert.equal(bashAction(bash, 'gh release download v2.3.0 --repo balajidutt/better-beads-kanban --pattern SHA256SUMS --dir /tmp'), 'deny');
+  assert.equal(bashAction(bash, 'gh release delete v2.3.0 --repo balajidutt/better-beads-kanban'), 'deny');
 });
 
 test('beads-manager Git forms named in its contract are allowed', async () => {

@@ -245,13 +245,21 @@ releases page. Nothing in this repo consumes those values.
 ### 5. Verify publication and account restoration
 
 ```bash
-gh release view vX.Y.Z --repo balajidutt/better-beads-kanban
+git ls-remote --tags origin refs/tags/vX.Y.Z "refs/tags/vX.Y.Z^{}"
+gh release view vX.Y.Z --repo balajidutt/better-beads-kanban --json assets,author,tagName
+gh release view --repo balajidutt/better-beads-kanban --json tagName
+gh release download vX.Y.Z --repo balajidutt/better-beads-kanban --pattern SHA256SUMS --output -
 ```
 
-Check the tag resolves to the approved source SHA, `Latest` is set, both expected
-assets are attached, and the published VSIX checksum matches the published manifest.
+Check the tag resolves to the approved source SHA, `Latest` is set (the untagged
+view names the Latest release), both expected assets are attached, and the VSIX
+asset's published `digest`, ignoring its `sha256:` prefix, matches its line in the
+published manifest. For an annotated tag, compare the peeled `^{}` line. The
+manifest prints to standard output, so verification writes no files.
 Verify the release author is `balajidutt` and the previous GitHub account was
-restored; a trap's presence is not proof of restoration. Complete any transferred
+restored; a trap's presence is not proof of restoration. The wrapper rechecks the
+restored login and exits non-zero on failure, so its zero exit with no restoration
+error is that evidence. Complete any transferred
 postpublication checks. If upload, verification or restoration partly fails,
 report actual state and stop; do not blindly republish, delete or recreate a release.
 
