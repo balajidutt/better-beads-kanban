@@ -341,6 +341,11 @@ test('dependency preparation is named in the routing contracts and the project c
     const text = await readFile(new URL(`../../.opencode/${file}`, import.meta.url), 'utf8');
     assert.ok(text.includes(`\`${install}\``), file);
   }
+  const ciContract = await readFile(new URL('../../.opencode/agents/ci-build-engineer.md', import.meta.url), 'utf8');
+  for (const check of ['git --no-optional-locks -c core.fsmonitor=false status --porcelain=v1 -uall', 'git diff --no-ext-diff --no-textconv --stat', 'git diff --no-ext-diff --no-textconv']) {
+    assert.ok(ciContract.includes(`\`${check}\``), check);
+    assert.equal(bashAction(settings.agent['ci-build-engineer'].permission.bash, check), 'allow', check);
+  }
   for (const [name, agent] of Object.entries(settings.agent)) {
     const bash = agent.permission?.bash ?? settings.permission.bash;
     if (typeof bash !== 'string') assert.equal(Object.keys(bash)[0], '*', name);

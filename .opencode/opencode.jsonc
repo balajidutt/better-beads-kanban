@@ -282,6 +282,7 @@
           "git --no-optional-locks -c core.fsmonitor=false status *": "allow",
           "git diff --no-ext-diff --no-textconv": "allow",
           "git diff --no-ext-diff --no-textconv --cached": "allow",
+          "git diff --no-ext-diff --no-textconv --stat": "allow",
           "git diff --no-ext-diff --no-textconv --cached | grep -E '^\\+.*(#|//|/\\*)'": "ask",
           "grep -E '^\\+.*(#|//|/\\*)'": "ask",
           "git log --oneline -10": "allow",
