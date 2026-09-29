@@ -334,6 +334,27 @@ test('every agent with bd rules has exact help rules for its subcommands, named 
   }
 });
 
+test('the lifecycle keeps the stop-on-any-denial and terminal-stop sentences', async () => {
+  const lifecycle = await readFile(new URL('../../.opencode/instructions/development-lifecycle.md', import.meta.url), 'utf8');
+  assert.ok(lifecycle.includes('An instruction to stop on any denial covers every denied call, even when a permitted tool could reach the same result, and makes that denial a terminal stop.'));
+  assert.ok(lifecycle.includes('After a terminal stop, issue no further tool calls'));
+});
+
+test('every gate-running role may record exact toolchain versions and nothing broader', async () => {
+  const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
+  const lifecycle = await readFile(new URL('../../.opencode/instructions/development-lifecycle.md', import.meta.url), 'utf8');
+  assert.ok(lifecycle.includes('records `node --version`, and `python3 --version` for the Python tooling suite'));
+  const maps = Object.entries(settings.agent).filter(([, agent]) => typeof agent.permission?.bash === 'object');
+  const gateRoles = maps.filter(([, agent]) => ['npm test', 'npm run lint'].some(gate => bashAction(agent.permission.bash, gate) !== 'deny')).map(([name]) => name);
+  assert.deepEqual(gateRoles.sort(), ['ci-build-engineer', 'release-manager', 'typescript-specialist', 'webview-specialist']);
+  for (const [name, agent] of maps) {
+    const bash = agent.permission.bash;
+    assert.equal(bashAction(bash, 'node --version'), gateRoles.includes(name) ? 'allow' : 'deny', name);
+    assert.equal(bashAction(bash, 'python3 --version'), name === 'ci-build-engineer' ? 'allow' : 'deny', name);
+    for (const extended of ['node --version --eval 1', 'python3 --version -c 1']) assert.notEqual(bashAction(bash, extended), 'allow', `${name} ${extended}`);
+  }
+});
+
 test('dependency preparation is named in the routing contracts and the project configuration grants it only to CI', async () => {
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
   const install = 'npm ci --ignore-scripts';

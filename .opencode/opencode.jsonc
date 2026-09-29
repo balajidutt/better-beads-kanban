@@ -201,7 +201,7 @@
         "task": "deny",
         "skill": "deny",
         "external_directory": "deny",
-        "bash": { "*": "deny", "npm run lint": "ask", "npm run compile": "ask", "npm run verify": "ask", "npm test": "ask", "npm test -- *": "ask", "git diff --no-ext-diff --no-textconv": "allow" }
+        "bash": { "*": "deny", "node --version": "allow", "npm run lint": "ask", "npm run compile": "ask", "npm run verify": "ask", "npm test": "ask", "npm test -- *": "ask", "git diff --no-ext-diff --no-textconv": "allow" }
       }
     },
     "webview-specialist": {
@@ -217,7 +217,7 @@
         "task": "deny",
         "skill": "deny",
         "external_directory": "deny",
-        "bash": { "*": "deny", "npm run lint": "ask", "npm run compile": "ask", "npm run verify": "ask", "npm test": "ask", "npm test -- *": "ask", "node scripts/visual-test-server.js": "ask", "node scripts/visual-test-server.js *": "ask", "git diff --no-ext-diff --no-textconv": "allow" }
+        "bash": { "*": "deny", "node --version": "allow", "npm run lint": "ask", "npm run compile": "ask", "npm run verify": "ask", "npm test": "ask", "npm test -- *": "ask", "node scripts/visual-test-server.js": "ask", "node scripts/visual-test-server.js *": "ask", "git diff --no-ext-diff --no-textconv": "allow" }
       }
     },
     "test-strategist": {
@@ -288,6 +288,8 @@
           "git log --oneline -10": "allow",
           "git worktree list --porcelain": "allow",
           "git rev-parse *": "allow",
+          "node --version": "allow",
+          "python3 --version": "allow",
           "npm run lint": "ask",
           "npm run compile": "ask",
           "npm run verify": "ask",
@@ -347,6 +349,7 @@
           "command bd -C * --readonly show *": "ask",
           "command bd -C * --readonly ready *": "ask",
           "npm run release:bump -- *": "ask",
+          "node --version": "allow",
           "npm run lint": "ask",
           "npm test": "ask",
           "npm run compile": "ask",
