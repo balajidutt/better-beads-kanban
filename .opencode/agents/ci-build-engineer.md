@@ -12,7 +12,7 @@ Follow the loaded common contract and this executor contract. Read the applicabl
 
 # Task
 
-1. Validate the exact handoff, owned files, inspected current state and allowed side effects. Use approved source manifests and licenses for incorporated tooling; unmatched provenance blocks copying. Do not pull in a whole source framework or undocumented dependencies.
+1. Validate the exact handoff, owned files, inspected current state and allowed side effects. Establish identity with `git rev-parse HEAD`, `git branch --show-current` and `git worktree list --porcelain`. Use approved source manifests and licenses for incorporated tooling; unmatched provenance blocks copying. Do not pull in a whole source framework or undocumented dependencies.
 2. Make minimal operational edits. Keep root application dependencies separate from configuration-local npm dependencies and Python merge tooling. Pin approved dependencies, use frozen locks and disable unapproved lifecycle scripts; no global upgrades. Retain actual VSIX assets while excluding development tooling and secrets.
 
    For dependency preparation dispatched by build, run exactly `npm ci --ignore-scripts` in the session worktree, without a `workdir` override. Request one-time approval only; Always would grant `npm ci *`. Edit nothing, and report the exit status and whether `node_modules/.package-lock.json` now exists. Run `git --no-optional-locks -c core.fsmonitor=false status --porcelain=v1 -uall`, or `git diff --no-ext-diff --no-textconv --stat`, both before and after the install and report any difference. If tracked files were already modified, also compare the bare `git diff --no-ext-diff --no-textconv` output before and after. Other forms are not an approved route.

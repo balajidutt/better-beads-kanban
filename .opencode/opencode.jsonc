@@ -178,13 +178,21 @@
         "external_directory": "deny",
         "bash": {
           "*": "deny",
+          "git log --oneline --decorate --reverse *": "ask",
+          "git diff --no-ext-diff --no-textconv --stat *": "ask",
+          "git diff --no-ext-diff --no-textconv --name-status *": "ask",
+          "git diff --no-ext-diff --no-textconv *": "ask",
           "git --no-optional-locks -c core.fsmonitor=false status": "allow",
           "git --no-optional-locks -c core.fsmonitor=false status *": "allow",
           "git diff --no-ext-diff --no-textconv": "allow",
           "git diff --no-ext-diff --no-textconv --cached": "allow",
           "git diff --no-ext-diff --no-textconv --stat": "allow",
           "git diff --no-ext-diff --no-textconv --cached --stat": "allow",
-          "git log --oneline -10": "allow"
+          "git log --oneline -10": "allow",
+          "git rev-parse HEAD": "allow",
+          "command bd --help": "allow",
+          "command bd show --help": "allow",
+          "command bd -C * --readonly show *": "ask"
         }
       }
     },
@@ -288,6 +296,7 @@
           "git log --oneline -10": "allow",
           "git worktree list --porcelain": "allow",
           "git rev-parse *": "allow",
+          "git branch --show-current": "allow",
           "node --version": "allow",
           "python3 --version": "allow",
           "npm run lint": "ask",

@@ -273,9 +273,10 @@ test('release-manager Git forms named in its contract resolve to their documente
   const bash = settings.agent['release-manager'].permission.bash;
   assert.equal(Object.keys(bash)[0], '*');
   const forms = await contractGitForms('release-manager');
-  assert.equal(forms.length, 14);
+  assert.equal(forms.length, 15);
   assert.ok(forms.includes('git rev-parse --verify "refs/tags/v2.2.2^{commit}"'));
-  for (const form of forms) assert.equal(bashAction(bash, form), /^git (log|diff|ls-remote) /.test(form) ? 'ask' : 'allow', form);
+  const asks = form => /^git (log|ls-remote) /.test(form) || (/^git diff /.test(form) && form.includes('..HEAD'));
+  for (const form of forms) assert.equal(bashAction(bash, form), asks(form) ? 'ask' : 'allow', form);
   assert.equal(bashAction(bash, 'git -c core.fsmonitor=false status --porcelain=v1 -uall'), 'deny');
 });
 
@@ -297,6 +298,49 @@ test('release-manager postpublication gh forms named in its contract ask and sta
   assert.equal(bashAction(bash, 'gh release delete v2.3.0 --repo balajidutt/better-beads-kanban'), 'deny');
 });
 
+test('code-reviewer history forms ask while its exact inspection forms stay allowed', async () => {
+  const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
+  const bash = settings.agent['code-reviewer'].permission.bash;
+  assert.equal(Object.keys(bash)[0], '*');
+  const forms = await contractGitForms('code-reviewer');
+  assert.equal(forms.length, 5);
+  for (const form of forms) assert.equal(bashAction(bash, form), form === 'git rev-parse HEAD' ? 'allow' : 'ask', form);
+  for (const exact of ['git diff --no-ext-diff --no-textconv', 'git diff --no-ext-diff --no-textconv --cached', 'git diff --no-ext-diff --no-textconv --stat', 'git diff --no-ext-diff --no-textconv --cached --stat', 'git log --oneline -10', 'git --no-optional-locks -c core.fsmonitor=false status --porcelain=v1 -uall']) {
+    assert.equal(bashAction(bash, exact), 'allow', exact);
+  }
+});
+
+test('bd and sync forms named in contracts resolve to ask for their role', async () => {
+  const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
+  const expected = { 'release-manager': 2, 'code-reviewer': 1, 'beads-manager': 3 };
+  for (const [name, count] of Object.entries(expected)) {
+    const text = await readFile(new URL(`../../.opencode/agents/${name}.md`, import.meta.url), 'utf8');
+    const forms = [...text.matchAll(/`((?:command bd -C |scripts\/bd-sync\.sh)[^`]*)`/g)].map(([, form]) => form
+      .replaceAll('<main>', '/Users/example/Beads-Kanban')
+      .replaceAll('<id>', 'bbk-ek0')
+      .replaceAll('<title>', 'Cut the 2.2.3 release')
+      .replaceAll('<reason>', 'Released v2.2.3'));
+    assert.equal(forms.length, count, name);
+    for (const form of forms) assert.equal(bashAction(settings.agent[name].permission.bash, form), 'ask', `${name} ${form}`);
+  }
+  const bm = settings.agent['beads-manager'].permission.bash;
+  assert.equal(bashAction(bm, 'command bd --actor OpenCode -C "/Users/example/Beads-Kanban" update bbk-ek0 --title="x"'), 'deny');
+});
+
+test('CI names and may run its branch identity query', async () => {
+  const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
+  const text = await readFile(new URL('../../.opencode/agents/ci-build-engineer.md', import.meta.url), 'utf8');
+  assert.ok(text.includes('`git branch --show-current`'));
+  assert.equal(bashAction(settings.agent['ci-build-engineer'].permission.bash, 'git branch --show-current'), 'allow');
+});
+
+test('dependency preparation triggers on dependency entries, not a root version change', async () => {
+  for (const file of ['instructions/development-lifecycle.md', 'agents/build.md']) {
+    const text = await readFile(new URL(`../../.opencode/${file}`, import.meta.url), 'utf8');
+    assert.ok(text.includes("alters dependency entries in `package-lock.json` (a change to only the root package's `version` fields, as in a release bump, does not)"), file);
+  }
+});
+
 test('beads-manager Git forms named in its contract are allowed', async () => {
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
   const bash = settings.agent['beads-manager'].permission.bash;
@@ -309,6 +353,7 @@ test('every agent with bd rules has exact help rules for its subcommands, named 
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
   const expected = {
     plan: ['show', 'ready', 'list'],
+    'code-reviewer': ['show'],
     'beads-manager': ['show', 'ready', 'list', 'history', 'create', 'update', 'dep', 'dep add', 'dep remove', 'close'],
     'release-manager': ['show', 'ready']
   };
@@ -318,7 +363,8 @@ test('every agent with bd rules has exact help rules for its subcommands, named 
     const bash = agent.permission.bash;
     const listed = expected[name];
     const contract = await readFile(new URL(`../../.opencode/agents/${name}.md`, import.meta.url), 'utf8');
-    assert.ok(contract.includes(`\`command bd --help\` or \`command bd <subcommand> --help\`, without \`-C\`, for ${listed.slice(0, -1).join(', ')} or ${listed.at(-1)}.`), name);
+    const named = listed.length === 1 ? listed[0] : `${listed.slice(0, -1).join(', ')} or ${listed.at(-1)}`;
+    assert.ok(contract.includes(`\`command bd --help\` or \`command bd <subcommand> --help\`, without \`-C\`, for ${named}.`), name);
     const permitted = Object.keys(bash).map(key => key.match(/^command bd -C \* (?:--readonly )?(.+) \*$/)?.[1]).filter(Boolean);
     const parents = permitted.filter(sub => sub.includes(' ')).map(sub => sub.split(' ')[0]);
     assert.deepEqual([...new Set([...permitted, ...parents])].sort(), [...listed].sort(), name);
