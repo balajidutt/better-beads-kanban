@@ -441,6 +441,20 @@ test('no role inspects files through bash', async () => {
   }
 });
 
+test('agent-read Markdown keeps every line well under the 2000-character Read line limit', async () => {
+  const { readdir } = await import('node:fs/promises');
+  const root = new URL('../../', import.meta.url);
+  const files = ['AGENTS.md', 'CLAUDE.md', 'RELEASING.md', 'TESTING.md', 'CONTRIBUTING.md'];
+  for (const dir of ['.opencode/agents', '.opencode/instructions', 'docs/development']) {
+    for (const name of await readdir(new URL(`${dir}/`, root))) if (name.endsWith('.md')) files.push(`${dir}/${name}`);
+  }
+  assert.ok(files.length > 15);
+  for (const file of files) {
+    const lines = (await readFile(new URL(file, root), 'utf8')).split('\n');
+    lines.forEach((line, index) => assert.ok(line.length <= 1200, `${file}:${index + 1} has ${line.length} characters`));
+  }
+});
+
 test('dependency preparation is named in the routing contracts and the project configuration grants it only to CI', async () => {
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
   const install = 'npm ci --ignore-scripts';
