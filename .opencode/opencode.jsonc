@@ -33,7 +33,6 @@
         "read": { "*": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny", "**/.ssh/**": "deny", "**/auth.json": "deny", "**/.beads/**": "deny" },
         "glob": "allow",
         "grep": "allow",
-        "list": "allow",
         "edit": "deny",
         "external_directory": "deny",
         "bash": {
@@ -51,7 +50,8 @@
           "command bd list --help": "allow",
           "command bd -C * --readonly show *": "ask",
           "command bd -C * --readonly ready *": "ask",
-          "command bd -C * --readonly list *": "ask"
+          "command bd -C * --readonly list *": "ask",
+          "*>*": "deny"
         },
         "task": { "*": "deny", "plan-reviewer": "allow", "test-strategist": "allow", "code-reviewer": "allow" },
         "skill": "deny",
@@ -70,7 +70,6 @@
         "read": { "*": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny", "**/.ssh/**": "deny", "**/auth.json": "deny", "**/.beads/**": "deny" },
         "glob": "allow",
         "grep": "allow",
-        "list": "allow",
         "edit": "deny",
         "bash": "deny",
         "external_directory": {
@@ -105,14 +104,14 @@
         "read": { "*": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny", "**/.ssh/**": "deny", "**/auth.json": "deny", "**/.beads/**": "deny" },
         "glob": "allow",
         "grep": "allow",
-        "list": "allow",
         "bash": {
           "*": "deny",
           "git --no-optional-locks -c core.fsmonitor=false status": "allow",
           "git --no-optional-locks -c core.fsmonitor=false status *": "allow",
           "git diff --no-ext-diff --no-textconv": "allow",
           "git diff --no-ext-diff --no-textconv --cached": "allow",
-          "git log --oneline -10": "allow"
+          "git log --oneline -10": "allow",
+          "*>*": "deny"
         },
         "edit": "deny",
         "task": "deny",
@@ -128,7 +127,6 @@
         "read": { "*": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny", "**/.ssh/**": "deny", "**/auth.json": "deny", "**/.beads/**": "deny" },
         "glob": "allow",
         "grep": "allow",
-        "list": "allow",
         "edit": "deny",
         "task": "deny",
         "skill": "deny",
@@ -153,13 +151,14 @@
           "command bd -C * --readonly ready *": "ask",
           "command bd -C * --readonly list *": "ask",
           "command bd -C * --readonly history *": "ask",
-          "command bd -C * create *": "ask",
-          "command bd -C * update *": "ask",
           "command bd -C * dep add *": "ask",
           "command bd -C * dep remove *": "ask",
-          "command bd -C * close *": "ask",
           "scripts/bd-sync.sh": "ask",
-          "scripts/bd-sync.sh --pull": "ask"
+          "scripts/bd-sync.sh --pull": "ask",
+          "*>*": "deny",
+          "command bd -C * create *": "ask",
+          "command bd -C * update *": "ask",
+          "command bd -C * close *": "ask"
         }
       }
     },
@@ -171,7 +170,6 @@
         "read": { "*": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny", "**/.ssh/**": "deny", "**/auth.json": "deny", "**/.beads/**": "deny" },
         "glob": "allow",
         "grep": "allow",
-        "list": "allow",
         "edit": "deny",
         "task": "deny",
         "skill": "deny",
@@ -192,7 +190,8 @@
           "git rev-parse HEAD": "allow",
           "command bd --help": "allow",
           "command bd show --help": "allow",
-          "command bd -C * --readonly show *": "ask"
+          "command bd -C * --readonly show *": "ask",
+          "*>*": "deny"
         }
       }
     },
@@ -204,12 +203,11 @@
         "read": { "*": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny", "**/.ssh/**": "deny", "**/auth.json": "deny", "**/.beads/**": "deny" },
         "glob": "allow",
         "grep": "allow",
-        "list": "allow",
         "edit": { "*": "deny", "src/extension.ts": "allow", "src/daemonBeadsAdapter.ts": "allow", "src/types.ts": "allow", "src/sanitizeError.ts": "allow", "src/markdownValidator.ts": "allow", "src/beadsWatch.ts": "allow", "src/beadsWorkspace.ts": "allow", "src/filterMarkup.ts": "allow", "src/filterUniverse.ts": "allow", "src/webview.ts": "allow", "src/test/**": "allow", "docs/development/extension-architecture.md": "allow", "TESTING.md": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny" },
         "task": "deny",
         "skill": "deny",
         "external_directory": "deny",
-        "bash": { "*": "deny", "node --version": "allow", "npm run lint": "ask", "npm run compile": "ask", "npm run verify": "ask", "npm test": "ask", "npm test -- *": "ask", "git diff --no-ext-diff --no-textconv": "allow" }
+        "bash": { "*": "deny", "node --version": "allow", "npm run lint": "ask", "npm run compile": "ask", "npm run verify": "ask", "npm test": "ask", "npm test -- *": "ask", "git diff --no-ext-diff --no-textconv": "allow", "*>*": "deny" }
       }
     },
     "webview-specialist": {
@@ -220,12 +218,11 @@
         "read": { "*": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny", "**/.ssh/**": "deny", "**/auth.json": "deny", "**/.beads/**": "deny" },
         "glob": "allow",
         "grep": "allow",
-        "list": "allow",
         "edit": { "*": "deny", "src/webview/**": "allow", "src/webview.ts": "allow", "media/**": "allow", "src/test/**": "allow", "scripts/visual-test-server.js": "allow", "docs/development/extension-architecture.md": "allow", "TESTING.md": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny" },
         "task": "deny",
         "skill": "deny",
         "external_directory": "deny",
-        "bash": { "*": "deny", "node --version": "allow", "npm run lint": "ask", "npm run compile": "ask", "npm run verify": "ask", "npm test": "ask", "npm test -- *": "ask", "node scripts/visual-test-server.js": "ask", "node scripts/visual-test-server.js *": "ask", "git diff --no-ext-diff --no-textconv": "allow" }
+        "bash": { "*": "deny", "node --version": "allow", "npm run lint": "ask", "npm run compile": "ask", "npm run verify": "ask", "npm test": "ask", "npm test -- *": "ask", "node scripts/visual-test-server.js": "ask", "node scripts/visual-test-server.js *": "ask", "git diff --no-ext-diff --no-textconv": "allow", "*>*": "deny" }
       }
     },
     "test-strategist": {
@@ -236,24 +233,21 @@
         "read": { "*": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny", "**/.ssh/**": "deny", "**/auth.json": "deny", "**/.beads/**": "deny" },
         "glob": "allow",
         "grep": "allow",
-        "list": "allow",
         "edit": "deny",
         "task": "deny",
         "skill": "deny",
         "external_directory": "deny",
-        "bash": { "*": "deny", "git diff --no-ext-diff --no-textconv": "allow", "git diff --no-ext-diff --no-textconv --cached": "allow" }
+        "bash": { "*": "deny", "git diff --no-ext-diff --no-textconv": "allow", "git diff --no-ext-diff --no-textconv --cached": "allow", "*>*": "deny" }
       }
     },
     "ci-build-engineer": {
-      "model": "opencode-go/deepseek-v4-pro",
+      "model": "openai/gpt-6-sol",
       "variant": "high",
-      "temperature": 0.2,
       "permission": {
         "*": "deny",
         "read": { "*": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny", "**/.ssh/**": "deny", "**/auth.json": "deny", "**/.beads/**": "deny" },
         "glob": "allow",
         "grep": "allow",
-        "list": "allow",
         "edit": {
           "*": "deny",
           ".github/workflows/**": "allow",
@@ -310,12 +304,13 @@
           "python3 -m unittest discover *": "ask",
           "./node_modules/.bin/vsce ls --no-dependencies": "ask",
           "git add -- *": "ask",
-          "oc-commit *": "ask",
-          "git log -1 *": "ask",
           "git push origin main": "ask",
           "git push --dry-run origin main": "allow",
           "git push origin refs/tags/v*": "ask",
           "*agent-wt-merge*": "ask",
+          "*>*": "deny",
+          "oc-commit *": "ask",
+          "git log -1 *": "ask",
           "*agent-wt-merge*--close-beads*": "deny"
         }
       }
@@ -328,7 +323,6 @@
         "read": { "*": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny", "**/.ssh/**": "deny", "**/auth.json": "deny", "**/.beads/**": "deny" },
         "glob": "allow",
         "grep": "allow",
-        "list": "allow",
         "edit": { "*": "deny", "CHANGELOG.md": "allow", "package.json": "allow", "package-lock.json": "allow", "src/webview.ts": "allow", "RELEASING.md": "allow" },
         "task": "deny",
         "skill": "deny",
@@ -363,7 +357,8 @@
           "npm test": "ask",
           "npm run compile": "ask",
           "scripts/build-local-vsix.sh": "ask",
-          "*release-fork-vsix.sh*": "ask"
+          "*release-fork-vsix.sh*": "ask",
+          "*>*": "deny"
         }
       }
     },
@@ -372,7 +367,6 @@
         "read": { "*": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny", "**/.ssh/**": "deny", "**/auth.json": "deny", "**/.beads/**": "deny" },
         "glob": "allow",
         "grep": "allow",
-        "list": "allow",
         "question": "allow",
         "submit_plan": "allow",
         "external_directory": "ask",

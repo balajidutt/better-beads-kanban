@@ -34,14 +34,13 @@ async function fixture(t, options = {}) {
   return { root, context, runtime, calls };
 }
 
-test('the three explicit Sol bindings preserve high and temperature omission', async () => {
+test('the four explicit Sol bindings preserve high and temperature omission', async () => {
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
-  for (const name of ['typescript-specialist', 'webview-specialist', 'release-manager']) {
+  for (const name of ['typescript-specialist', 'webview-specialist', 'release-manager', 'ci-build-engineer']) {
     assert.equal(settings.agent[name].model, 'openai/gpt-6-sol');
     assert.equal(settings.agent[name].variant, 'high');
     assert.equal(Object.hasOwn(settings.agent[name], 'temperature'), false);
   }
-  assert.equal(settings.agent['ci-build-engineer'].model, 'opencode-go/deepseek-v4-pro');
   assert.equal(settings.default_agent, 'build');
   assert.equal(Object.hasOwn(settings.agent.plan, 'model'), false);
   assert.equal(Object.hasOwn(settings.agent.build, 'model'), false);
@@ -398,6 +397,46 @@ test('every gate-running role may record exact toolchain versions and nothing br
     assert.equal(bashAction(bash, 'node --version'), gateRoles.includes(name) ? 'allow' : 'deny', name);
     assert.equal(bashAction(bash, 'python3 --version'), name === 'ci-build-engineer' ? 'allow' : 'deny', name);
     for (const extended of ['node --version --eval 1', 'python3 --version -c 1']) assert.notEqual(bashAction(bash, extended), 'allow', `${name} ${extended}`);
+  }
+});
+
+test('no agent carries a list permission, which OpenCode 1.18.31 has no tool for', async () => {
+  const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
+  assert.equal(Object.hasOwn(settings.permission, 'list'), false);
+  for (const [name, agent] of Object.entries(settings.agent)) assert.equal(Object.hasOwn(agent.permission ?? {}, 'list'), false, name);
+});
+
+test('every bash map denies a simple-command redirection after its allows, keeping only named ask forms after it', async () => {
+  const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
+  const after = { 'ci-build-engineer': ['oc-commit *', 'git log -1 *', '*agent-wt-merge*--close-beads*'], 'beads-manager': ['command bd -C * create *', 'command bd -C * update *', 'command bd -C * close *'] };
+  for (const [name, agent] of Object.entries(settings.agent)) {
+    const bash = agent.permission?.bash;
+    if (typeof bash !== 'object') continue;
+    const keys = Object.keys(bash);
+    const tail = keys.slice(keys.indexOf('*>*') + 1);
+    assert.equal(bash['*>*'], 'deny', name);
+    assert.deepEqual(tail, after[name] ?? [], name);
+    for (const key of tail) assert.equal(bash[key], key.includes('--close-beads') ? 'deny' : 'ask', `${name} ${key}`);
+    for (const key of keys.filter(key => bash[key] === 'allow')) {
+      assert.equal(bashAction(bash, `${key.replaceAll('*', 'x')} > /tmp/out`), 'deny', `${name} ${key}`);
+    }
+  }
+  const ci = settings.agent['ci-build-engineer'].permission.bash;
+  assert.equal(bashAction(ci, "git log -1 --format='%an <%ae> | %cn <%ce>'"), 'ask');
+  assert.equal(bashAction(ci, "oc-commit -m 'fix: a -> b'"), 'ask');
+  assert.equal(bashAction(settings.agent['beads-manager'].permission.bash, `command bd -C "/m" update bbk-x --title='a -> b' --actor OpenCode`), 'ask');
+});
+
+test('no role inspects files through bash', async () => {
+  const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
+  const lifecycle = await readFile(new URL('../../.opencode/instructions/development-lifecycle.md', import.meta.url), 'utf8');
+  assert.ok(lifecycle.includes('no role inspects files through bash'));
+  for (const [name, agent] of Object.entries(settings.agent)) {
+    const bash = agent.permission?.bash ?? settings.permission.bash;
+    const resolve = command => typeof bash === 'string' ? bash : bashAction(bash, command);
+    for (const command of ['ls', 'ls -la node_modules', 'wc -l package.json', 'test -f package.json', 'cat package.json', 'head -1 package.json', 'tail -1 package.json', 'find . -name x']) {
+      assert.equal(resolve(command), 'deny', `${name} ${command}`);
+    }
   }
 });
 
