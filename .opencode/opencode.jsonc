@@ -190,7 +190,10 @@
           "git rev-parse HEAD": "allow",
           "command bd --help": "allow",
           "command bd show --help": "allow",
+          "command bd dep --help": "allow",
+          "command bd dep list --help": "allow",
           "command bd -C * --readonly show *": "ask",
+          "command bd -C * --readonly dep list *": "ask",
           "*>*": "deny"
         }
       }
@@ -349,8 +352,11 @@
           "command bd --help": "allow",
           "command bd show --help": "allow",
           "command bd ready --help": "allow",
+          "command bd dep --help": "allow",
+          "command bd dep list --help": "allow",
           "command bd -C * --readonly show *": "ask",
           "command bd -C * --readonly ready *": "ask",
+          "command bd -C * --readonly dep list *": "ask",
           "npm run release:bump -- *": "ask",
           "node --version": "allow",
           "npm run lint": "ask",

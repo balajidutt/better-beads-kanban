@@ -311,7 +311,7 @@ test('code-reviewer history forms ask while its exact inspection forms stay allo
 
 test('bd and sync forms named in contracts resolve to ask for their role', async () => {
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
-  const expected = { 'release-manager': 2, 'code-reviewer': 1, 'beads-manager': 3 };
+  const expected = { 'release-manager': 4, 'code-reviewer': 2, 'beads-manager': 3 };
   for (const [name, count] of Object.entries(expected)) {
     const text = await readFile(new URL(`../../.opencode/agents/${name}.md`, import.meta.url), 'utf8');
     const forms = [...text.matchAll(/`((?:command bd -C |scripts\/bd-sync\.sh)[^`]*)`/g)].map(([, form]) => form
@@ -352,9 +352,9 @@ test('every agent with bd rules has exact help rules for its subcommands, named 
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
   const expected = {
     plan: ['show', 'ready', 'list'],
-    'code-reviewer': ['show'],
+    'code-reviewer': ['show', 'dep', 'dep list'],
     'beads-manager': ['show', 'ready', 'list', 'history', 'create', 'update', 'dep', 'dep add', 'dep remove', 'close'],
-    'release-manager': ['show', 'ready']
+    'release-manager': ['show', 'ready', 'dep', 'dep list']
   };
   const withBd = Object.entries(settings.agent).filter(([, agent]) => typeof agent.permission?.bash === 'object' && Object.keys(agent.permission.bash).some(key => key.startsWith('command bd -C ')));
   assert.deepEqual(withBd.map(([name]) => name).sort(), Object.keys(expected).sort());
@@ -379,8 +379,9 @@ test('every agent with bd rules has exact help rules for its subcommands, named 
   }
 });
 
-test('the lifecycle keeps the stop-on-any-denial and terminal-stop sentences', async () => {
+test('the lifecycle keeps the stop-on-any-denial, terminal-stop and truncation sentences', async () => {
   const lifecycle = await readFile(new URL('../../.opencode/instructions/development-lifecycle.md', import.meta.url), 'utf8');
+  assert.ok(lifecycle.includes('Truncated tool output is not a denial or a failed gate.'));
   assert.ok(lifecycle.includes('An instruction to stop on any denial covers every denied call, even when a permitted tool could reach the same result, and makes that denial a terminal stop.'));
   assert.ok(lifecycle.includes('After a terminal stop, issue no further tool calls'));
 });
