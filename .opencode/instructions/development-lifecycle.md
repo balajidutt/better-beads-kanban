@@ -43,7 +43,7 @@ Before planning, dispatching, executing or reviewing an operation, read its rele
 - Release operations: `.opencode/agents/release-manager.md` and `RELEASING.md`.
 - Engineering work: relevant `AGENTS.md` constraints, technical files and tests; reviewers inspect the applicable contracts and evidence.
 
-Reading another role's contract does not adopt its authority. If a required reference is unavailable, request the exact text from the parent or block that operation; never reconstruct it from memory. Handoffs identify approval source/stage, issue or waiver, worktree/branch/base, scope/exclusions, assigned files/owner, acceptance/evidence, allowed side effects and release enrollment/exclusion. Record references actually read. Read-only tools-disabled exercises must label supplied material and missing references, not claim reads.
+Reading another role's contract does not adopt its authority. Read only the exact plan path your handoff, dispatch or Plannotator result names; `$HOME/.plannotator/plans/` also holds other projects' plans, and denied or annotation files are never approval. If a required reference is unavailable, request the exact text from the parent or block that operation; never reconstruct it from memory. Handoffs identify approval source/stage, issue or waiver, worktree/branch/base, scope/exclusions, assigned files/owner, acceptance/evidence, allowed side effects and release enrollment/exclusion. Record references actually read. Read-only tools-disabled exercises must label supplied material and missing references, not claim reads.
 
 ## Safety and evidence
 

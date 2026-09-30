@@ -210,6 +210,19 @@ test('build external directory access falls back to deny around the Plannotator 
   assert.deepEqual(Object.entries(external), [['*', 'deny'], ['$HOME/.plannotator/plans/**', 'allow']]);
 });
 
+test('every workflow role may read the Plannotator plans directory and keeps its external default otherwise', async () => {
+  const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
+  const lifecycle = await readFile(new URL('../../.opencode/instructions/development-lifecycle.md', import.meta.url), 'utf8');
+  assert.ok(lifecycle.includes('Read only the exact plan path your handoff, dispatch or Plannotator result names'));
+  const defaults = { plan: 'deny', build: 'deny', 'plan-reviewer': 'deny', 'code-reviewer': 'deny', 'typescript-specialist': 'deny', 'webview-specialist': 'deny', 'test-strategist': 'deny', 'beads-manager': 'ask', 'ci-build-engineer': 'ask', 'release-manager': 'ask' };
+  for (const [name, fallback] of Object.entries(defaults)) {
+    const external = settings.agent[name].permission.external_directory;
+    assert.deepEqual(Object.entries(external), [['*', fallback], ['$HOME/.plannotator/plans/**', 'allow']], name);
+    assert.equal(bashAction(external, '$HOME/.plannotator/plans/stage-b-2026-09-30-approved.md'), 'allow', name);
+    assert.equal(bashAction(external, '$HOME/.ssh/id_ed25519'), fallback, name);
+  }
+});
+
 test('beads-manager lists worktrees only through the exact porcelain query', async () => {
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
   const bash = settings.agent['beads-manager'].permission.bash;

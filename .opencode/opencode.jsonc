@@ -34,7 +34,7 @@
         "glob": "allow",
         "grep": "allow",
         "edit": "deny",
-        "external_directory": "deny",
+        "external_directory": { "*": "deny", "$HOME/.plannotator/plans/**": "allow" },
         "bash": {
           "*": "deny",
           "git rev-parse *": "allow",
@@ -116,7 +116,7 @@
         "edit": "deny",
         "task": "deny",
         "skill": "deny",
-        "external_directory": "deny"
+        "external_directory": { "*": "deny", "$HOME/.plannotator/plans/**": "allow" }
       }
     },
     "beads-manager": {
@@ -130,7 +130,7 @@
         "edit": "deny",
         "task": "deny",
         "skill": "deny",
-        "external_directory": "ask",
+        "external_directory": { "*": "ask", "$HOME/.plannotator/plans/**": "allow" },
         "bash": {
           "*": "deny",
           "git rev-parse *": "allow",
@@ -173,7 +173,7 @@
         "edit": "deny",
         "task": "deny",
         "skill": "deny",
-        "external_directory": "deny",
+        "external_directory": { "*": "deny", "$HOME/.plannotator/plans/**": "allow" },
         "bash": {
           "*": "deny",
           "git log --oneline --decorate --reverse *": "ask",
@@ -209,7 +209,7 @@
         "edit": { "*": "deny", "src/extension.ts": "allow", "src/daemonBeadsAdapter.ts": "allow", "src/types.ts": "allow", "src/sanitizeError.ts": "allow", "src/markdownValidator.ts": "allow", "src/beadsWatch.ts": "allow", "src/beadsWorkspace.ts": "allow", "src/filterMarkup.ts": "allow", "src/filterUniverse.ts": "allow", "src/webview.ts": "allow", "src/test/**": "allow", "docs/development/extension-architecture.md": "allow", "TESTING.md": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny" },
         "task": "deny",
         "skill": "deny",
-        "external_directory": "deny",
+        "external_directory": { "*": "deny", "$HOME/.plannotator/plans/**": "allow" },
         "bash": { "*": "deny", "node --version": "allow", "npm run lint": "ask", "npm run compile": "ask", "npm run verify": "ask", "npm test": "ask", "npm test -- *": "ask", "git diff --no-ext-diff --no-textconv": "allow", "*>*": "deny" }
       }
     },
@@ -224,7 +224,7 @@
         "edit": { "*": "deny", "src/webview/**": "allow", "src/webview.ts": "allow", "media/**": "allow", "src/test/**": "allow", "scripts/visual-test-server.js": "allow", "docs/development/extension-architecture.md": "allow", "TESTING.md": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny" },
         "task": "deny",
         "skill": "deny",
-        "external_directory": "deny",
+        "external_directory": { "*": "deny", "$HOME/.plannotator/plans/**": "allow" },
         "bash": { "*": "deny", "node --version": "allow", "npm run lint": "ask", "npm run compile": "ask", "npm run verify": "ask", "npm test": "ask", "npm test -- *": "ask", "node scripts/visual-test-server.js": "ask", "node scripts/visual-test-server.js *": "ask", "git diff --no-ext-diff --no-textconv": "allow", "*>*": "deny" }
       }
     },
@@ -239,7 +239,7 @@
         "edit": "deny",
         "task": "deny",
         "skill": "deny",
-        "external_directory": "deny",
+        "external_directory": { "*": "deny", "$HOME/.plannotator/plans/**": "allow" },
         "bash": { "*": "deny", "git diff --no-ext-diff --no-textconv": "allow", "git diff --no-ext-diff --no-textconv --cached": "allow", "*>*": "deny" }
       }
     },
@@ -280,7 +280,7 @@
         },
         "task": "deny",
         "skill": { "*": "deny", "worktree-merge": "allow", "unslop-commit": "allow" },
-        "external_directory": "ask",
+        "external_directory": { "*": "ask", "$HOME/.plannotator/plans/**": "allow" },
         "bash": {
           "*": "deny",
           "git --no-optional-locks -c core.fsmonitor=false status": "allow",
@@ -329,7 +329,7 @@
         "edit": { "*": "deny", "CHANGELOG.md": "allow", "package.json": "allow", "package-lock.json": "allow", "src/webview.ts": "allow", "RELEASING.md": "allow" },
         "task": "deny",
         "skill": "deny",
-        "external_directory": "ask",
+        "external_directory": { "*": "ask", "$HOME/.plannotator/plans/**": "allow" },
         "bash": {
           "*": "deny",
           "git log --oneline --decorate --reverse *": "ask",
