@@ -641,7 +641,7 @@ test('CI tooling permission uses npm lock and installed VSCE instead of Bun and 
   assert.equal(ci.bash['*agent-wt-merge*--close-beads*'], 'deny');
   assert.equal(ci.task, 'deny');
   assert.equal(ci.edit['*'], 'deny');
-  for (const key of ['.opencode/opencode.jsonc', '.opencode/agents/**', '.opencode/instructions/**', 'AGENTS.md', 'CLAUDE.md', 'docs/development/opencode-workflow.md', 'docs/development/agent-evaluation.md']) assert.equal(Object.hasOwn(ci.edit, key), false, key);
+  for (const key of ['.opencode/opencode.jsonc', '.opencode/permissions/**', '.opencode/agents/**', '.opencode/instructions/**', 'AGENTS.md', 'CLAUDE.md', 'docs/development/opencode-workflow.md', 'docs/development/agent-evaluation.md']) assert.equal(Object.hasOwn(ci.edit, key), false, key);
 });
 
 test('OpenCode tooling manifest and lock pin plugin and sdk 1.18.31 with exact integrity', async () => {
