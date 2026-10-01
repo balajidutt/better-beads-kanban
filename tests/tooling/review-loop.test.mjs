@@ -422,7 +422,7 @@ test('no agent carries a list permission, which OpenCode 1.18.31 has no tool for
 
 test('every bash map denies a simple-command redirection after its allows, keeping only named ask forms after it', async () => {
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
-  const after = { 'ci-build-engineer': ['oc-commit *', 'git log -1 *', '*agent-wt-merge*--close-beads*'], 'beads-manager': ['command bd -C * create *', 'command bd -C * update *', 'command bd -C * close *'] };
+  const after = { 'ci-build-engineer': ['oc-commit *', 'git log -1 *', 'git --no-optional-locks -c core.fsmonitor=false log -1 *', '*agent-wt-merge*--close-beads*'], 'beads-manager': ['command bd -C * create *', 'command bd -C * update *', 'command bd -C * close *'] };
   for (const [name, agent] of Object.entries(settings.agent)) {
     const bash = agent.permission?.bash;
     if (typeof bash !== 'object') continue;
@@ -465,6 +465,38 @@ test('agent-read Markdown keeps every line well under the 2000-character Read li
   for (const file of files) {
     const lines = (await readFile(new URL(file, root), 'utf8')).split('\n');
     lines.forEach((line, index) => assert.ok(line.length <= 1200, `${file}:${index + 1} has ${line.length} characters`));
+  }
+});
+
+test('every read-only git rule resolves the same with the no-optional-locks fsmonitor guard prefix', async () => {
+  const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
+  const guard = 'git --no-optional-locks -c core.fsmonitor=false ';
+  const readOnly = /^git (rev-parse|branch|diff|log|ls-files|merge-base|ls-remote|worktree) /;
+  let checked = 0;
+  for (const [name, agent] of Object.entries(settings.agent)) {
+    const bash = agent.permission?.bash;
+    if (typeof bash !== 'object') continue;
+    const probes = Object.keys(bash).filter(key => readOnly.test(key) && !key.includes('|')).map(key => key.replaceAll('*', 'x'));
+    for (const contract of ['beads-manager', 'code-reviewer', 'release-manager'].includes(name) ? await contractGitForms(name) : []) {
+      if (readOnly.test(contract)) probes.push(contract);
+    }
+    for (const probe of probes) {
+      assert.equal(bashAction(bash, guard + probe.slice(4)), bashAction(bash, probe), `${name}: ${probe}`);
+      checked++;
+    }
+  }
+  assert.ok(checked > 40);
+});
+
+test('non-mutating reviewers may recover once from a denied read; mutating steps keep stop on any denial', async () => {
+  const lifecycle = await readFile(new URL('../../.opencode/instructions/development-lifecycle.md', import.meta.url), 'utf8');
+  assert.ok(lifecycle.includes('A dispatch to one of them does not include an instruction to stop on any denial; after a denied read-only call it may recover once'));
+  assert.ok(lifecycle.includes('Reserve an instruction to stop on any denial for steps that can mutate state.'));
+  assert.ok(lifecycle.includes('a denial that protects a path or its contents'));
+  assert.ok(lifecycle.includes('a later call in the same dispatch is denied'));
+  for (const file of ['build', 'plan']) {
+    const text = await readFile(new URL(`../../.opencode/agents/${file}.md`, import.meta.url), 'utf8');
+    assert.ok(text.includes('one-recovery rule'), file);
   }
 });
 
