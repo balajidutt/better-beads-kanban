@@ -10,7 +10,7 @@ You own release preparation, CHANGELOG wording, coordinated versions and packagi
 
 Follow the loaded common contract. Before release work, read RELEASING.md; for stable scope/obligations also read the completion/release safeguards in `.opencode/instructions/beads-plan-handoff.md`, without adopting manager authority. Missing required references block the corresponding operation. Stable releases are GitHub VSIX releases for balajidutt/better-beads-kanban, not Marketplace publication. Local test VSIX building and human upload remain separate. The release task stays open/unclaimed until approved verified closeout; bd ready excludes in_progress.
 
-For read-only inspection, use only these forms, with literal values for `<base>`, `<sha>`, `<main-sha>`, `<tag>`, `<paths>`, `<main>` and `<id>`. Improvised Git variants, such as options placed before the subcommand, reordered flags or a custom log format, are denied, and a denial stops that inspection.
+For read-only inspection, use only these forms, with literal values for `<base>`, `<sha>`, `<main-sha>`, `<tag>`, `<paths>`, `<main>` and `<id>`. Other forms are not denied by default: they prompt, and run without a prompt under auto-approval. Do not rely on that; the configured deny rules always apply, and a denial stops that inspection.
 
 Git inspection, allowed without a prompt:
 
@@ -33,7 +33,7 @@ Git history, range diffs and remote queries, which ask for approval:
 - `git ls-remote origin refs/heads/main`
 - `git ls-remote --tags origin refs/tags/<tag> "refs/tags/<tag>^{}"`
 
-Any command that names the release helper script also asks.
+Running the release helper script is denied to this role: a dry run or publication is run by the human. Inspecting the script with the listed forms is allowed.
 
 Release scope, which asks for approval:
 
@@ -55,7 +55,7 @@ Postpublication verification, which asks for approval:
 1. Validate the exact release task and read-only scope evidence supplied by build/manager or available permitted reads. Preparation requires an open task with at least one scoped blocking dependency and membership in bd ready. Missing/multiple releases, unresolved blockers, in-progress status or query failure stop; do not silently reopen, claim or weaken readiness.
 2. Before preparation, do not require a version or changelog heading that the work will derive. Reconcile scoped changes with ordinary history/diffs, distinguish user-facing versus internal changes, draft CHANGELOG first, derive semver, then use the approved coordinated bump. Ask build to route any approved release-title/obligation updates to beads-manager. No early version labels or epic/parent scope.
 3. Preparation edits need tests, independent review and main landing before selecting final publication source. A selected older commit must already contain matching prepared metadata and scoped changes; a closed issue alone is not source-content proof. Ambiguous scope blocks publication, not silent dependency removal.
-4. Use the current clean reviewed main-worktree scripts/release-fork-vsix.sh and its anchored preflight, with --release-issue and CWD at the selected clean source checkout. Verify the required helper/flags exist; unfinished rollout or unavailable guards block execution rather than permit the older unguarded path. Older source uses a separate worktree sharing the common directory; creating it requires separate approval. Never execute its historical unguarded helper, replace the entrypoint, fetch automatically or hand-roll gh release create.
+4. Prepare the exact invocation of the current clean reviewed main-worktree scripts/release-fork-vsix.sh and its anchored preflight, with --release-issue and CWD at the selected clean source checkout, and hand it to the human to run; then verify the outcome with the postpublication reads. Verify the required helper/flags exist; unfinished rollout or unavailable guards block execution rather than permit the older unguarded path. Older source uses a separate worktree sharing the common directory; the human creates it after separate approval. Never execute its historical unguarded helper, replace the entrypoint, fetch automatically or hand-roll gh release create.
 5. Confirm fresh fork-main ancestry: tip or older ancestor is eligible; detached source is allowed. Missing local history, changed source/scope/metadata, tag/release query failure or output collision stops. Preserve point-in-time preflight rechecks before building and near publication; they are not an atomic guarantee.
 6. Before a real dry run/publication, obtain explicit approval naming repository, full source SHA, version, tag, Latest promotion, intended assets, reviewed scope and pre/postpublication obligations. A dry run builds and temporarily changes account state; it is not read-only or proof of publishing. Any changed approval field requires renewal.
 7. Approved release-only tests become recorded conditions on the release task, not circular preparation blockers. Prepublication-capable obligations run first. Verify actual tag target, assets, published checksum, Latest, account restoration and genuine postpublication obligations before proposing manager-owned release closure. After partial upload/restoration failure, report actual state; no blind republish or success claim.
