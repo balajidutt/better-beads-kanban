@@ -500,6 +500,22 @@ test('non-mutating reviewers may recover once from a denied read; mutating steps
   }
 });
 
+test('every gitignored credential pattern is also excluded from the VSIX', async () => {
+  const gitignore = (await readFile(new URL('../../.gitignore', import.meta.url), 'utf8')).split('\n');
+  const vscodeignore = (await readFile(new URL('../../.vscodeignore', import.meta.url), 'utf8')).split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('#'));
+  const start = gitignore.indexOf('# Credentials and local environment files');
+  assert.ok(start >= 0);
+  const patterns = [];
+  for (const line of gitignore.slice(start + 1)) {
+    if (!line.trim()) break;
+    patterns.push(line.trim());
+  }
+  assert.ok(patterns.length >= 4);
+  for (const pattern of patterns) {
+    assert.ok(vscodeignore.some(rule => rule.startsWith('**/') && wildcardMatch(pattern, rule.slice(3))), pattern);
+  }
+});
+
 test('dependency preparation is named in the routing contracts and the project configuration grants it only to CI', async () => {
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
   const install = 'npm ci --ignore-scripts';

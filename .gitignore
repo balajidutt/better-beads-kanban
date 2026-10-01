@@ -71,6 +71,12 @@ media/purify.min.js
 /*Table*.jpg
 /*Kanban*.jpg
 
+# Credentials and local environment files
+.env
+.env.*
+*.env
+auth.json
+
 # Beads / Dolt files (added by bd init)
 .dolt/
 .beads-credential-key

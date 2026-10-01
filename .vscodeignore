@@ -82,6 +82,8 @@ configs/schemas/pipeline-guard.v1.schema.json
 THIRD_PARTY_NOTICES.md
 LICENSES/dotfiles-workflow-MIT.txt
 **/.env*
+**/*.env
+**/auth.json
 docs/shared-core.md
 
 # Build & Test Config
