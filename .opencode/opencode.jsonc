@@ -5,7 +5,7 @@
     ".opencode/instructions/development-lifecycle.md"
   ],
   "plugin": [
-    ["@plannotator/opencode@0.27.14", {
+    ["@plannotator/opencode@{file:~/.config/dotfiles/versions/plannotator}", {
       "workflow": "user-managed",
       "runtime": "cli",
       "planningAgents": [

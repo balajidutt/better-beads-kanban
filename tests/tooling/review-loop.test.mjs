@@ -210,6 +210,18 @@ test('build external directory access falls back to deny around the Plannotator 
   assert.deepEqual(Object.entries(external), [['*', 'deny'], ['$HOME/.plannotator/plans/**', 'allow']]);
 });
 
+test('Plannotator plugin takes its version from the dotfiles pin and keeps the user-managed CLI options', async () => {
+  const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
+  const docs = await readFile(new URL('../../docs/development/opencode-workflow.md', import.meta.url), 'utf8');
+  assert.equal(settings.plugin.length, 1);
+  assert.equal(settings.plugin[0].length, 2);
+  const [spec, options] = settings.plugin[0];
+  assert.equal(spec, '@plannotator/opencode@{file:~/.config/dotfiles/versions/plannotator}');
+  assert.deepEqual(options, { workflow: 'user-managed', runtime: 'cli', planningAgents: ['plan', 'plan-GPT-xhigh', 'special-builder', 'agent-engineer'] });
+  assert.ok(docs.includes('The project registers `@plannotator/opencode@{file:~/.config/dotfiles/versions/plannotator}`'));
+  assert.ok(docs.includes('The following results are historical. They were recorded against the earlier exact pin `@plannotator/opencode@0.27.14`'));
+});
+
 test('every workflow role may read the Plannotator plans directory and keeps its external default otherwise', async () => {
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
   const lifecycle = await readFile(new URL('../../.opencode/instructions/development-lifecycle.md', import.meta.url), 'utf8');
