@@ -500,15 +500,22 @@ test('every read-only git rule resolves the same with the no-optional-locks fsmo
   assert.ok(checked > 40);
 });
 
-test('non-mutating reviewers may recover once from a denied read; mutating steps keep stop on any denial', async () => {
+test('non-mutating reviewers treat a denied read as an error; mutating steps keep stop on any denial', async () => {
   const lifecycle = await readFile(new URL('../../.opencode/instructions/development-lifecycle.md', import.meta.url), 'utf8');
-  assert.ok(lifecycle.includes('A dispatch to one of them does not include an instruction to stop on any denial; after a denied read-only call it may recover once'));
+  assert.ok(lifecycle.includes('a rule-based denial of a read is an error, not a stop'));
+  assert.ok(lifecycle.includes('A dispatch to one of them does not include an instruction to stop on any denial; if one does, that instruction controls. The conditions above still apply to each replacement call.'));
+  assert.ok(lifecycle.includes('Do not resend the same command text or probe which variants are allowed.'));
+  assert.ok(lifecycle.includes("return the review as incomplete in your role's result format and name what is missing"));
+  assert.ok(lifecycle.includes("A denied call aimed at a protected path (`.env*`, `.ssh`, `auth.json` or `.beads`), whichever tool's rule denied it, is never pursued through another tool."));
+  assert.ok(lifecycle.includes('A human rejecting a call, or any denied call that is not a read, is a terminal stop.'));
   assert.ok(lifecycle.includes('Reserve an instruction to stop on any denial for steps that can mutate state.'));
-  assert.ok(lifecycle.includes('a denial that protects a path or its contents'));
-  assert.ok(lifecycle.includes('a later call in the same dispatch is denied'));
+  assert.ok(lifecycle.includes('Every other role uses one evidence-backed recovery sequence'));
+  assert.equal(lifecycle.includes('may recover once'), false);
+  assert.equal(lifecycle.includes('a later call in the same dispatch is denied'), false);
   for (const file of ['build', 'plan']) {
     const text = await readFile(new URL(`../../.opencode/agents/${file}.md`, import.meta.url), 'utf8');
-    assert.ok(text.includes('one-recovery rule'), file);
+    assert.ok(text.includes('read-only denial rule'), file);
+    assert.equal(text.includes('one-recovery rule'), false, file);
   }
 });
 
