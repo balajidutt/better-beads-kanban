@@ -1,0 +1,13 @@
+{
+  "args": [
+    "list",
+    "--json",
+    "--all",
+    "--limit",
+    "0",
+    "--brief"
+  ],
+  "exitCode": 1,
+  "stdout": "",
+  "stderr": "Error: unknown flag: --brief\n"
+}

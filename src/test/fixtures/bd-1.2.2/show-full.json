@@ -1,0 +1,154 @@
+[
+  {
+    "id": "fx-1l9",
+    "title": "Parent epic",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "epic",
+    "owner": "fixture-owner@example.com",
+    "created_at": "2026-01-02T03:04:05Z",
+    "created_by": "fixture-actor",
+    "updated_at": "2026-01-02T03:04:05Z",
+    "dependents": [
+      {
+        "id": "fx-1l9.1",
+        "title": "Open child",
+        "status": "open",
+        "priority": 2,
+        "issue_type": "task",
+        "created_at": "0001-01-01T00:00:00Z",
+        "updated_at": "0001-01-01T00:00:00Z",
+        "dependency_type": "parent-child"
+      }
+    ],
+    "dependent_count": 1,
+    "dependency_count": 0,
+    "comment_count": 0,
+    "epic_total_children": 1,
+    "epic_closed_children": 0,
+    "epic_closeable": false
+  },
+  {
+    "id": "fx-1l9.1",
+    "title": "Open child",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "owner": "fixture-owner@example.com",
+    "created_at": "2026-01-02T03:04:05Z",
+    "created_by": "fixture-actor",
+    "updated_at": "2026-01-02T03:04:05Z",
+    "dependencies": [
+      {
+        "id": "fx-1l9",
+        "title": "Parent epic",
+        "status": "open",
+        "priority": 2,
+        "issue_type": "epic",
+        "owner": "fixture-owner@example.com",
+        "created_at": "2026-01-02T03:04:05Z",
+        "created_by": "fixture-actor",
+        "updated_at": "2026-01-02T03:04:05Z",
+        "dependency_type": "parent-child"
+      }
+    ],
+    "parent": "fx-1l9",
+    "dependent_count": 0,
+    "dependency_count": 1,
+    "comment_count": 0
+  },
+  {
+    "id": "fx-d5k",
+    "title": "Blocker",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "owner": "fixture-owner@example.com",
+    "created_at": "2026-01-02T03:04:06Z",
+    "created_by": "fixture-actor",
+    "updated_at": "2026-01-02T03:04:06Z",
+    "dependents": [
+      {
+        "id": "fx-shk",
+        "title": "Blocked",
+        "status": "open",
+        "priority": 2,
+        "issue_type": "task",
+        "created_at": "0001-01-01T00:00:00Z",
+        "updated_at": "0001-01-01T00:00:00Z",
+        "dependency_type": "blocks"
+      }
+    ],
+    "dependent_count": 1,
+    "dependency_count": 0,
+    "comment_count": 0
+  },
+  {
+    "id": "fx-shk",
+    "title": "Blocked",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "owner": "fixture-owner@example.com",
+    "created_at": "2026-01-02T03:04:06Z",
+    "created_by": "fixture-actor",
+    "updated_at": "2026-01-02T03:04:06Z",
+    "dependencies": [
+      {
+        "id": "fx-d5k",
+        "title": "Blocker",
+        "status": "open",
+        "priority": 2,
+        "issue_type": "task",
+        "owner": "fixture-owner@example.com",
+        "created_at": "2026-01-02T03:04:06Z",
+        "created_by": "fixture-actor",
+        "updated_at": "2026-01-02T03:04:06Z",
+        "dependency_type": "blocks"
+      }
+    ],
+    "dependent_count": 0,
+    "dependency_count": 1,
+    "comment_count": 0
+  },
+  {
+    "id": "fx-b95",
+    "title": "Claimed",
+    "status": "in_progress",
+    "priority": 2,
+    "issue_type": "task",
+    "assignee": "fixture-actor",
+    "owner": "fixture-owner@example.com",
+    "created_at": "2026-01-02T03:04:06Z",
+    "created_by": "fixture-actor",
+    "updated_at": "2026-01-02T03:04:07Z",
+    "started_at": "2026-01-02T03:04:07Z",
+    "comments": [
+      {
+        "id": "01a0fd10-2737-7484-9978-567aec80d31f",
+        "issue_id": "fx-b95",
+        "author": "fixture-actor",
+        "text": "First comment",
+        "created_at": "2026-01-02T03:04:07Z"
+      }
+    ],
+    "dependent_count": 0,
+    "dependency_count": 0,
+    "comment_count": 1
+  },
+  {
+    "id": "fx-ldg",
+    "title": "Deferred",
+    "status": "deferred",
+    "priority": 2,
+    "issue_type": "task",
+    "owner": "fixture-owner@example.com",
+    "created_at": "2026-01-02T03:04:07Z",
+    "created_by": "fixture-actor",
+    "updated_at": "2026-01-02T03:04:07Z",
+    "defer_until": "2099-01-01T00:00:00Z",
+    "dependent_count": 0,
+    "dependency_count": 0,
+    "comment_count": 0
+  }
+]

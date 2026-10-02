@@ -51,6 +51,29 @@ original extension OS/Node matrix still runs independently. See
 [`docs/shared-core.md`](docs/shared-core.md) for the provisional architecture and
 Checkpoint A packaging decision.
 
+### Recorded bd output
+
+`src/test/fixtures/bd-<version>/` holds real bd output for each supported
+version: list, ready, show (plain, full and `--brief-deps`), stats, comments, the
+1.3 close-policy and `--if-status` refusals, `BEADS_MAX_ROWS` overflow and
+events-journal lines. `src/test/shared/fixtures.test.ts` runs them through the
+shared mappers under `npm run test:shared`, so CI exercises real shapes without
+bd. Commands a version lacks are recorded as failures with their exit code and
+stderr.
+
+To record or refresh a version, point `BD_BIN` at that binary:
+
+```bash
+BD_BIN=/absolute/path/to/bd node scripts/record-bd-fixtures.js
+```
+
+The recorder seeds a scratch workspace through
+`scripts/lib/bd-scratch-workspace.js`, runs bd in UTC, scrubs the
+workspace path, project id and owner identity, and rebases timestamps onto a
+fixed date with their gaps intact. Never run a newer bd against this
+repository's own `.beads`: its first open migrates the store and locks out
+older clients.
+
 ### Independent terminal checks
 
 The private `terminal/` package has its own Node 22+ ESM dependencies, lockfile,

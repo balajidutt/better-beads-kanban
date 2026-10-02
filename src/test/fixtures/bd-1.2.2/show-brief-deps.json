@@ -1,0 +1,16 @@
+{
+  "args": [
+    "show",
+    "--json",
+    "--brief-deps",
+    "fx-1l9",
+    "fx-1l9.1",
+    "fx-d5k",
+    "fx-shk",
+    "fx-b95",
+    "fx-ldg"
+  ],
+  "exitCode": 1,
+  "stdout": "",
+  "stderr": "Error: unknown flag: --brief-deps\n"
+}

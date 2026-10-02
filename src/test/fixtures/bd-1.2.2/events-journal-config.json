@@ -1,0 +1,11 @@
+{
+  "args": [
+    "config",
+    "set",
+    "events-journal",
+    "true"
+  ],
+  "exitCode": 0,
+  "stdout": "Set events-journal = true\n",
+  "stderr": "Warning: \"events-journal\" is not a recognized config key. Use 'custom.*' for user-defined keys.\nRun 'bd config --help' for valid namespaces.\n"
+}

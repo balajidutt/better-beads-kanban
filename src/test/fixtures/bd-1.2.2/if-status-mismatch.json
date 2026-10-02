@@ -1,0 +1,14 @@
+{
+  "args": [
+    "update",
+    "fx-d5k",
+    "--status",
+    "in_progress",
+    "--if-status",
+    "blocked",
+    "--json"
+  ],
+  "exitCode": 1,
+  "stdout": "",
+  "stderr": "Error: unknown flag: --if-status\n"
+}

@@ -1,0 +1,9 @@
+{
+  "args": [
+    "unclaim",
+    "fx-b95"
+  ],
+  "exitCode": 1,
+  "stdout": "",
+  "stderr": "Error: unknown command \"unclaim\" for \"bd\"\nRun 'bd --help' for usage.\n"
+}

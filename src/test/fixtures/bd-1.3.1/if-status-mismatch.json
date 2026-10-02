@@ -1,0 +1,14 @@
+{
+  "args": [
+    "update",
+    "fx-ekd",
+    "--status",
+    "in_progress",
+    "--if-status",
+    "blocked",
+    "--json"
+  ],
+  "exitCode": 13,
+  "stdout": "",
+  "stderr": "Error updating fx-ekd: status mismatch: fx-ekd has status \"open\", expected \"blocked\"\n{\"error\":\"1 of 1 issues failed to update\",\"failed\":[{\"id\":\"fx-ekd\",\"error\":\"updating issue: status mismatch: fx-ekd has status \\\"open\\\", expected \\\"blocked\\\"\",\"guard_mismatch\":true}],\"schema_version\":1}\n"
+}

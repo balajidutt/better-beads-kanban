@@ -1,0 +1,11 @@
+{
+  "args": [
+    "update",
+    "fx-shk",
+    "--status",
+    "closed"
+  ],
+  "exitCode": 0,
+  "stdout": "✓ Updated issue: fx-shk — Blocked\n",
+  "stderr": ""
+}

@@ -1,0 +1,11 @@
+{
+  "args": [
+    "update",
+    "fx-1l9",
+    "--status",
+    "closed"
+  ],
+  "exitCode": 0,
+  "stdout": "✓ Updated issue: fx-1l9 — Parent epic\n",
+  "stderr": ""
+}

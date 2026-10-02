@@ -1,0 +1,12 @@
+{
+  "args": [
+    "list",
+    "--json",
+    "--all",
+    "--limit",
+    "0"
+  ],
+  "exitCode": 2,
+  "stdout": "",
+  "stderr": "Error: too many rows: 3 found, BEADS_MAX_ROWS=2 exceeded.\n       Refine the query (add filters, set --limit), or raise the cap with\n       --max-rows N or BEADS_MAX_ROWS=N.\n"
+}

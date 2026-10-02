@@ -1,0 +1,11 @@
+{
+  "args": [
+    "events",
+    "prune",
+    "--before",
+    "2"
+  ],
+  "exitCode": 0,
+  "stdout": "Pruned 1 events journal record(s) below seq 2\n",
+  "stderr": ""
+}

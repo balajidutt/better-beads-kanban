@@ -1,0 +1,11 @@
+{
+  "args": [
+    "events",
+    "prune",
+    "--before",
+    "2"
+  ],
+  "exitCode": 1,
+  "stdout": "",
+  "stderr": "Error: unknown command \"events\" for \"bd\"\nRun 'bd --help' for usage.\n"
+}

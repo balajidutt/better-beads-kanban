@@ -1,0 +1,19 @@
+{
+  "args": [
+    "events",
+    "tail",
+    "--since",
+    "0",
+    "--json"
+  ],
+  "exitCode": 1,
+  "stdout": {
+    "code": "events_journal_truncated",
+    "error": "events journal truncated: checkpoint 0 is below the retained window [2..2]; records 1..1 were pruned",
+    "floor": 2,
+    "head": 2,
+    "schema_version": 1,
+    "since": 0
+  },
+  "stderr": ""
+}

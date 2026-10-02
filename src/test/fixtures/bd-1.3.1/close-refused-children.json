@@ -1,0 +1,11 @@
+{
+  "args": [
+    "update",
+    "fx-vhc",
+    "--status",
+    "closed"
+  ],
+  "exitCode": 1,
+  "stdout": "",
+  "stderr": "Error updating fx-vhc: cannot close fx-vhc: 1 open child issue(s); close children first or use --force to override\nError: 1 of 1 issues failed to update\n  fx-vhc: updating issue: cannot close fx-vhc: 1 open child issue(s); close children first or use --force to override\n"
+}

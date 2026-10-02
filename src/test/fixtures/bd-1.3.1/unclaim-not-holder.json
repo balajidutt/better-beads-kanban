@@ -1,0 +1,9 @@
+{
+  "args": [
+    "unclaim",
+    "fx-5dx"
+  ],
+  "exitCode": 1,
+  "stdout": "",
+  "stderr": "Error unclaiming fx-5dx: issue claimed by a different actor: fx-5dx is held by fixture-actor; coordinate with the holder — pass --force only if their claim is abandoned (crashed agent, expired lease)\n"
+}

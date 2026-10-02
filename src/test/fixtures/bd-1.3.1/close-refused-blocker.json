@@ -1,0 +1,11 @@
+{
+  "args": [
+    "update",
+    "fx-1sw",
+    "--status",
+    "closed"
+  ],
+  "exitCode": 1,
+  "stdout": "",
+  "stderr": "Error updating fx-1sw: cannot close blocked issue: fx-1sw is blocked by [fx-ekd]\nError: 1 of 1 issues failed to update\n  fx-1sw: updating issue: cannot close blocked issue: fx-1sw is blocked by [fx-ekd]\n"
+}
