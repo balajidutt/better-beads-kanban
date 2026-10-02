@@ -5,6 +5,36 @@ All notable changes to the Beads Kanban extension will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.3] - 2026-10-02
+
+This GitHub VSIX release collects board and detail-view fixes worth a manual reinstall. No new extension capability, breaking interface or Marketplace publication is included; the separate read-only terminal browser remains a repository PoC, not part of the VSIX.
+
+### 🐛 Bug Fixes
+
+- **A board left open through an extension-host restart no longer remains silently inert.** The extension reattaches a board after a window reload; when a host restart leaves stale tabs that cannot be reattached, it closes them and opens a fresh board if a workspace root is available. This also matters when reinstalling a VSIX with a board open. (`bbk-sdp`)
+- **Switching Beads repositories refreshes every open board without reopening its tab.** The picker and workspace-folder changes retarget the adapter, rebind watchers and reload attached boards; the legacy board-data path also refills the card cache used by Table and Tree. (`bbk-a0n`)
+- **Issue details load comments and child issues on bd 1.2.2.** Detail reads request comments and dependents, retain string comment IDs and populate the related-issue lists without adding per-card reads to the initial board load. (`bbk-rux`)
+- **Read-only mode no longer traps an open create dialog.** Discard confirmation can run while mutations are blocked, failed confirmations settle, and the minimal board load conveys read-only state to the webview. (`bbk-kb2`)
+- **Multibyte characters split across bd output chunks remain intact** in board data and CLI errors. (`bbk-0kj`)
+- **Markdown task-list checkboxes sit inline with their text** rather than inheriting the detail dialog's full-width input style. (`bbk-zmu`)
+
+### ✨ Changed
+
+- **The extension icon is a compact bead-board design.** The regenerated PNG comes from `images/icon.svg`; the proposed ++ badge was not used. (`bbk-yh9`)
+
+### 🔧 Internal
+
+- **Shared backlog reads and tree logic now live in `src/shared/`.** The adapter and webview consume the extracted core; a separate read-only terminal browser landed as a PoC but is excluded from the VSIX and has no release here. (`bbk-7wz.1`)
+- **Feature-branch CI runs the full cross-platform matrix before landing.** The repository's CI-gated GitHub merge tooling superseded the original local-only merge proposal; that closure did not establish every original acceptance item. (`bbk-vag`, `bbk-c5f`)
+- **OpenCode roles and shared repository guidance separate planning, editing, review and release authority.** These are development workflow changes, not extension features. (`bbk-nfx`)
+- **Tooling and extension-host tests are less vulnerable to unrelated subprocess and timer activity.** Empty-input subprocesses do not open a stdin pipe, and CLI facade timer assertions count the adapter's own timers. (`bbk-ky1`, `bbk-5vy`)
+
+Later `.opencode` permission, model, release-inspection, agent-readable documentation and plan-access maintenance is repository-only work outside the 13-issue release graph.
+It is excluded from the VSIX and did not determine this version.
+
+Separately, the VSIX ignore rules exclude local `.env` variants and `auth.json`;
+this release-coordination safeguard adds no extension capability.
+
 ## [2.2.2] - 2026-09-11
 
 A bug-fix release. Three fixes are visible on the board: scroll position surviving a refresh, light themes rendering correctly, and the board noticing a workspace folder added after it opened. The rest is release and testing tooling. Nothing about the message protocol, the settings, or the extension ID changes, so upgrading is a straight reinstall of the VSIX.
