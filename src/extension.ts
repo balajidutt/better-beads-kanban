@@ -1089,9 +1089,10 @@ export function activate(context: vscode.ExtensionContext) {
         requestRefresh();
       };
       const requestRefresh = (fromEvent = false) => {
-        // Skip refresh if this change is from our own save operation. Journal
-        // events are always real writes, and reads are never journaled.
-        if (!fromEvent && adapter.isRecentSelfSave()) {
+        // Skip refresh if this change is from our own save operation. A journal
+        // event is a real write, so only the board's own recent mutations, which
+        // already re-sent the board, suppress it; read interactions do not.
+        if (fromEvent ? adapter.isRecentSelfMutation() : adapter.isRecentSelfSave()) {
           output.appendLine(`[Extension] Ignoring change due to recent self-save/interaction`);
           return;
         }

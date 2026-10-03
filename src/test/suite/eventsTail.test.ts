@@ -1,4 +1,6 @@
 import * as assert from 'assert';
+import * as fs from 'fs';
+import * as path from 'path';
 import { EventEmitter } from 'events';
 import { PassThrough } from 'stream';
 import * as sinon from 'sinon';
@@ -200,8 +202,34 @@ suite('Events journal detection', () => {
         assert.strictEqual(await on.adapter.isEventsJournalEnabled(), true);
         assert.deepStrictEqual(on.calls, [['config', 'get', 'events-journal', '--json']]);
         assert.strictEqual(await adapterFor('1.3.1', { key: 'events-journal', value: 'false' }).adapter.isEventsJournalEnabled(), false);
+        assert.strictEqual(await adapterFor('1.3.1', { key: 'events-journal', value: true }).adapter.isEventsJournalEnabled(), true);
         const old = adapterFor('1.2.2', { value: 'true' });
         assert.strictEqual(await old.adapter.isEventsJournalEnabled(), false);
         assert.deepStrictEqual(old.calls, []);
+    });
+});
+
+suite('Events journal refreshes and the board\'s own writes', () => {
+    test('only the board\'s own recent mutations suppress a journal refresh', () => {
+        const clock = sinon.useFakeTimers(1_000_000);
+        try {
+            const adapter = new DaemonBeadsAdapter('/unused', { appendLine: () => undefined } as unknown as vscode.OutputChannel);
+            assert.strictEqual(adapter.isRecentSelfMutation(), false);
+            (adapter as any).trackInteraction();
+            assert.strictEqual(adapter.isRecentSelfMutation(), false);
+            assert.strictEqual(adapter.isRecentSelfSave(), true);
+            (adapter as any).trackMutation();
+            assert.strictEqual(adapter.isRecentSelfMutation(), true);
+            clock.tick(2000);
+            assert.strictEqual(adapter.isRecentSelfMutation(), false);
+        } finally {
+            clock.restore();
+        }
+    });
+
+    test('journal events use the mutation window and file changes the interaction window', () => {
+        const extensionTs = fs.readFileSync(path.resolve(__dirname, '..', '..', '..', 'src', 'extension.ts'), 'utf8');
+        assert.match(extensionTs, /fromEvent \? adapter\.isRecentSelfMutation\(\) : adapter\.isRecentSelfSave\(\)/);
+        assert.match(extensionTs, /requestRefresh\(true\)/);
     });
 });

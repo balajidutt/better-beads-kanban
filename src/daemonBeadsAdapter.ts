@@ -94,7 +94,8 @@ export class DaemonBeadsAdapter {
     const capabilities = await this.ensureStoreReady();
     if (!capabilities.eventsJournal) { return false; }
     const result = await this.execBd(['config', 'get', 'events-journal', '--json']);
-    return (result as { value?: unknown } | null)?.value === 'true';
+    const value = (result as { value?: unknown } | null)?.value;
+    return value === 'true' || value === true;
   }
 
   /** Which 1.3-only flags the installed bd accepts. */
@@ -389,6 +390,11 @@ export class DaemonBeadsAdapter {
    */
   private trackInteraction(): void {
     this.lastInteractionTime = Date.now();
+  }
+
+  /** True for a short while after this adapter wrote to bd, whose own journal events then need no reload. */
+  public isRecentSelfMutation(windowMs: number = 2000): boolean {
+    return Date.now() - this.lastMutationTime < windowMs;
   }
 
   /**
