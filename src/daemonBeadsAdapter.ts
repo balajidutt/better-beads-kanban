@@ -635,7 +635,7 @@ export class DaemonBeadsAdapter {
         return issue.comments.map((c: unknown) => {
           const comment = c as Record<string, unknown>;
           return {
-            id: typeof comment.id === 'string' ? parseInt(comment.id, 10) : (comment.id as number),
+            id: comment.id === undefined || comment.id === null ? '' : String(comment.id),
             issue_id: issueId,
             author: (comment.author as string) || 'unknown',
             text: (comment.text as string) || '',

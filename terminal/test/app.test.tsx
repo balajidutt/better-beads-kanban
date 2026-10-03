@@ -24,7 +24,7 @@ async function setup(cards: EnrichedCard[], options: Partial<AppProps> = {}, lim
       reads.push(id);
       return { ...cards.find(item => item.id === id)!, description: Array.from({ length: 30 }, (_, i) => `Detail line ${i}`).join('\n'),
         acceptance_criteria: 'accepted', design: 'design source', notes: 'notes source', labels: ['label'], assignee: 'person',
-        comments: [{ id: 1, issue_id: id, author: 'author', text: 'comment body', created_at: '2026-01-02' }],
+        comments: [{ id: 'c-1', issue_id: id, author: 'author', text: 'comment body', created_at: '2026-01-02' }],
       } satisfies FullCard;
     },
     dispose() {},

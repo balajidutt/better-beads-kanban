@@ -29,8 +29,19 @@ function mapBase(issue: Record<string, unknown>): EnrichedCard {
     assignee: (issue.assignee as string | null) || null,
     estimated_minutes: (issue.estimated_minutes as number | null) || null,
     external_ref: (issue.external_ref as string | null) || null,
-    pinned: readBoolFromMetadata(issue, 'pinned')
+    pinned: readBoolFromMetadata(issue, 'pinned'),
+    ...optionalStrings(issue, ['owner', 'started_at', 'lease_expires_at', 'heartbeat_at'])
   };
+}
+
+/** Copies only the string fields bd actually sent, so absent fields stay absent rather than null. */
+function optionalStrings(issue: Record<string, unknown>, keys: Array<'owner' | 'started_at' | 'lease_expires_at' | 'heartbeat_at' | 'due_at' | 'defer_until'>): Partial<EnrichedCard> {
+  const result: Partial<EnrichedCard> = {};
+  for (const key of keys) {
+    const value = issue[key];
+    if (typeof value === 'string' && value.length > 0) { result[key] = value; }
+  }
+  return result;
 }
 
 export function mapBdListIssuesToEnrichedCards(issuesRaw: unknown[]): EnrichedCard[] {
@@ -91,6 +102,7 @@ export function mapBdListIssuesToEnrichedCards(issuesRaw: unknown[]): EnrichedCa
     const blocks = blocksByBlockerId.get(id);
     return {
       ...mapBase(issue),
+      ...optionalStrings(issue, ['due_at', 'defer_until']),
       labels: Array.isArray(issue.labels) ? issue.labels as string[] : [],
       blocked_by_count: (issue.blocked_by_count as number) || 0,
       is_ready: issue.status === 'open' && ((issue.blocked_by_count as number) || 0) === 0,
@@ -105,8 +117,7 @@ export function mapBdListIssuesToEnrichedCards(issuesRaw: unknown[]): EnrichedCa
 function dependencyRef(dep: Record<string, unknown>): DependencyInfo {
   return {
     id: dep.id as string, title: dep.title as string, created_at: dep.created_at as string,
-    created_by: (dep.created_by as string) || 'unknown',
-    metadata: dep.metadata as string | undefined, thread_id: dep.thread_id as string | undefined
+    created_by: (dep.created_by as string) || 'unknown'
   };
 }
 
@@ -152,7 +163,7 @@ export function mapBdShowIssueToFullCard(issue: Record<string, unknown>, issueId
   const comments: Comment[] = Array.isArray(issue.comments) ? issue.comments.map((c: unknown) => {
     const comment = c as Record<string, unknown>;
     return {
-      id: comment.id as string | number,
+      id: comment.id === undefined || comment.id === null ? '' : String(comment.id),
       issue_id: issueId, author: (comment.author as string) || 'unknown',
       text: (comment.text as string) || '', created_at: comment.created_at as string
     };

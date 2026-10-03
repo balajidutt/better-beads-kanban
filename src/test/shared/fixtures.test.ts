@@ -43,6 +43,23 @@ for (const version of RECORDED_BD_VERSIONS) {
       assert.strictEqual(rawUnassigned?.owner, 'fixture-owner@example.com');
     });
 
+    test('list maps the creator as owner and the deferred issue\'s defer date', () => {
+      const cards = mapBdListIssuesToEnrichedCards(listRaw);
+      assert.strictEqual(byId(cards, ids.parent).owner, 'fixture-owner@example.com');
+      assert.strictEqual(byId(cards, ids.parent).assignee, null);
+      assert.strictEqual(byId(cards, ids.deferred).defer_until, '2099-01-01T00:00:00Z');
+      assert.ok(!('defer_until' in byId(cards, ids.parent)));
+    });
+
+    test('relationship refs carry only id, title and creation fields', () => {
+      const cards = mapBdListIssuesToEnrichedCards(listRaw);
+      const show = mapBdShowIssueToFullCard(showRaw.find(i => i.id === ids.child) as Record<string, unknown>, ids.child);
+      for (const ref of [byId(cards, ids.child).parent, show.parent]) {
+        assert.ok(ref);
+        assert.deepStrictEqual(Object.keys(ref).sort(), ['created_at', 'created_by', 'id', 'title']);
+      }
+    });
+
     test('list output carries no blocker count, so readiness cannot come from list alone', () => {
       for (const issue of listRaw) {
         assert.strictEqual(issue.blocked_by_count, undefined);
@@ -84,6 +101,22 @@ for (const version of RECORDED_BD_VERSIONS) {
   });
 }
 
+suite('Mapper handling of fields the recorded fixtures do not carry', () => {
+  test('a numeric comment id maps to its string form', () => {
+    const card = mapBdShowIssueToFullCard({ id: 'fx-a1', comments: [{ id: 7, text: 'old' }, { text: 'no id' }] }, 'fx-a1');
+    assert.deepStrictEqual(card.comments?.map(c => c.id), ['7', '']);
+  });
+
+  test('list cards carry due_at when bd sends it and omit it otherwise', () => {
+    const cards = mapBdListIssuesToEnrichedCards([
+      { id: 'fx-due', status: 'open', due_at: '2026-02-01T00:00:00Z' },
+      { id: 'fx-none', status: 'open' }
+    ]);
+    assert.strictEqual(cards[0].due_at, '2026-02-01T00:00:00Z');
+    assert.ok(!('due_at' in cards[1]));
+  });
+});
+
 suite('Recorded bd 1.3.1 behaviour that 1.2.2 lacks', () => {
   const ids = loadFixture<SeededIds>('1.3.1', 'ids.json');
 
@@ -110,11 +143,16 @@ suite('Recorded bd 1.3.1 behaviour that 1.2.2 lacks', () => {
     assert.match(loadFixture<RecordedFailure>('1.2.2', 'if-status-mismatch.json').stderr, /unknown flag: --if-status/);
   });
 
-  test('the claimed issue carries lease fields in list output', () => {
-    const claimed = loadFixture<Record<string, unknown>[]>('1.3.1', 'list-all.json').find(i => i.id === ids.claimed);
-    assert.strictEqual(typeof claimed?.lease_expires_at, 'string');
-    assert.strictEqual(typeof claimed?.heartbeat_at, 'string');
-    assert.strictEqual(typeof claimed?.started_at, 'string');
+  test('the claimed issue\'s lease fields reach the mapped card', () => {
+    const raw = loadFixture<Record<string, unknown>[]>('1.3.1', 'list-all.json');
+    const claimed = raw.find(i => i.id === ids.claimed);
+    const card = mapBdListIssuesToEnrichedCards(raw).find(c => c.id === ids.claimed);
+    for (const key of ['lease_expires_at', 'heartbeat_at', 'started_at'] as const) {
+      assert.strictEqual(typeof claimed?.[key], 'string');
+      assert.strictEqual(card?.[key], claimed?.[key]);
+    }
+    const unclaimed = mapBdListIssuesToEnrichedCards(raw).find(c => c.id === ids.parent);
+    assert.ok(unclaimed && !('lease_expires_at' in unclaimed));
   });
 
   test('another actor cannot unclaim without --force', () => {

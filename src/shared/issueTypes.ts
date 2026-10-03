@@ -1,4 +1,4 @@
-export type IssueStatus = "open" | "in_progress" | "blocked" | "closed";
+export type IssueStatus = "open" | "in_progress" | "blocked" | "deferred" | "closed";
 
 export interface MinimalCard {
   id: string;
@@ -28,14 +28,19 @@ export interface EnrichedCard extends MinimalCard {
   children?: DependencyInfo[];
   blocks?: DependencyInfo[];
   blocked_by?: DependencyInfo[];
+  /** The creator's identity; bd keeps it separate from the assignee. */
+  owner?: string;
+  due_at?: string | null;
+  defer_until?: string | null;
+  started_at?: string;
+  lease_expires_at?: string;
+  heartbeat_at?: string;
 }
 
 export interface FullCard extends EnrichedCard {
   acceptance_criteria: string;
   design: string;
   notes: string;
-  due_at?: string | null;
-  defer_until?: string | null;
   is_ready?: boolean;
   is_template?: boolean;
   ephemeral?: boolean;
@@ -67,12 +72,10 @@ export interface DependencyInfo {
   title: string;
   created_at?: string;
   created_by?: string;
-  metadata?: string;
-  thread_id?: string;
 }
 
 export interface Comment {
-  id: string | number;
+  id: string;
   issue_id: string;
   author: string;
   text: string;

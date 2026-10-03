@@ -107,6 +107,21 @@ test('rejects hostile optional fields and mismatched show IDs before mapping', a
   } finally { f.cleanup(); }
 });
 
+test('comment ids are opaque strings as bd emits them, but never empty or non-scalar', async () => {
+  const f = fixture();
+  try {
+    const { service } = await createReadService(f.options);
+    f.set({ ...f.base, show: [{ id: 'test-abc', title: 'Title', comments: [{ id: 'd183051a-adbe-5baa-acd1-9a33c6f21034', text: 'Hi' }] }] });
+    const card = await service.detail('test-abc');
+    assert.equal(card.comments?.[0].id, 'd183051a-adbe-5baa-acd1-9a33c6f21034');
+    for (const id of ['', {}, null]) {
+      f.set({ ...f.base, show: [{ id: 'test-abc', title: 'Title', comments: [{ id, text: 'Hi' }] }] });
+      await assert.rejects(service.detail('test-abc'), /Invalid bd/);
+    }
+    service.dispose();
+  } finally { f.cleanup(); }
+});
+
 test('dispose aborts an owned child, escalates, and never delivers a late result', async () => {
   const f = fixture();
   try {

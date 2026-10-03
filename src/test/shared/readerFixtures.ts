@@ -45,13 +45,13 @@ export const showFixture = {
 };
 
 export const showRef = (id: string, title: string) => ({
-  id, title, created_at: undefined, created_by: 'unknown', metadata: undefined, thread_id: undefined
+  id, title, created_at: undefined, created_by: 'unknown'
 });
 
 export const expectedShowCard = {
   ...defaultFullCard, id: 'test-child', labels: ['one', 'two'], blocked_by_count: 1,
   is_template: true, actor: 'agent',
-  parent: { ...showRef('test-parent', 'Parent'), metadata: 'meta', thread_id: 'thread' },
+  parent: showRef('test-parent', 'Parent'),
   children: [showRef('test-descendant', 'Descendant')],
   blocks: [showRef('test-blocked', 'Blocked')],
   blocked_by: [showRef('test-blocker', 'Blocker')],

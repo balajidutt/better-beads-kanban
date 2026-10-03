@@ -53,7 +53,7 @@ function validateIssues(value: unknown, selectedId?: string): void {
         if (key === 'comments') {
           textFields(entry, ['author', 'text', 'created_at']);
           if (!(typeof entry.id === 'number' && Number.isFinite(entry.id)) &&
-              !(typeof entry.id === 'string' && /^\d+$/u.test(entry.id))) { bad(); }
+              !(typeof entry.id === 'string' && entry.id.length > 0)) { bad(); }
         } else {
           textFields(entry, ['title', 'created_at', 'created_by', 'metadata', 'thread_id', 'type', 'dependency_type']);
           for (const field of ['id', 'issue_id', 'depends_on_id']) {

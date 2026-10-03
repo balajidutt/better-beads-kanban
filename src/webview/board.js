@@ -524,7 +524,7 @@ const tableColumns = [
     getValue: c => c.status,
     render: (c) => `<span class="badge">${escapeHtml(c.status || 'open')}</span>`,
     sort: (a, b) => {
-      const order = ['open', 'in_progress', 'blocked', 'closed'];
+      const order = ['open', 'in_progress', 'blocked', 'deferred', 'closed'];
       return order.indexOf(a.status || 'open') - order.indexOf(b.status || 'open');
     }
   },

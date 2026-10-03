@@ -2,6 +2,7 @@ import * as assert from 'assert';
 import {
     IssueUpdateSchema,
     IssueCreateSchema,
+    SetStatusSchema,
     CommentAddSchema,
     LabelSchema,
     DependencySchema,
@@ -566,5 +567,26 @@ suite('migrateUIState', () => {
             STATUS_ALL_VALUES.length > STATUS_ACTIVE_VALUES.length,
             'STATUS_ALL must be strictly larger than STATUS_ACTIVE (else there is no Closed to exclude)'
         );
+    });
+});
+
+suite('Deferred status in message schemas', () => {
+    test('the edit dialog can save Deferred, which it offers', () => {
+        const result = IssueUpdateSchema.safeParse({ id: 'fx-a1', updates: { status: 'deferred' } });
+        assert.ok(result.success);
+    });
+
+    test('a new issue can be created Deferred', () => {
+        const result = IssueCreateSchema.safeParse({ title: 'Later', status: 'deferred' });
+        assert.ok(result.success);
+    });
+
+    test('a drag cannot target Deferred, which has no column', () => {
+        assert.ok(!SetStatusSchema.safeParse({ id: 'fx-a1', status: 'deferred' }).success);
+        assert.ok(SetStatusSchema.safeParse({ id: 'fx-a1', status: 'closed' }).success);
+    });
+
+    test('statuses bd does not know are still rejected', () => {
+        assert.ok(!IssueUpdateSchema.safeParse({ id: 'fx-a1', updates: { status: 'later' } }).success);
     });
 });
