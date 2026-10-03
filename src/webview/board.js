@@ -975,6 +975,12 @@ function toast(msg, actionName, actionCb) {
     toastHideTimer = setTimeout(hideToast, 5000);
 }
 
+/** The card's stored status for a compare-and-set move, omitted when it is not a plain status token. */
+function storedStatusOf(id) {
+    const status = cardCache.get(id)?.status;
+    return typeof status === "string" && /^[a-z0-9][a-z0-9_-]*$/i.test(status) && status.length <= 64 ? status : undefined;
+}
+
 function columnForCard(card) {
     // Deterministic mapping (matches extension-side assumptions)
     if (card.status === "closed") return "closed";
@@ -1402,7 +1408,9 @@ function renderKanban() {
 
                     // If moved to a different column
                     if (toColumn !== fromColumn) {
-                        post("issue.move", { id, toColumn });
+                        // The card's stored status, not its column: Blocked also holds
+                        // open cards with blockers and deferred cards.
+                        post("issue.move", { id, toColumn, fromStatus: storedStatusOf(id) });
                     }
                 }
             });
@@ -3016,7 +3024,7 @@ window.addEventListener("message", (event) => {
         if (closeRefused && !pending && msg.payload.retry === "move") {
             const id = msg.payload.id;
             toast(msg.error || "Close refused.", "Close anyway", () => {
-                post("issue.move", { id, toColumn: "closed", force: true });
+                post("issue.move", { id, toColumn: "closed", fromStatus: storedStatusOf(id), force: true });
             });
             return;
         }

@@ -1525,6 +1525,18 @@ function generateHtml() {
 '              msg.type === "issue.move" || msg.type === "issue.addComment" ||\n' +
 '              msg.type === "issue.addLabel" || msg.type === "issue.removeLabel" ||\n' +
 '              msg.type === "issue.addDependency" || msg.type === "issue.removeDependency") {\n' +
+'            var movedCard = msg.type === "issue.move" ? _mockFind((msg.payload || {}).id) : null;\n' +
+'            if (movedCard && msg.payload.fromStatus && movedCard.status !== msg.payload.fromStatus) {\n' +
+'              setTimeout(function() {\n' +
+'                _mockSendBoard(msg.requestId);\n' +
+'                var changed = { type: "mutation.error", requestId: msg.requestId || "mock-req-mut", code: "status_changed",\n' +
+'                  payload: { id: msg.payload.id },\n' +
+'                  error: "The status of this issue changed since the board last loaded, so it was not moved." };\n' +
+'                _mockMessageLog.push({ direction: "in", msg: changed, timestamp: Date.now() });\n' +
+'                window.dispatchEvent(new MessageEvent("message", { data: changed }));\n' +
+'              }, 50);\n' +
+'              return;\n' +
+'            }\n' +
 '            var refusal = _mockCloseRefusal(msg);\n' +
 '            if (refusal) {\n' +
 '              setTimeout(function() {\n' +

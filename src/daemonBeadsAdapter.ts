@@ -1333,14 +1333,19 @@ export class DaemonBeadsAdapter {
 
   /**
    * Update issue status using bd CLI. `force` overrides bd 1.3's close policy
-   * and is only ever sent on an explicit user request.
+   * and is only ever sent on an explicit user request. `ifStatus` makes the
+   * update a compare-and-set on bd 1.3 (exit 13 when the status has moved on).
    */
-  public async setIssueStatus(id: string, toStatus: IssueStatus, options: { force?: boolean } = {}): Promise<void> {
+  public async setIssueStatus(
+    id: string, toStatus: IssueStatus, options: { force?: boolean; ifStatus?: string } = {}
+  ): Promise<void> {
     try {
       this.validateIssueId(id);
+      if (options.ifStatus !== undefined) { this.validateFlagValue(options.ifStatus, 'ifStatus'); }
       const capabilities = await this.ensureStoreReady();
       const args = ['update', id, '--status', toStatus];
       if (options.force && toStatus === 'closed' && capabilities.closePolicy) { args.push('--force'); }
+      if (options.ifStatus && capabilities.ifStatus) { args.push('--if-status', options.ifStatus); }
       await this.execBd(args);
 
       // Track mutation and invalidate cache

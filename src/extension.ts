@@ -15,7 +15,7 @@ import {
   describeResolution
 } from "./beadsWorkspace";
 import { BEADS_WATCH_PATTERNS, shouldTriggerRefresh } from "./beadsWatch";
-import { isClosePolicyRefusal } from "./shared/node";
+import { isClosePolicyRefusal, isGuardMismatch } from "./shared/node";
 import {
   BoardData,
   BoardCard,
@@ -50,7 +50,7 @@ type WebMsg =
   | { type: "table.loadPage"; requestId: string; payload: { filters: { search?: string; priority?: string; type?: string; status?: string; assignee?: string; labels?: string[] }; sorting: Array<{ id: string; dir: 'asc' | 'desc' }>; offset: number; limit: number } }
   | { type: "repo.select"; requestId: string }
   | { type: "issue.create"; requestId: string; payload: { title: string; description?: string } }
-  | { type: "issue.move"; requestId: string; payload: { id: string; toColumn: BoardColumnKey; force?: boolean } }
+  | { type: "issue.move"; requestId: string; payload: { id: string; toColumn: BoardColumnKey; fromStatus?: string; force?: boolean } }
   | { type: "issue.getFull"; requestId: string; payload: { id: string } }
   | { type: "issue.addToChat"; requestId: string; payload: { text: string } }
   | { type: "issue.copyToClipboard"; requestId: string; payload: { text: string } }
@@ -71,7 +71,7 @@ type ExtMsg =
   | { type: "issue.full"; requestId: string; payload: { card: FullCard } }
   | { type: "mutation.ok"; requestId: string; payload?: unknown }
   | { type: "ui.confirm.result"; requestId: string; payload: { confirmed: boolean } }
-  | { type: "mutation.error"; requestId: string; error: string; code?: "close_refused"; payload?: { id: string; retry?: "move" } };
+  | { type: "mutation.error"; requestId: string; error: string; code?: "close_refused" | "status_changed"; payload?: { id: string; retry?: "move" } };
 
 // Size limits for text operations
 const MAX_CHAT_TEXT = 50_000; // 50KB reasonable for chat
@@ -845,6 +845,7 @@ export function activate(context: vscode.ExtensionContext) {
           const validation = SetStatusSchema.safeParse({
             id: msg.payload.id,
             status: toStatus,
+            fromStatus: msg.payload.fromStatus,
             force: msg.payload.force
           });
           if (!validation.success) {
@@ -852,10 +853,19 @@ export function activate(context: vscode.ExtensionContext) {
             return;
           }
           try {
-            await adapter.setIssueStatus(validation.data.id, validation.data.status, { force: validation.data.force });
+            await adapter.setIssueStatus(validation.data.id, validation.data.status, {
+              force: validation.data.force, ifStatus: validation.data.fromStatus
+            });
           } catch (e) {
             // Re-send first so a failed reload's own error cannot replace the refusal and its retry.
             await sendBoard(msg.requestId);
+            if (isGuardMismatch(e)) {
+              post({
+                type: "mutation.error", requestId: msg.requestId, code: "status_changed", payload: { id: validation.data.id },
+                error: "The status of this issue changed since the board last loaded, so it was not moved."
+              });
+              return;
+            }
             post({
               type: "mutation.error", requestId: msg.requestId, error: sanitizeError(e),
               ...(isClosePolicyRefusal(e)

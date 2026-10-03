@@ -215,9 +215,13 @@ export const IssueCreateSchema = z.object({
   children_ids: z.array(IssueIdSchema).optional()
 });
 
+/** A stored bd status, including custom ones; it is passed to bd as a flag value. */
+export const StatusTokenSchema = z.string().max(64).regex(/^[a-z0-9][a-z0-9_-]*$/i);
+
 export const SetStatusSchema = z.object({
   id: IssueIdSchema,
   status: z.enum(['open', 'in_progress', 'blocked', 'closed']),
+  fromStatus: StatusTokenSchema.optional(),
   force: z.boolean().optional()
 }).refine(value => !value.force || value.status === 'closed', {
   message: 'force only applies to closing an issue', path: ['force']
