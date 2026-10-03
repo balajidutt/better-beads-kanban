@@ -251,7 +251,7 @@ export class DaemonBeadsAdapter {
     } catch (error) {
       const msg = `bd CLI not reachable: ${error instanceof Error ? error.message : String(error)}`;
       this.output.appendLine(`[DaemonBeadsAdapter] ERROR: ${msg}`);
-      throw new Error(msg);
+      throw new Error(msg, { cause: error });
     }
   }
 
@@ -416,7 +416,7 @@ export class DaemonBeadsAdapter {
       
       return boardData;
     } catch (error) {
-      throw new Error(`Failed to get board data: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`Failed to get board data: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
     }
   }
 
@@ -445,7 +445,7 @@ export class DaemonBeadsAdapter {
       }
       return enrichedCards;
     } catch (error) {
-      throw new Error(`Failed to get minimal board data: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`Failed to get minimal board data: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
     }
   }
 
@@ -477,7 +477,7 @@ export class DaemonBeadsAdapter {
       this.output.appendLine(`[DaemonBeadsAdapter] getIssueFull: Loaded full details for ${issueId}`);
       return fullCard;
     } catch (error) {
-      throw new Error(`Failed to get full issue details: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(`Failed to get full issue details: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
     }
   }
 
@@ -1237,7 +1237,7 @@ export class DaemonBeadsAdapter {
     } catch (error) {
       const msg = `Failed to create issue: ${error instanceof Error ? error.message : String(error)}`;
       this.output.appendLine(`[DaemonBeadsAdapter] ERROR: ${msg}`);
-      throw new Error(msg);
+      throw new Error(msg, { cause: error });
     }
   }
 
@@ -1254,7 +1254,7 @@ export class DaemonBeadsAdapter {
     } catch (error) {
       const msg = `Failed to update status: ${error instanceof Error ? error.message : String(error)}`;
       this.output.appendLine(`[DaemonBeadsAdapter] ERROR: ${msg}`);
-      throw new Error(msg);
+      throw new Error(msg, { cause: error });
     }
   }
 
@@ -1353,7 +1353,7 @@ export class DaemonBeadsAdapter {
       } catch (error) {
         const msg = `Failed to update issue: ${error instanceof Error ? error.message : String(error)}`;
         this.output.appendLine(`[DaemonBeadsAdapter] ERROR: ${msg}`);
-        throw new Error(msg);
+        throw new Error(msg, { cause: error });
       }
     }
 
@@ -1377,7 +1377,7 @@ export class DaemonBeadsAdapter {
         const detail = error instanceof Error ? error.message : String(error);
         const msg = `Ephemeral could not be changed (all other fields saved): ${detail}`;
         this.output.appendLine(`[DaemonBeadsAdapter] ERROR: ${msg}`);
-        throw new Error(msg);
+        throw new Error(msg, { cause: error });
       }
     }
   }
@@ -1403,7 +1403,7 @@ export class DaemonBeadsAdapter {
     } catch (error) {
       const msg = `Failed to add comment: ${error instanceof Error ? error.message : String(error)}`;
       this.output.appendLine(`[DaemonBeadsAdapter] ERROR: ${msg}`);
-      throw new Error(msg);
+      throw new Error(msg, { cause: error });
     }
   }
 
@@ -1422,7 +1422,7 @@ export class DaemonBeadsAdapter {
     } catch (error) {
       const msg = `Failed to add label: ${error instanceof Error ? error.message : String(error)}`;
       this.output.appendLine(`[DaemonBeadsAdapter] ERROR: ${msg}`);
-      throw new Error(msg);
+      throw new Error(msg, { cause: error });
     }
   }
 
@@ -1441,7 +1441,7 @@ export class DaemonBeadsAdapter {
     } catch (error) {
       const msg = `Failed to remove label: ${error instanceof Error ? error.message : String(error)}`;
       this.output.appendLine(`[DaemonBeadsAdapter] ERROR: ${msg}`);
-      throw new Error(msg);
+      throw new Error(msg, { cause: error });
     }
   }
 
@@ -1466,7 +1466,7 @@ export class DaemonBeadsAdapter {
     } catch (error) {
       const msg = `Failed to add dependency: ${error instanceof Error ? error.message : String(error)}`;
       this.output.appendLine(`[DaemonBeadsAdapter] ERROR: ${msg}`);
-      throw new Error(msg);
+      throw new Error(msg, { cause: error });
     }
   }
 
@@ -1486,7 +1486,7 @@ export class DaemonBeadsAdapter {
     } catch (error) {
       const msg = `Failed to remove dependency: ${error instanceof Error ? error.message : String(error)}`;
       this.output.appendLine(`[DaemonBeadsAdapter] ERROR: ${msg}`);
-      throw new Error(msg);
+      throw new Error(msg, { cause: error });
     }
   }
 

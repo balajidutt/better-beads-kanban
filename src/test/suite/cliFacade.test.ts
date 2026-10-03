@@ -5,6 +5,7 @@ import { PassThrough } from 'stream';
 import * as sinon from 'sinon';
 import type * as vscode from 'vscode';
 import { DaemonBeadsAdapter } from '../../daemonBeadsAdapter';
+import { bdChildEnv } from '../../shared/node';
 
 suite('CLI facade characterization', () => {
   let child: EventEmitter & { stdout: PassThrough; stderr: PassThrough; kill: sinon.SinonSpy };
@@ -46,13 +47,13 @@ suite('CLI facade characterization', () => {
     child.stdout.write('[{"id":"test-a"}]');
     child.emit('close', 0);
     assert.deepStrictEqual(await first, [{ id: 'test-a' }]);
-    assert.deepStrictEqual(spawn.firstCall.args, ['/tools/bd', ['show', '--json', 'test-a'], { cwd: '/repo', shell: false }]);
+    assert.deepStrictEqual(spawn.firstCall.args, ['/tools/bd', ['show', '--json', 'test-a'], { cwd: '/repo', shell: false, env: bdChildEnv() }]);
     executable = '/tools/other bd';
     adapter.setWorkspaceRoot('/other');
     const second = adapter.execBd(['comments', 'add', 'test-a', '--', 'literal\n$(date)']);
     child.emit('close', 0);
     await second;
-    assert.deepStrictEqual(spawn.secondCall.args, ['/tools/other bd', ['comments', 'add', 'test-a', '--', 'literal\n$(date)'], { cwd: '/other', shell: false }]);
+    assert.deepStrictEqual(spawn.secondCall.args, ['/tools/other bd', ['comments', 'add', 'test-a', '--', 'literal\n$(date)'], { cwd: '/other', shell: false, env: bdChildEnv() }]);
     assertAdapterTimersCleared(2);
   });
 

@@ -3,7 +3,7 @@ import cp from 'child_process';
 import { EventEmitter } from 'events';
 import { PassThrough } from 'stream';
 import * as sinon from 'sinon';
-import { executeBd, sanitizeCliArg } from '../../shared/node';
+import { BdCommandError, bdChildEnv, executeBd, sanitizeCliArg } from '../../shared/node';
 
 suite('Shared CLI runner', () => {
   let child: EventEmitter & { stdout: PassThrough; stderr: PassThrough; kill: sinon.SinonSpy };
@@ -25,7 +25,7 @@ suite('Shared CLI runner', () => {
     child.stdout.write(' [1, "two"] \n');
     child.emit('close', 0);
     assert.deepStrictEqual(await operation, [1, 'two']);
-    assert.deepStrictEqual(spawn.firstCall.args, ['bd', ['list', '--json', 'literal\n$(date)'], { cwd: '/repo', shell: false }]);
+    assert.deepStrictEqual(spawn.firstCall.args, ['bd', ['list', '--json', 'literal\n$(date)'], { cwd: '/repo', shell: false, env: bdChildEnv() }]);
     assert.strictEqual(clock.countTimers(), 0);
     assert.strictEqual(sanitizeCliArg(5 as any), '5');
   });
@@ -50,6 +50,43 @@ suite('Shared CLI runner', () => {
     await assert.rejects(operation, (error: Error) => {
       assert.match(error.message, /ungültig 😀/);
       assert.doesNotMatch(error.message, /�/);
+      return true;
+    });
+  });
+
+  test('the child environment drops BD_JSON_ENVELOPE and keeps everything else', async () => {
+    const saved = process.env.BD_JSON_ENVELOPE;
+    process.env.BD_JSON_ENVELOPE = '1';
+    try {
+      const operation = executeBd(['list', '--json'], options);
+      child.stdout.write('[]');
+      child.emit('close', 0);
+      assert.deepStrictEqual(await operation, []);
+      const env = spawn.firstCall.args[2].env as NodeJS.ProcessEnv;
+      assert.strictEqual(env.BD_JSON_ENVELOPE, undefined);
+      assert.strictEqual(env.PATH, process.env.PATH);
+      assert.strictEqual(process.env.BD_JSON_ENVELOPE, '1');
+    } finally {
+      if (saved === undefined) { delete process.env.BD_JSON_ENVELOPE; } else { process.env.BD_JSON_ENVELOPE = saved; }
+    }
+  });
+
+  test('BD_JSON_ENVELOPE is removed whatever its case, since Windows env names ignore case', () => {
+    assert.deepStrictEqual(bdChildEnv({ Bd_Json_Envelope: '1', BD_JSON_ENVELOPE: '1', PATH: '/bin' }), { PATH: '/bin' });
+  });
+
+  test('a non-zero exit rejects with BdCommandError carrying exit code, streams and args', async () => {
+    const operation = executeBd(['update', 'x-1', '--status', 'closed'], options);
+    child.stdout.write('partial');
+    child.stderr.write('Error updating x-1: cannot close x-1: 1 open child issue(s)');
+    child.emit('close', 1);
+    await assert.rejects(operation, (error: unknown) => {
+      assert.ok(error instanceof BdCommandError);
+      assert.strictEqual(error.exitCode, 1);
+      assert.strictEqual(error.stdout, 'partial');
+      assert.match(error.stderr, /cannot close x-1/);
+      assert.deepStrictEqual(error.args, ['update', 'x-1', '--status', 'closed']);
+      assert.strictEqual(error.message, 'bd command failed with exit code 1: Error updating x-1: cannot close x-1: 1 open child issue(s)');
       return true;
     });
   });

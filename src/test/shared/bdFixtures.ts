@@ -20,7 +20,7 @@ export interface RecordedFailure {
   stderr: string;
 }
 
-/** Compiled tests run from a cache directory, so the fixtures are found by walking up to the repo. */
+/** Compiled tests run from a cache directory or out/, so the fixtures are found by walking up to the repo. */
 function fixturesRoot(): string {
   let dir = __dirname;
   for (;;) {

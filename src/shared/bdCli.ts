@@ -1,5 +1,6 @@
 import { spawn } from 'child_process';
 import { StringDecoder } from 'string_decoder';
+import { BdCommandError } from './bdCommandError';
 import { sanitizeError } from './sanitizeError';
 
 export interface BdCliOptions {
@@ -16,6 +17,15 @@ export function sanitizeCliArg(arg: string): string {
   return typeof arg === 'string' ? arg.replace(/\0/g, '') : String(arg);
 }
 
+/** BD_JSON_ENVELOPE=1 wraps every --json result in {schema_version, data}, which no parser here expects. */
+export function bdChildEnv(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  const childEnv = { ...env };
+  for (const key of Object.keys(childEnv)) {
+    if (key.toUpperCase() === 'BD_JSON_ENVELOPE') { delete childEnv[key]; }
+  }
+  return childEnv;
+}
+
 export function executeBd(args: string[], options: BdCliOptions): Promise<unknown> {
   const { executable, cwd, timeoutMs = 30000, jsonPolicy = 'compatibility' } = options;
   const log = options.log ?? (() => {});
@@ -24,7 +34,7 @@ export function executeBd(args: string[], options: BdCliOptions): Promise<unknow
   return new Promise((resolve, reject) => {
     const abortError = () => Object.assign(new Error('bd command aborted'), { name: 'AbortError' });
     if (options.signal?.aborted) { reject(abortError()); return; }
-    const child = spawn(executable, sanitizedArgs, { cwd, shell: false });
+    const child = spawn(executable, sanitizedArgs, { cwd, shell: false, env: bdChildEnv() });
     let stdout = '';
     let stderr = '';
     const stdoutDecoder = new StringDecoder('utf8');
@@ -116,7 +126,9 @@ export function executeBd(args: string[], options: BdCliOptions): Promise<unknow
       if (code !== 0) {
         log(`Command context: ${command} (cwd: ${cwd})`);
         log(`Command failed (exit ${code}): ${stderr || stdout}`);
-        reject(new Error(`bd command failed with exit code ${code}: ${sanitizeError(stderr || stdout)}`));
+        reject(new BdCommandError(`bd command failed with exit code ${code}: ${sanitizeError(stderr || stdout)}`, {
+          exitCode: code, stderr, stdout, args: sanitizedArgs
+        }));
         return;
       }
       const trimmed = stdout.trim();

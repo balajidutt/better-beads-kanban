@@ -700,7 +700,7 @@ export function activate(context: vscode.ExtensionContext) {
         try {
           // Check if adapter supports fast loading
           if (typeof (adapter as DaemonBeadsAdapter).getBoardMinimal !== 'function') {
-            post({ type: "mutation.error", requestId: msg.requestId, error: "Adapter does not support fast minimal loading. Please enable daemon mode or update your adapter." });
+            post({ type: "mutation.error", requestId: msg.requestId, error: "Adapter does not support fast minimal loading." });
             return;
           }
 
@@ -741,7 +741,7 @@ export function activate(context: vscode.ExtensionContext) {
           
           // Check if adapter supports fast loading
           if (typeof (adapter as DaemonBeadsAdapter).getIssueFull !== 'function') {
-            post({ type: "mutation.error", requestId: msg.requestId, error: "Adapter does not support full issue loading. Please enable daemon mode or update your adapter." });
+            post({ type: "mutation.error", requestId: msg.requestId, error: "Adapter does not support full issue loading." });
             return;
           }
           
