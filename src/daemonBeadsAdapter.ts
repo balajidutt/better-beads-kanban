@@ -1332,13 +1332,16 @@ export class DaemonBeadsAdapter {
   }
 
   /**
-   * Update issue status using bd CLI
+   * Update issue status using bd CLI. `force` overrides bd 1.3's close policy
+   * and is only ever sent on an explicit user request.
    */
-  public async setIssueStatus(id: string, toStatus: IssueStatus): Promise<void> {
+  public async setIssueStatus(id: string, toStatus: IssueStatus, options: { force?: boolean } = {}): Promise<void> {
     try {
       this.validateIssueId(id);
-      await this.ensureStoreReady();
-      await this.execBd(['update', id, '--status', toStatus]);
+      const capabilities = await this.ensureStoreReady();
+      const args = ['update', id, '--status', toStatus];
+      if (options.force && toStatus === 'closed' && capabilities.closePolicy) { args.push('--force'); }
+      await this.execBd(args);
 
       // Track mutation and invalidate cache
       this.trackMutation();
@@ -1369,7 +1372,7 @@ export class DaemonBeadsAdapter {
     pinned?: boolean;
     is_template?: boolean;
     ephemeral?: boolean;
-  }): Promise<void> {
+  }, options: { force?: boolean } = {}): Promise<void> {
     this.validateIssueId(id);
 
     // Validate all string fields to prevent flag injection
@@ -1437,7 +1440,8 @@ export class DaemonBeadsAdapter {
     // 'update <id>' with no flags is a no-op call; only run it if something set one.
     if (args.length > 2) {
       try {
-        await this.ensureStoreReady();
+        const capabilities = await this.ensureStoreReady();
+        if (options.force && updates.status === 'closed' && capabilities.closePolicy) { args.push('--force'); }
         await this.execBd(args);
 
         // Track mutation and invalidate cache

@@ -329,6 +329,7 @@ let columnState = {
 let boardData = null;
 let readOnly = false; // Read-only mode flag from extension
 let detailDirty = false;
+let toastHideTimer = null;
 let openDetailGeneration = 0;
 function markDetailDirty() { detailDirty = true; }
 
@@ -943,7 +944,8 @@ function toIsoFromLocalInput(value) {
 }
 
 function toast(msg, actionName, actionCb) {
-    toastEl.innerHTML = "";
+    clearTimeout(toastHideTimer);
+    toastEl.replaceChildren();
     const span = document.createElement("span");
     span.textContent = msg;
     toastEl.appendChild(span);
@@ -961,26 +963,16 @@ function toast(msg, actionName, actionCb) {
 
     toastEl.classList.remove("hidden");
 
-    // Auto-hide with hover detection
-    let isHovering = false;
-    const onMouseEnter = () => { isHovering = true; };
-    const onMouseLeave = () => { isHovering = false; };
-
-    toastEl.addEventListener('mouseenter', onMouseEnter);
-    toastEl.addEventListener('mouseleave', onMouseLeave);
-
+    // Each toast replaces the last, so only the newest one's timer may hide it;
+    // hover or keyboard focus keeps it up.
     const hideToast = () => {
-        if (!isHovering) {
-            toastEl.classList.add("hidden");
-            toastEl.removeEventListener('mouseenter', onMouseEnter);
-            toastEl.removeEventListener('mouseleave', onMouseLeave);
+        if (toastEl.matches(":hover, :focus-within")) {
+            toastHideTimer = setTimeout(hideToast, 1000);
         } else {
-            // Check again in 1 second if still hovering
-            setTimeout(hideToast, 1000);
+            toastEl.classList.add("hidden");
         }
     };
-
-    setTimeout(hideToast, 5000);
+    toastHideTimer = setTimeout(hideToast, 5000);
 }
 
 function columnForCard(card) {
@@ -3016,17 +3008,33 @@ window.addEventListener("message", (event) => {
     }
 
     if (msg.type === "mutation.error") {
-        toast(msg.error || "Operation failed.");
-        
+        const pending = msg.requestId && pendingRequests.has(msg.requestId);
+        const closeRefused = msg.code === "close_refused" && msg.payload && typeof msg.payload.id === "string";
+
+        // Only a refused drag offers its retry here; a refused edit-dialog save is
+        // shown and retried inside the dialog.
+        if (closeRefused && !pending && msg.payload.retry === "move") {
+            const id = msg.payload.id;
+            toast(msg.error || "Close refused.", "Close anyway", () => {
+                post("issue.move", { id, toColumn: "closed", force: true });
+            });
+            return;
+        }
+        if (!(closeRefused && pending)) {
+            toast(msg.error || "Operation failed.");
+        }
+
         // Reject pending request
-        if (msg.requestId && pendingRequests.has(msg.requestId)) {
+        if (pending) {
             const { reject, timeoutId } = pendingRequests.get(msg.requestId);
             // Clear timeout immediately to prevent unnecessary memory overhead
             if (timeoutId) {
                 clearTimeout(timeoutId);
             }
             pendingRequests.delete(msg.requestId);
-            reject?.(new Error(msg.error || "Operation failed"));
+            const error = new Error(msg.error || "Operation failed");
+            if (closeRefused) { error.code = "close_refused"; }
+            reject?.(error);
         }
         return;
     }
@@ -3508,10 +3516,22 @@ async function openDetail(card) {
     };
 
     const btnSave = form.querySelector("#btnSave");
-    btnSave.onclick = async (e) => {
-        e.preventDefault();
+    const closeRefusal = form.querySelector("#closeRefusal");
+    const closeRefusalText = form.querySelector("#closeRefusalText");
+    const hideCloseRefusal = () => {
+        if (closeRefusal) { closeRefusal.classList.add("hidden"); }
+    };
+    hideCloseRefusal();
+
+    // A slow save can finish after the user has moved on to another issue's dialog.
+    const isCurrentDialog = () => thisGeneration === openDetailGeneration && detDialog.open;
+    // The dialog is modal, so the close-policy retry lives inside it rather than
+    // on the toast, which the modal makes unreachable.
+    const saveDetail = async (force) => {
         if (btnSave.disabled) { return; }
         btnSave.disabled = true;
+        if (force) { btnSave.focus(); }
+        hideCloseRefusal();
         try {
         const current = readEditFormValues(form);
 
@@ -3577,15 +3597,22 @@ async function openDetail(card) {
                     }
                 } else {
                     // Update existing issue
-                    await postAsync("issue.update", { id: card.id, updates: data }, "Saving changes...");
+                    const updatePayload = { id: card.id, updates: data };
+                    if (force && data.status === "closed") { updatePayload.force = true; }
+                    await postAsync("issue.update", updatePayload, updatePayload.force ? "Closing issue..." : "Saving changes...");
                     toast("Changes saved successfully");
                 }
-                detailDirty = false;
-                detDialog.close();
+                if (isCurrentDialog()) {
+                    detailDirty = false;
+                    detDialog.close();
+                }
             } catch (err) {
-                // Show error feedback (mutation.error toast or timeout/network error)
-
-                toast(`Failed to ${isCreateMode ? 'create issue' : 'save changes'}: ${err.message}`);
+                if (!isCreateMode && err.code === "close_refused" && closeRefusal && closeRefusalText && isCurrentDialog()) {
+                    closeRefusalText.textContent = err.message;
+                    closeRefusal.classList.remove("hidden");
+                } else {
+                    toast(`Failed to ${isCreateMode ? 'create issue' : 'save changes'}: ${err.message}`);
+                }
             }
         } else {
             toast("Title is required");
@@ -3594,6 +3621,17 @@ async function openDetail(card) {
             btnSave.disabled = false;
         }
     };
+    btnSave.onclick = (e) => {
+        e.preventDefault();
+        saveDetail(false);
+    };
+    const btnCloseAnyway = form.querySelector("#btnCloseAnyway");
+    if (btnCloseAnyway) {
+        btnCloseAnyway.onclick = (e) => {
+            e.preventDefault();
+            saveDetail(true);
+        };
+    }
 
     function renderCommentsList() {
         if (!card.comments || card.comments.length === 0) {

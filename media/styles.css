@@ -529,6 +529,26 @@ body.vscode-light {
     gap: 8px;
 }
 
+.close-refusal {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0;
+    padding: 8px 10px;
+    border: 1px solid var(--vscode-inputValidation-warningBorder, var(--border));
+    border-radius: 6px;
+    background: var(--vscode-inputValidation-warningBackground, transparent);
+    color: var(--vscode-inputValidation-warningForeground, var(--vscode-editor-foreground));
+}
+
+.close-refusal.hidden {
+    display: none;
+}
+
+.close-refusal-text {
+    flex: 1;
+}
+
 .toast {
     position: fixed;
     bottom: 14px;

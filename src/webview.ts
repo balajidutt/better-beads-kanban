@@ -421,6 +421,11 @@ export function getWebviewHtml(webview: vscode.Webview, extensionUri: vscode.Uri
           <div id="createModeCommentNote" class="muted-note hidden">Comments will be added after issue creation.</div>
         </div>
 
+        <div id="closeRefusal" class="close-refusal hidden" role="alert">
+          <span id="closeRefusalText" class="close-refusal-text"></span>
+          <button type="button" id="btnCloseAnyway" class="btn">Close anyway</button>
+        </div>
+
         <!-- Action Buttons -->
         <div class="dialogActions form-actions">
           <div class="actions-left">

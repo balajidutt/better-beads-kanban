@@ -15,6 +15,7 @@ import {
   describeResolution
 } from "./beadsWorkspace";
 import { BEADS_WATCH_PATTERNS, shouldTriggerRefresh } from "./beadsWatch";
+import { isClosePolicyRefusal } from "./shared/node";
 import {
   BoardData,
   BoardCard,
@@ -49,11 +50,11 @@ type WebMsg =
   | { type: "table.loadPage"; requestId: string; payload: { filters: { search?: string; priority?: string; type?: string; status?: string; assignee?: string; labels?: string[] }; sorting: Array<{ id: string; dir: 'asc' | 'desc' }>; offset: number; limit: number } }
   | { type: "repo.select"; requestId: string }
   | { type: "issue.create"; requestId: string; payload: { title: string; description?: string } }
-  | { type: "issue.move"; requestId: string; payload: { id: string; toColumn: BoardColumnKey } }
+  | { type: "issue.move"; requestId: string; payload: { id: string; toColumn: BoardColumnKey; force?: boolean } }
   | { type: "issue.getFull"; requestId: string; payload: { id: string } }
   | { type: "issue.addToChat"; requestId: string; payload: { text: string } }
   | { type: "issue.copyToClipboard"; requestId: string; payload: { text: string } }
-  | { type: "issue.update"; requestId: string; payload: { id: string; updates: unknown } }
+  | { type: "issue.update"; requestId: string; payload: { id: string; updates: unknown; force?: boolean } }
   | { type: "issue.addComment"; requestId: string; payload: { id: string; text: string; author?: string } }
   | { type: "issue.addLabel"; requestId: string; payload: { id: string; label: string } }
   | { type: "issue.removeLabel"; requestId: string; payload: { id: string; label: string } }
@@ -70,7 +71,7 @@ type ExtMsg =
   | { type: "issue.full"; requestId: string; payload: { card: FullCard } }
   | { type: "mutation.ok"; requestId: string; payload?: unknown }
   | { type: "ui.confirm.result"; requestId: string; payload: { confirmed: boolean } }
-  | { type: "mutation.error"; requestId: string; error: string };
+  | { type: "mutation.error"; requestId: string; error: string; code?: "close_refused"; payload?: { id: string; retry?: "move" } };
 
 // Size limits for text operations
 const MAX_CHAT_TEXT = 50_000; // 50KB reasonable for chat
@@ -843,13 +844,26 @@ export function activate(context: vscode.ExtensionContext) {
           const toStatus: IssueStatus = mapColumnToStatus(msg.payload.toColumn);
           const validation = SetStatusSchema.safeParse({
             id: msg.payload.id,
-            status: toStatus
+            status: toStatus,
+            force: msg.payload.force
           });
           if (!validation.success) {
             post({ type: "mutation.error", requestId: msg.requestId, error: `Invalid move data: ${describeValidationError(validation.error)}` });
             return;
           }
-          await adapter.setIssueStatus(validation.data.id, validation.data.status);
+          try {
+            await adapter.setIssueStatus(validation.data.id, validation.data.status, { force: validation.data.force });
+          } catch (e) {
+            // Re-send first so a failed reload's own error cannot replace the refusal and its retry.
+            await sendBoard(msg.requestId);
+            post({
+              type: "mutation.error", requestId: msg.requestId, error: sanitizeError(e),
+              ...(isClosePolicyRefusal(e)
+                ? { code: "close_refused" as const, payload: { id: validation.data.id, retry: "move" as const } }
+                : {})
+            });
+            return;
+          }
           post({ type: "mutation.ok", requestId: msg.requestId });
           await sendBoard(msg.requestId);
           return;
@@ -898,7 +912,13 @@ export function activate(context: vscode.ExtensionContext) {
             return;
           }
           
-          await adapter.updateIssue(validation.data.id, validation.data.updates);
+          try {
+            await adapter.updateIssue(validation.data.id, validation.data.updates, { force: validation.data.force });
+          } catch (e) {
+            if (!isClosePolicyRefusal(e)) { throw e; }
+            post({ type: "mutation.error", requestId: msg.requestId, error: sanitizeError(e), code: "close_refused", payload: { id: validation.data.id } });
+            return;
+          }
           post({ type: "mutation.ok", requestId: msg.requestId });
           await sendBoard(msg.requestId);
           return;

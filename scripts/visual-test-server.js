@@ -1287,6 +1287,10 @@ function generateHtml() {
 '          </div>\n' +
 '          <div id="createModeCommentNote" class="muted-note hidden">Comments will be added after issue creation.</div>\n' +
 '        </div>\n' +
+'        <div id="closeRefusal" class="close-refusal hidden" role="alert">\n' +
+'          <span id="closeRefusalText" class="close-refusal-text"></span>\n' +
+'          <button type="button" id="btnCloseAnyway" class="btn">Close anyway</button>\n' +
+'        </div>\n' +
 '        <div class="dialogActions form-actions">\n' +
 '          <div class="actions-left">\n' +
 '            <button type="button" id="btnSave" class="btn primary">Save Changes</button>\n' +
@@ -1392,6 +1396,20 @@ function generateHtml() {
 '      ready: "open", open: "open", in_progress: "in_progress",\n' +
 '      blocked: "blocked", closed: "closed"\n' +
 '    };\n' +
+'    // bd 1.3 close policy: closing an issue with open children is refused unless forced.\n' +
+'    function _mockCloseRefusal(msg) {\n' +
+'      var payload = msg.payload || {};\n' +
+'      if (payload.force) { return null; }\n' +
+'      var closing = (msg.type === "issue.move" && payload.toColumn === "closed") ||\n' +
+'        (msg.type === "issue.update" && payload.updates && payload.updates.status === "closed");\n' +
+'      var card = closing ? _mockFind(payload.id) : null;\n' +
+'      if (!card) { return null; }\n' +
+'      var open = (card.children || []).filter(function(ref) {\n' +
+'        var child = _mockFind(ref.id);\n' +
+'        return child && child.status !== "closed";\n' +
+'      });\n' +
+'      return open.length ? "Close refused: cannot close " + card.id + ": " + open.length + " open child issue(s)." : null;\n' +
+'    }\n' +
 '    function _mockApplyMutation(msg) {\n' +
 '      var payload = msg.payload || {};\n' +
 '      var card = _mockFind(payload.id);\n' +
@@ -1507,6 +1525,19 @@ function generateHtml() {
 '              msg.type === "issue.move" || msg.type === "issue.addComment" ||\n' +
 '              msg.type === "issue.addLabel" || msg.type === "issue.removeLabel" ||\n' +
 '              msg.type === "issue.addDependency" || msg.type === "issue.removeDependency") {\n' +
+'            var refusal = _mockCloseRefusal(msg);\n' +
+'            if (refusal) {\n' +
+'              setTimeout(function() {\n' +
+'                var isMove = msg.type === "issue.move";\n' +
+'                if (isMove) { _mockSendBoard(msg.requestId); }\n' +
+'                var refused = { type: "mutation.error", requestId: msg.requestId || "mock-req-mut",\n' +
+'                  error: refusal, code: "close_refused",\n' +
+'                  payload: isMove ? { id: msg.payload.id, retry: "move" } : { id: msg.payload.id } };\n' +
+'                _mockMessageLog.push({ direction: "in", msg: refused, timestamp: Date.now() });\n' +
+'                window.dispatchEvent(new MessageEvent("message", { data: refused }));\n' +
+'              }, 50);\n' +
+'              return;\n' +
+'            }\n' +
 '            var created = msg.type === "issue.create"\n' +
 '              ? { id: "mock-new-" + Date.now(), title: (msg.payload && msg.payload.title) || "New Issue" }\n' +
 '              : null;\n' +

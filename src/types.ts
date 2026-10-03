@@ -186,7 +186,10 @@ export const IssueUpdateSchema = z.object({
     pinned: z.boolean().optional(),
     is_template: z.boolean().optional(),
     ephemeral: z.boolean().optional()
-  })
+  }),
+  force: z.boolean().optional()
+}).refine(value => !value.force || value.updates.status === 'closed', {
+  message: 'force only applies to closing an issue', path: ['force']
 });
 
 export const IssueCreateSchema = z.object({
@@ -214,7 +217,10 @@ export const IssueCreateSchema = z.object({
 
 export const SetStatusSchema = z.object({
   id: IssueIdSchema,
-  status: z.enum(['open', 'in_progress', 'blocked', 'closed'])
+  status: z.enum(['open', 'in_progress', 'blocked', 'closed']),
+  force: z.boolean().optional()
+}).refine(value => !value.force || value.status === 'closed', {
+  message: 'force only applies to closing an issue', path: ['force']
 });
 
 export const CommentAddSchema = z.object({
