@@ -26,6 +26,8 @@ suite('Shared reader facade characterization', () => {
       if (failure !== undefined) { throw failure; }
       return result;
     };
+    // The version and migration pre-flight has its own suite (bdPreflight.test.ts).
+    (adapter as any).ensureStoreReady = async () => undefined;
   });
 
   teardown(() => { global.Date = NativeDate; });

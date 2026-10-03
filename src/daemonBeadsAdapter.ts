@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import * as vscode from 'vscode';
 import {
   BoardData,
@@ -13,8 +15,13 @@ import {
   BeadsReader, validateIssueId, executeBd, sanitizeCliArg,
   readBoolFromMetadata, mapBdListIssuesToEnrichedCards,
   extractParentDependency, extractChildrenDependencies,
-  extractBlocksDependencies, extractBlockedByDependencies
+  extractBlocksDependencies, extractBlockedByDependencies,
+  BdCapabilities, BdVersion, MIN_SUPPORTED_BD_VERSION, capabilitiesFor, compareBdVersions,
+  isBelowMinimumBdVersion, mayMigrateOnOpen, parseBdVersion
 } from './shared/node';
+
+/** bd migrates a store on its first open after an upgrade; 1.2.2 to 1.3 can take minutes. */
+export const STORE_MIGRATION_TIMEOUT_MS = 10 * 60 * 1000;
 
 /**
  * BeadsAdapter that shells out to the bd CLI for all issue operations.
@@ -42,9 +49,84 @@ export class DaemonBeadsAdapter {
   private readonly COLUMN_CACHE_TTL_MS = 30000; // 30 seconds
   private readonly COLUMN_CACHE_MAX_SIZE = 1000; // Max items to cache per column
 
+  private storeCheckInFlight: Promise<BdCapabilities> | undefined;
+  private storeOpenedKey: string | undefined;
+  private belowMinimumWarnedFor: string | undefined;
+
   constructor(workspaceRoot: string, output: vscode.OutputChannel) {
     this.workspaceRoot = workspaceRoot;
     this.output = output;
+  }
+
+  /**
+   * Checks the installed bd before every board load and mutation, since bd can be
+   * upgraded while the board stays open. `bd version --json` opens no store; when
+   * bd may migrate the store, the first open gets a long timeout so the migration
+   * is not killed by the 30s default. Concurrent callers share one check.
+   */
+  private ensureStoreReady(): Promise<BdCapabilities> {
+    if (!this.storeCheckInFlight) {
+      const pending = this.checkStore();
+      this.storeCheckInFlight = pending;
+      const clear = () => {
+        if (this.storeCheckInFlight === pending) { this.storeCheckInFlight = undefined; }
+      };
+      pending.then(clear, clear);
+    }
+    return this.storeCheckInFlight;
+  }
+
+  /** Which 1.3-only flags the installed bd accepts. */
+  public getCapabilities(): Promise<BdCapabilities> {
+    return this.ensureStoreReady();
+  }
+
+  private async checkStore(): Promise<BdCapabilities> {
+    const root = this.workspaceRoot;
+    const version = parseBdVersion(await this.execBd(['version', '--json']));
+    const capabilities = capabilitiesFor(version);
+    if (this.workspaceRoot !== root) { return this.ensureStoreReady(); }
+    this.warnIfBelowMinimum(version, root);
+
+    const localVersion = this.readLocalVersion(root);
+    const openedKey = `${root}\n${version?.raw ?? ''}\n${localVersion ?? ''}`;
+    if (!mayMigrateOnOpen(version, localVersion) || this.storeOpenedKey === openedKey) { return capabilities; }
+
+    const open = () => this.execBd(['stats', '--json'], STORE_MIGRATION_TIMEOUT_MS);
+    const local = localVersion === null ? undefined : parseBdVersion(localVersion);
+    if (!local) {
+      this.output.appendLine(`[DaemonBeadsAdapter] No readable .beads/.local_version under ${root}; opening the store with the migration timeout`);
+      await open();
+    } else {
+      this.output.appendLine(`[DaemonBeadsAdapter] Store last opened by bd ${local.raw}; bd ${version?.raw ?? 'unknown'} may migrate it`);
+      const title = version && compareBdVersions(version, local) > 0
+        ? `Upgrading the Beads database from bd ${local.raw} to ${version.raw}…`
+        : version ? `Opening the Beads database with bd ${version.raw}…` : 'Opening the Beads database…';
+      await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title }, open);
+    }
+    if (this.workspaceRoot !== root) { return this.ensureStoreReady(); }
+    this.storeOpenedKey = `${root}\n${version?.raw ?? ''}\n${this.readLocalVersion(root) ?? ''}`;
+    return capabilities;
+  }
+
+  private warnIfBelowMinimum(version: BdVersion | undefined, root: string): void {
+    if (!version || !isBelowMinimumBdVersion(version)) { return; }
+    const key = `${root}\n${version.raw}`;
+    if (this.belowMinimumWarnedFor === key) { return; }
+    this.belowMinimumWarnedFor = key;
+    void vscode.window.showWarningMessage(
+      `bd ${version.raw} is older than ${MIN_SUPPORTED_BD_VERSION}, the oldest version Better Beads Kanban supports. Some board actions may fail until bd is upgraded.`
+    );
+  }
+
+  private readLocalVersion(root: string): string | null {
+    try {
+      const file = path.join(root, '.beads', '.local_version');
+      if (fs.statSync(file).size > 256) { return null; }
+      return fs.readFileSync(file, 'utf8').trim();
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -246,6 +328,7 @@ export class DaemonBeadsAdapter {
    */
   public async ensureConnected(): Promise<void> {
     try {
+      await this.ensureStoreReady();
       await this.execBd(['stats', '--json']);
       this.output.appendLine('[DaemonBeadsAdapter] bd CLI reachable');
     } catch (error) {
@@ -316,6 +399,7 @@ export class DaemonBeadsAdapter {
     const maxIssues = vscode.workspace.getConfiguration('beadsKanban').get<number>('maxIssues', 1000);
 
     try {
+      await this.ensureStoreReady();
       // Step 1: Get limited issues (basic data)
       // Request maxIssues + 1 to detect if there are more
       const basicIssues = await this.execBd(['list', '--json', '--all', '--limit', String(maxIssues + 1)]);
@@ -432,6 +516,7 @@ export class DaemonBeadsAdapter {
   public async getBoardMinimal(limit: number = 5000): Promise<EnrichedCard[]> {
     try {
       this.trackInteraction();
+      await this.ensureStoreReady();
       let nonArray = false;
       const reader = new BeadsReader(args => this.execBd(args), {
         onNonArrayList: () => {
@@ -470,6 +555,7 @@ export class DaemonBeadsAdapter {
   public async getIssueFull(issueId: string): Promise<FullCard> {
     try {
       this.validateIssueId(issueId);
+      await this.ensureStoreReady();
       this.trackInteraction();
 
       const fullCard = await new BeadsReader(args => this.execBd(args), { includeRelated: true }).getIssueFull(issueId);
@@ -533,6 +619,7 @@ export class DaemonBeadsAdapter {
   public async getIssueComments(issueId: string): Promise<Comment[]> {
     try {
       this.validateIssueId(issueId);
+      await this.ensureStoreReady();
       this.trackInteraction();
       // Fetch full issue details including comments
       const result = await this.execBd(['show', '--json', issueId]);
@@ -570,6 +657,7 @@ export class DaemonBeadsAdapter {
    */
   public async getColumnCount(column: string): Promise<number> {
     try {
+      await this.ensureStoreReady();
       this.trackInteraction();
       // Use bd stats --json for instant counts (no issue loading required)
       const statsResult = await this.execBd(['stats', '--json']);
@@ -658,6 +746,7 @@ export class DaemonBeadsAdapter {
     limit: number = 50
   ): Promise<BoardCard[]> {
     try {
+      await this.ensureStoreReady();
       this.trackInteraction();
 
       // Check if we have valid cached data that covers this range
@@ -1188,6 +1277,7 @@ export class DaemonBeadsAdapter {
     args.push('--json');
 
     try {
+      await this.ensureStoreReady();
       const result = await this.execBd(args);
 
       // Track mutation and invalidate cache
@@ -1247,6 +1337,7 @@ export class DaemonBeadsAdapter {
   public async setIssueStatus(id: string, toStatus: IssueStatus): Promise<void> {
     try {
       this.validateIssueId(id);
+      await this.ensureStoreReady();
       await this.execBd(['update', id, '--status', toStatus]);
 
       // Track mutation and invalidate cache
@@ -1346,6 +1437,7 @@ export class DaemonBeadsAdapter {
     // 'update <id>' with no flags is a no-op call; only run it if something set one.
     if (args.length > 2) {
       try {
+        await this.ensureStoreReady();
         await this.execBd(args);
 
         // Track mutation and invalidate cache
@@ -1371,6 +1463,7 @@ export class DaemonBeadsAdapter {
     // bd-side failure on this flag would discard every other field in the save.
     if (updates.ephemeral !== undefined) {
       try {
+        if (args.length <= 2) { await this.ensureStoreReady(); }
         await this.execBd(['update', id, updates.ephemeral ? '--ephemeral' : '--persistent']);
         this.trackMutation();
       } catch (error) {
@@ -1396,6 +1489,7 @@ export class DaemonBeadsAdapter {
 
       // Use '--' separator before user-controlled text to prevent flag injection
       // bd comments add expects text as positional argument, not --text flag
+      await this.ensureStoreReady();
       await this.execBd(['comments', 'add', issueId, '--author', author, '--', text]);
 
       // Track mutation and invalidate cache
@@ -1415,6 +1509,7 @@ export class DaemonBeadsAdapter {
       this.validateIssueId(issueId);
 
       // Use '--' separator before user-controlled label to prevent flag injection
+      await this.ensureStoreReady();
       await this.execBd(['label', 'add', issueId, '--', label]);
 
       // Track mutation and invalidate cache
@@ -1434,6 +1529,7 @@ export class DaemonBeadsAdapter {
       this.validateIssueId(issueId);
 
       // Use '--' separator before user-controlled label to prevent flag injection
+      await this.ensureStoreReady();
       await this.execBd(['label', 'remove', issueId, '--', label]);
 
       // Track mutation and invalidate cache
@@ -1459,6 +1555,7 @@ export class DaemonBeadsAdapter {
       }
 
       // bd treats everything after '--' as positional; keep flags before it.
+      await this.ensureStoreReady();
       await this.execBd(['dep', 'add', '--type', type, '--', issueId, dependsOnId]);
 
       // Track mutation and invalidate cache
@@ -1479,6 +1576,7 @@ export class DaemonBeadsAdapter {
       this.validateIssueId(dependsOnId);
 
       // Use '--' separator before issue IDs for defense in depth
+      await this.ensureStoreReady();
       await this.execBd(['dep', 'remove', '--', issueId, dependsOnId]);
 
       // Track mutation and invalidate cache
@@ -1505,8 +1603,13 @@ export class DaemonBeadsAdapter {
     if (/[\0-\x1F\x7F]/.test(newWorkspaceRoot)) {
       throw new Error('Invalid workspace root: path contains control characters');
     }
+    const rootChanged = this.workspaceRoot !== newWorkspaceRoot;
     this.workspaceRoot = newWorkspaceRoot;
     this.columnDataCache.clear();
+    if (rootChanged) {
+      this.storeOpenedKey = undefined;
+      this.storeCheckInFlight = undefined;
+    }
     this.output.appendLine(`[DaemonBeadsAdapter] Workspace root changed to: ${newWorkspaceRoot}`);
     // Reset circuit breaker state for new repository
     this.circuitBreakerState = 'CLOSED';
