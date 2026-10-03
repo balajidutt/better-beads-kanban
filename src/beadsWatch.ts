@@ -1,22 +1,26 @@
 /**
  * Deciding which `.beads` filesystem events should refresh the board.
  *
- * The previous watcher globbed `.beads/**\/*.{db,sqlite,sqlite3}`. bd 1.x
- * replaced SQLite with Dolt, so a Dolt-backed repository contains no file with
- * any of those extensions and auto-refresh could never fire for it.
- *
  * Two patterns are needed, and neither is sufficient alone:
  *
- *   - `.beads/*` catches the bd-level write signals (`last-touched`,
- *     `interactions.jsonl`) and any legacy SQLite database. On Windows, bd runs
- *     as a client against a Dolt server hosted elsewhere and there is no local
- *     `dolt/` directory at all, so this is the only pattern that works there.
- *   - `.beads/{dolt,embeddeddolt}/*\/.dolt/noms/*` catches the Dolt journal and
- *     manifest, which are what actually change when the local server writes.
+ *   - `.beads/*` catches `last-touched`, which bd writes on most mutations of an
+ *     embedded store, and any legacy SQLite database or opt-in
+ *     `interactions.jsonl`. On Windows, bd runs as a client against a Dolt
+ *     server hosted elsewhere and there is no local `dolt/` directory at all, so
+ *     this is the only pattern that can fire there.
+ *   - `.beads/{dolt,embeddeddolt}/*\/.dolt/noms/*` catches the Dolt journal,
+ *     which changed on every write observed in both the embedded and the
+ *     proxied-server layouts; the embedded layout also rewrites `manifest` and
+ *     `journal.idx`. bd 1.3.1 does not write `last-touched` for a
+ *     proxied-server store, so this is its only signal there. bd's reads
+ *     rewrite the embedded journal too: the self-save window absorbs the
+ *     extension's own reads that finish within it, but reads by other
+ *     processes refresh the board.
  *
  * The second pattern's segment count structurally excludes the server's own
  * statistics database (`dolt/.dolt/stats/.dolt/noms/**`) and the server-root
  * `dolt/.dolt/noms/**`, both of which churn independently of any issue change.
+ * Server and proxy logs sit under `dolt/` and match neither pattern.
  *
  * This module has no `vscode` import so the rules can be unit-tested.
  */

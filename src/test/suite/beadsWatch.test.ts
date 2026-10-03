@@ -73,3 +73,119 @@ suite('shouldTriggerRefresh', () => {
         );
     });
 });
+
+/** Workspace-relative paths, matched the way VS Code's RelativePattern globs treat these two patterns. */
+function matchesWatchPattern(relativePath: string): boolean {
+    return BEADS_WATCH_PATTERNS.some((pattern) => {
+        const source = pattern
+            .replace(/[.+^$()|[\]\\]/g, '\\$&')
+            .replace(/\{([^}]*)\}/g, (_, options: string) => `(?:${options.split(',').join('|')})`)
+            .replace(/\*/g, '[^/]*');
+        return new RegExp(`^${source}$`).test(relativePath);
+    });
+}
+
+const refreshes = (relativePath: string) =>
+    matchesWatchPattern(relativePath) && shouldTriggerRefresh(`/repo/${relativePath}`);
+
+// Files changed by one external bd 1.3.1 command, recorded with `find -newer`
+// against scratch stores.
+const observedBd131: Array<{ layout: string; command: string; changed: string[] }> = [
+    {
+        layout: 'embedded', command: 'update --priority',
+        changed: [
+            '.beads/embeddeddolt/wx/.dolt/noms/journal.idx',
+            '.beads/embeddeddolt/wx/.dolt/noms/manifest',
+            '.beads/embeddeddolt/wx/.dolt/noms/vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv',
+            '.beads/last-touched'
+        ]
+    },
+    {
+        layout: 'embedded', command: 'comments add',
+        changed: [
+            '.beads/embeddeddolt/wx/.dolt/noms/journal.idx',
+            '.beads/embeddeddolt/wx/.dolt/noms/manifest',
+            '.beads/embeddeddolt/wx/.dolt/noms/vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv'
+        ]
+    },
+    {
+        layout: 'embedded', command: 'close',
+        changed: [
+            '.beads/embeddeddolt/wx/.dolt/noms/journal.idx',
+            '.beads/embeddeddolt/wx/.dolt/noms/manifest',
+            '.beads/embeddeddolt/wx/.dolt/noms/vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv',
+            '.beads/last-touched'
+        ]
+    },
+    {
+        layout: 'proxied-server', command: 'update --priority',
+        changed: [
+            '.beads/dolt/proxy.log',
+            '.beads/dolt/px/.dolt/noms/vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv',
+            '.beads/dolt/server.log'
+        ]
+    },
+    {
+        layout: 'proxied-server', command: 'comments add',
+        changed: [
+            '.beads/dolt/.dolt/stats/.dolt/noms/vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv',
+            '.beads/dolt/proxy.log',
+            '.beads/dolt/px/.dolt/noms/vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv',
+            '.beads/dolt/server.log'
+        ]
+    },
+    {
+        layout: 'proxied-server', command: 'close',
+        changed: [
+            '.beads/dolt/.dolt/stats/.dolt/noms/vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv',
+            '.beads/dolt/proxy.log',
+            '.beads/dolt/px/.dolt/noms/vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv',
+            '.beads/dolt/server.log'
+        ]
+    }
+];
+
+suite('bd 1.3.1 layouts trigger a refresh on external mutations', () => {
+    for (const { layout, command, changed } of observedBd131) {
+        test(`${layout}: an external bd ${command} changes at least one watched path`, () => {
+            assert.ok(changed.some(refreshes), changed.join(', '));
+        });
+    }
+
+    test('the proxied-server data journal is watched and its logs and stats store are not', () => {
+        assert.ok(refreshes('.beads/dolt/px/.dolt/noms/vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv'));
+        assert.ok(!matchesWatchPattern('.beads/dolt/proxy.log'));
+        assert.ok(!matchesWatchPattern('.beads/dolt/server.log'));
+        assert.ok(!matchesWatchPattern('.beads/dolt/.dolt/stats/.dolt/noms/vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv'));
+    });
+
+    test('an embedded list run by another process (a read) refreshes the board', () => {
+        const listRead = [
+            '.beads/embeddeddolt/wx/.dolt/noms/journal.idx',
+            '.beads/embeddeddolt/wx/.dolt/noms/manifest',
+            '.beads/embeddeddolt/wx/.dolt/noms/vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv'
+        ];
+        assert.ok(listRead.some(refreshes));
+    });
+
+    test('a proxied-server list run (a read) changes no watched path', () => {
+        const listRead = [
+            '.beads/dolt/.dolt/stats/.dolt/noms/vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv',
+            '.beads/dolt/proxy.log',
+            '.beads/dolt/server.log'
+        ];
+        assert.ok(!listRead.some(refreshes));
+    });
+
+    test('the gate lock bd 1.3 creates is a watched path but never refreshes', () => {
+        assert.ok(matchesWatchPattern('.beads/embeddeddolt.gate.lock'));
+        assert.ok(!refreshes('.beads/embeddeddolt.gate.lock'));
+    });
+
+    test('the pattern matcher used here agrees with the existing contract', () => {
+        assert.ok(matchesWatchPattern('.beads/last-touched'));
+        assert.ok(matchesWatchPattern('.beads/dolt/dots/.dolt/noms/manifest'));
+        assert.ok(!matchesWatchPattern('.beads/dolt/.dolt/noms/manifest'));
+        assert.ok(!matchesWatchPattern('.beads/embeddeddolt/wx/.dolt/noms/oldgen/chunk'));
+    });
+});
