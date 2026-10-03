@@ -1,4 +1,5 @@
 export * from './bdCli';
+export * from './beadsEvents';
 export * from './bdCommandError';
 export * from './bdVersion';
 export * from './beadsReader';

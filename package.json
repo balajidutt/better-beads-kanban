@@ -66,6 +66,11 @@
           "default": false,
           "description": "If true, disables write operations (create/move/update)."
         },
+        "beadsKanban.useEventsJournal": {
+          "type": "boolean",
+          "default": false,
+          "description": "Also refresh the board from bd's events journal, in addition to file watching. Needs bd 1.3 or later and `bd config set events-journal true` in the workspace."
+        },
         "beadsKanban.maxIssues": {
           "type": "number",
           "default": 1000,

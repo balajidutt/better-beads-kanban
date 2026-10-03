@@ -15,7 +15,8 @@ import {
   describeResolution
 } from "./beadsWorkspace";
 import { BEADS_WATCH_PATTERNS, shouldTriggerRefresh } from "./beadsWatch";
-import { isClosePolicyRefusal, isGuardMismatch } from "./shared/node";
+import { eventsCheckpointKey, isClosePolicyRefusal, isGuardMismatch, shouldRefreshForEvent } from "./shared/node";
+import { EventsTail } from "./eventsTail";
 import {
   BoardData,
   BoardCard,
@@ -215,6 +216,9 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push({ dispose: () => adapter?.dispose() });
 
   const attachedBoards = new Map<vscode.WebviewPanel, { rebindWatchers: (root: string) => void; reload: () => void }>();
+  // Panel disposal is not guaranteed on Extension Host shutdown, so followers are also stopped here.
+  const liveEventTails = new Set<EventsTail>();
+  context.subscriptions.push({ dispose: () => { for (const tail of liveEventTails) { tail.dispose(); } liveEventTails.clear(); } });
 
   // Retarget in place: ensureAdapter() would dispose the instance an open board holds.
   const retargetRepository = (root: string): void => {
@@ -1082,9 +1086,12 @@ export function activate(context: vscode.ExtensionContext) {
         } else {
           output.appendLine(`[Extension] File changed (unknown URI)`);
         }
-
-        // Skip refresh if this change is from our own save operation
-        if (adapter.isRecentSelfSave()) {
+        requestRefresh();
+      };
+      const requestRefresh = (fromEvent = false) => {
+        // Skip refresh if this change is from our own save operation. Journal
+        // events are always real writes, and reads are never journaled.
+        if (!fromEvent && adapter.isRecentSelfSave()) {
           output.appendLine(`[Extension] Ignoring change due to recent self-save/interaction`);
           return;
         }
@@ -1159,13 +1166,81 @@ export function activate(context: vscode.ExtensionContext) {
         output.appendLine(`[Extension] Watching ${BEADS_WATCH_PATTERNS.length} patterns under ${root}`);
       };
 
-      attachWatchers(watchedRoot);
+      // Opt-in change feed from bd 1.3's events journal; the file watchers stay attached as a fallback.
+      let eventsTail: EventsTail | undefined;
+      // Starts are async; only the newest may install a feed.
+      let feedGeneration = 0;
+      const stopEventsFeed = () => {
+        feedGeneration++;
+        if (eventsTail) {
+          liveEventTails.delete(eventsTail);
+          eventsTail.dispose();
+        }
+        eventsTail = undefined;
+      };
+      const startEventsFeed = async (root: string) => {
+        stopEventsFeed();
+        const generation = feedGeneration;
+        if (!vscode.workspace.getConfiguration().get<boolean>("beadsKanban.useEventsJournal", false)) { return; }
+        try {
+          if (!(await adapter.isEventsJournalEnabled())) {
+            output.appendLine('[Extension] Events journal not available (needs bd 1.3 and events-journal=true); using file watchers only');
+            return;
+          }
+          if (generation !== feedGeneration || isDisposed || adapter.getConnectedDbPath() !== root) { return; }
+          let projectId = '';
+          try {
+            const metadata = JSON.parse(fs.readFileSync(path.join(root, BEADS_DIR, 'metadata.json'), 'utf8')) as { project_id?: unknown };
+            projectId = typeof metadata.project_id === 'string' ? metadata.project_id : '';
+          } catch {
+            output.appendLine('[Extension] Events journal: no readable project_id; checkpoint is per root only');
+          }
+          const checkpointKey = eventsCheckpointKey(root, projectId);
+          const since = context.workspaceState.get<number>(checkpointKey, 0);
+          if (generation !== feedGeneration || isDisposed) { return; }
+          eventsTail = new EventsTail({
+            executable: adapter.getBdExecutable(),
+            cwd: root,
+            since,
+            log: message => output.appendLine(`[Extension] ${message}`),
+            onEvents: events => {
+              void context.workspaceState.update(checkpointKey, events[events.length - 1].seq);
+              const relevant = events.filter(shouldRefreshForEvent);
+              if (relevant.length === 0) { return; }
+              const last = relevant[relevant.length - 1];
+              output.appendLine(`[Extension] Events journal: ${relevant.length} change(s), latest ${last.op} ${last.issueId} (seq ${last.seq})`);
+              requestRefresh(true);
+            },
+            onTruncated: truncation => {
+              output.appendLine(`[Extension] Events journal pruned past checkpoint; resuming at seq ${truncation.head} with a full reload`);
+              void context.workspaceState.update(checkpointKey, truncation.head);
+              void sendBoard(`events-${Date.now()}`);
+            }
+          });
+          liveEventTails.add(eventsTail);
+          eventsTail.start();
+          output.appendLine(`[Extension] Events journal feed started at seq ${since}`);
+        } catch (error) {
+          output.appendLine(`[Extension] Events journal feed not started: ${sanitizeError(error)}`);
+        }
+      };
+      const attachChangeSources = (root: string) => {
+        attachWatchers(root);
+        void startEventsFeed(root);
+      };
+      const configListener = vscode.workspace.onDidChangeConfiguration(event => {
+        if (event.affectsConfiguration("beadsKanban.useEventsJournal")) {
+          void startEventsFeed(adapter.getConnectedDbPath() ?? watchedRoot);
+        }
+      });
+
+      attachChangeSources(watchedRoot);
 
       const resendBoard = () => {
         output.appendLine('[Extension] Repository changed; reloading board');
         void sendBoard(`root-${Date.now()}`);
       };
-      attachedBoards.set(panel, { rebindWatchers: attachWatchers, reload: resendBoard });
+      attachedBoards.set(panel, { rebindWatchers: attachChangeSources, reload: resendBoard });
 
       panel.onDidDispose(() => {
         output.appendLine('[Extension] Panel disposed');
@@ -1192,6 +1267,8 @@ export function activate(context: vscode.ExtensionContext) {
           existing.dispose();
         }
         watchers = [];
+        stopEventsFeed();
+        configListener.dispose();
       });
     }
 

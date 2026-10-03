@@ -84,6 +84,19 @@ export class DaemonBeadsAdapter {
     return this.lastCapabilities;
   }
 
+  /** The bd executable this adapter runs, for processes it does not own such as the events feed. */
+  public getBdExecutable(): string {
+    return this.getBdCommand();
+  }
+
+  /** True when bd supports the events journal and this workspace has it turned on. */
+  public async isEventsJournalEnabled(): Promise<boolean> {
+    const capabilities = await this.ensureStoreReady();
+    if (!capabilities.eventsJournal) { return false; }
+    const result = await this.execBd(['config', 'get', 'events-journal', '--json']);
+    return (result as { value?: unknown } | null)?.value === 'true';
+  }
+
   /** Which 1.3-only flags the installed bd accepts. */
   public getCapabilities(): Promise<BdCapabilities> {
     return this.ensureStoreReady();

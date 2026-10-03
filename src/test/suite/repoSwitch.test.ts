@@ -26,9 +26,11 @@ suite('Repository switch reaches the open board', () => {
 
     test('each board registers itself for retargeting until it is disposed', () => {
         const wire = extensionTs.slice(extensionTs.indexOf('const wireBoardPanel = '), extensionTs.indexOf('const openCmd = '));
-        assert.match(wire, /attachedBoards\.set\(panel, \{ rebindWatchers: attachWatchers, reload: resendBoard \}\)/);
+        assert.match(wire, /attachedBoards\.set\(panel, \{ rebindWatchers: attachChangeSources, reload: resendBoard \}\)/);
+        assert.match(wire, /const attachChangeSources = \(root: string\) => \{\s*attachWatchers\(root\);\s*void startEventsFeed\(root\);/);
         const dispose = wire.slice(wire.indexOf("output.appendLine('[Extension] Panel disposed')"));
         assert.match(dispose, /attachedBoards\.delete\(panel\)/);
+        assert.match(dispose, /stopEventsFeed\(\);\s*configListener\.dispose\(\);/);
     });
 
     test('the repository picker and the workspace-folder listener both use it', () => {
