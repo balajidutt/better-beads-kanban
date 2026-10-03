@@ -95,7 +95,7 @@ The card types express different data/evidence levels:
 - **EnrichedCard:** additional badges/relationships/labels available from mappings or enrichment.
 - **FullCard:** the on-demand detail/edit fields, comments and complete issue context.
 
-`getBoardMinimal` uses one `bd list --json --all` query and maps relationships with a reverse index rather than fetching each card separately. `getIssueFull` uses `bd show --json` on demand. Column enrichment has bounded batches of 50 and parallel per-issue fallback; the webview's `cardStateLevel` avoids unnecessary detail reloads. Preserve these distinctions when adding badges or fields: a new per-card `show` on initial load is an N+1 regression.
+`getBoardMinimal` runs `bd ready --json --limit 0` and then one `bd list --json --all` query, and maps relationships with a reverse index rather than fetching each card separately. `bd ready` goes first because on bd 1.3 it writes the wake-up of an issue whose defer date has passed. `getIssueFull` uses `bd show --json` on demand. Column enrichment has bounded batches of 50 and parallel per-issue fallback; the webview's `cardStateLevel` avoids unnecessary detail reloads. Preserve these distinctions when adding badges or fields: a new per-card `show` on initial load is an N+1 regression.
 
 ### JSON shapes are version-dependent
 
@@ -103,7 +103,7 @@ Do not use a universal “list has field X; show never has X” table. The adapt
 
 Important fields include opaque `id`, `title`, `description`, `status`, numeric `priority`, `issue_type`, assignee/estimate/labels, created/updated/closed times, `external_ref`, `acceptance_criteria`, `design`, `notes`, due/deferred times, flags and event/agent metadata. Comments and relationships have their own shapes; schema and mapper validation belong at the boundary.
 
-`bd ready` is the readiness authority. Existing minimal/enriched mappings also derive convenience `is_ready` values from blocking counts; that local projection is not a complete specification of CLI readiness. Do not extend it into a competing readiness algorithm.
+`bd ready` is the readiness authority. The minimal board and the detail view take `is_ready` from it: an issue is ready when it is `open` and `bd ready` lists it. `bd list --json` has blocking edges but no blocker counts, so the shared mappers' own `is_ready` is only a fallback for when `bd ready` fails, and the user is warned once when that happens. Do not extend the mappers into a competing readiness algorithm.
 
 ### Columns, pagination and settings
 

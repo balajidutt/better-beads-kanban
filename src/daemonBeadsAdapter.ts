@@ -50,6 +50,8 @@ export class DaemonBeadsAdapter {
   private readonly COLUMN_CACHE_MAX_SIZE = 1000; // Max items to cache per column
 
   private storeCheckInFlight: Promise<BdCapabilities> | undefined;
+  private readyIds: Set<string> | undefined;
+  private readyFailureWarnedFor: string | undefined;
   private storeOpenedKey: string | undefined;
   private belowMinimumWarnedFor: string | undefined;
 
@@ -524,7 +526,13 @@ export class DaemonBeadsAdapter {
           this.output.appendLine('[DaemonBeadsAdapter] getBoardMinimal: bd list returned non-array');
         }
       });
+      // bd ready runs first: it writes the wake-up of an issue whose defer date
+      // has passed, and the list read after it then sees that issue as open.
+      const readyIds = await this.readReadyIds();
       const enrichedCards = await reader.getBoardMinimal(limit);
+      if (readyIds) {
+        for (const card of enrichedCards) { card.is_ready = card.status === 'open' && readyIds.has(card.id); }
+      }
       if (!nonArray) {
         this.output.appendLine(`[DaemonBeadsAdapter] getBoardMinimal: Loaded ${enrichedCards.length} enriched cards`);
       }
@@ -532,6 +540,35 @@ export class DaemonBeadsAdapter {
     } catch (error) {
       throw new Error(`Failed to get minimal board data: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
     }
+  }
+
+  /**
+   * `bd list --json` has blocking edges but not whether they still block, so
+   * readiness comes from `bd ready`. Returns undefined when that call fails,
+   * leaving the list mapper's readiness in place behind a one-time warning.
+   */
+  private async readReadyIds(): Promise<Set<string> | undefined> {
+    const root = this.workspaceRoot;
+    let readyIds: Set<string> | undefined;
+    try {
+      const ready = await this.execBd(['ready', '--json', '--limit', '0']);
+      if (!Array.isArray(ready)) { throw new Error('bd ready did not return an array'); }
+      readyIds = new Set(ready
+        .map(issue => (issue as { id?: unknown }).id)
+        .filter((id): id is string => typeof id === 'string'));
+    } catch (error) {
+      this.output.appendLine(`[DaemonBeadsAdapter] bd ready failed; readiness falls back to list data: ${error instanceof Error ? error.message : String(error)}`);
+      if (this.workspaceRoot === root && this.readyFailureWarnedFor !== root) {
+        this.readyFailureWarnedFor = root;
+        void vscode.window.showWarningMessage(
+          'bd ready failed, so the Ready column may include blocked issues until the next refresh. See the Beads Kanban output for details.'
+        );
+      }
+    }
+    // Reads rewrite the embedded journal; restamp so this one's own write is not taken for an outside change.
+    this.trackInteraction();
+    if (this.workspaceRoot === root) { this.readyIds = readyIds; }
+    return readyIds;
   }
 
   /**
@@ -559,6 +596,7 @@ export class DaemonBeadsAdapter {
       this.trackInteraction();
 
       const fullCard = await new BeadsReader(args => this.execBd(args), { includeRelated: true }).getIssueFull(issueId);
+      if (this.readyIds) { fullCard.is_ready = fullCard.status === 'open' && this.readyIds.has(fullCard.id); }
 
       this.output.appendLine(`[DaemonBeadsAdapter] getIssueFull: Loaded full details for ${issueId}`);
       return fullCard;
@@ -1616,6 +1654,7 @@ export class DaemonBeadsAdapter {
     this.workspaceRoot = newWorkspaceRoot;
     this.columnDataCache.clear();
     if (rootChanged) {
+      this.readyIds = undefined;
       this.storeOpenedKey = undefined;
       this.storeCheckInFlight = undefined;
     }

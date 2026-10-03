@@ -49,7 +49,9 @@ suite('bd version pre-flight and first-open migration', () => {
     return adapter;
   }
 
-  const commands = () => calls.map(call => call.args[0]);
+  // Board loads also run `bd ready`; these tests are about the pre-flight around it.
+  const preflightCalls = () => calls.filter(call => call.args[0] !== 'ready');
+  const commands = () => preflightCalls().map(call => call.args[0]);
 
   setup(() => {
     roots = [];
@@ -80,8 +82,8 @@ suite('bd version pre-flight and first-open migration', () => {
     const adapter = makeAdapter(makeRoot('1.2.2'));
     await adapter.getBoardMinimal();
     assert.deepStrictEqual(commands(), ['version', 'stats', 'list']);
-    assert.strictEqual(calls[1].timeoutMs, STORE_MIGRATION_TIMEOUT_MS);
-    assert.strictEqual(calls[2].timeoutMs, undefined);
+    assert.strictEqual(preflightCalls()[1].timeoutMs, STORE_MIGRATION_TIMEOUT_MS);
+    assert.strictEqual(preflightCalls()[2].timeoutMs, undefined);
     assert.ok(withProgress.calledOnce);
     assert.strictEqual(withProgress.firstCall.args[0].title, 'Upgrading the Beads database from bd 1.2.2 to 1.3.1…');
   });
@@ -94,7 +96,7 @@ suite('bd version pre-flight and first-open migration', () => {
     bdVersion = '1.3.1';
     await adapter.getBoardMinimal();
     assert.deepStrictEqual(commands(), ['version', 'list', 'version', 'stats', 'list']);
-    assert.strictEqual(calls[3].timeoutMs, STORE_MIGRATION_TIMEOUT_MS);
+    assert.strictEqual(preflightCalls()[3].timeoutMs, STORE_MIGRATION_TIMEOUT_MS);
     assert.ok(withProgress.calledOnce);
     await adapter.getBoardMinimal();
     assert.deepStrictEqual(commands().slice(5), ['version', 'list']);
@@ -107,7 +109,7 @@ suite('bd version pre-flight and first-open migration', () => {
     bdVersion = '1.3.1';
     await adapter.setIssueStatus('fx-a1', 'in_progress');
     assert.deepStrictEqual(commands().slice(2), ['version', 'stats', 'update']);
-    assert.strictEqual(calls[3].timeoutMs, STORE_MIGRATION_TIMEOUT_MS);
+    assert.strictEqual(preflightCalls()[3].timeoutMs, STORE_MIGRATION_TIMEOUT_MS);
   });
 
   test('a store with no .local_version is opened once with the long timeout and no notification', async () => {
@@ -115,7 +117,7 @@ suite('bd version pre-flight and first-open migration', () => {
     await adapter.getBoardMinimal();
     await adapter.getBoardMinimal();
     assert.deepStrictEqual(commands(), ['version', 'stats', 'list', 'version', 'list']);
-    assert.strictEqual(calls[1].timeoutMs, STORE_MIGRATION_TIMEOUT_MS);
+    assert.strictEqual(preflightCalls()[1].timeoutMs, STORE_MIGRATION_TIMEOUT_MS);
     assert.ok(withProgress.notCalled);
   });
 
@@ -145,8 +147,8 @@ suite('bd version pre-flight and first-open migration', () => {
     release();
     await stale;
     assert.deepStrictEqual(commands(), ['version', 'version', 'stats']);
-    assert.strictEqual(calls[0].cwd, oldRoot);
-    assert.ok(calls.slice(1).every(call => call.cwd === newRoot));
+    assert.strictEqual(preflightCalls()[0].cwd, oldRoot);
+    assert.ok(preflightCalls().slice(1).every(call => call.cwd === newRoot));
     assert.strictEqual(fs.readFileSync(path.join(oldRoot, '.beads', '.local_version'), 'utf8'), '1.2.2\n');
   });
 
@@ -162,8 +164,8 @@ suite('bd version pre-flight and first-open migration', () => {
     release();
     await staleLoad;
     assert.deepStrictEqual(commands(), ['version', 'version', 'stats', 'list']);
-    assert.strictEqual(calls[2].timeoutMs, STORE_MIGRATION_TIMEOUT_MS);
-    assert.ok(calls.slice(1).every(call => call.cwd === newRoot));
+    assert.strictEqual(preflightCalls()[2].timeoutMs, STORE_MIGRATION_TIMEOUT_MS);
+    assert.ok(preflightCalls().slice(1).every(call => call.cwd === newRoot));
   });
 
   test('a root switch during the long open makes the waiting load check the new root before reading it', async () => {
@@ -178,7 +180,7 @@ suite('bd version pre-flight and first-open migration', () => {
     release();
     await staleLoad;
     assert.deepStrictEqual(commands(), ['version', 'stats', 'version', 'list']);
-    assert.ok(calls.slice(2).every(call => call.cwd === newRoot));
+    assert.ok(preflightCalls().slice(2).every(call => call.cwd === newRoot));
   });
 
   test('setting the same root again does not start a second check', async () => {
@@ -216,7 +218,7 @@ suite('bd version pre-flight and first-open migration', () => {
       await adapter.getBoardMinimal();
       bdVersion = '1.3.1';
       await run(adapter).catch(() => undefined);
-      const after = calls.slice(2);
+      const after = preflightCalls().slice(2);
       assert.deepStrictEqual(after.slice(0, 2).map(c => c.args[0]), ['version', 'stats']);
       assert.strictEqual(after[1].timeoutMs, STORE_MIGRATION_TIMEOUT_MS);
       assert.ok(after.slice(2).some(c => c.args[0] === command), `${command} ran after the open`);
@@ -236,7 +238,7 @@ suite('bd version pre-flight and first-open migration', () => {
     release();
     await Promise.all([stale, fresh]);
     assert.deepStrictEqual(commands(), ['version', 'version', 'stats', 'list']);
-    assert.strictEqual(calls[2].cwd, newRoot);
+    assert.strictEqual(preflightCalls()[2].cwd, newRoot);
   });
 
   test('a failed first open fails the load, keeps the bd error as cause and is retried next time', async () => {
