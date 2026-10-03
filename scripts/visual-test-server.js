@@ -1287,6 +1287,12 @@ function generateHtml() {
 '          </div>\n' +
 '          <div id="createModeCommentNote" class="muted-note hidden">Comments will be added after issue creation.</div>\n' +
 '        </div>\n' +
+'        <div id="leaseActions" class="lease-actions hidden">\n' +
+'          <button type="button" id="btnClaim" class="btn">Claim</button>\n' +
+'          <button type="button" id="btnUnclaim" class="btn">Release claim</button>\n' +
+'          <button type="button" id="btnHeartbeat" class="btn">Extend lease</button>\n' +
+'          <span id="leaseMessage" class="lease-message" role="status"></span>\n' +
+'        </div>\n' +
 '        <div id="closeRefusal" class="close-refusal hidden" role="alert">\n' +
 '          <span id="closeRefusalText" class="close-refusal-text"></span>\n' +
 '          <button type="button" id="btnCloseAnyway" class="btn">Close anyway</button>\n' +
@@ -1336,7 +1342,7 @@ function generateHtml() {
 '        data: {\n' +
 '          type: "board.minimal",\n' +
 '          requestId: requestId || "mock-req-board",\n' +
-'          payload: { cards: _mockBoardCards }\n' +
+'          payload: { cards: _mockBoardCards, capabilities: { leases: true } }\n' +
 '        }\n' +
 '      };\n' +
 '      console.log("[mock-vscode] Responding with board.minimal (" + _mockBoardCards.length + " cards)");\n' +
@@ -1436,6 +1442,14 @@ function generateHtml() {
 '        card.status = _mockColumnStatus[payload.toColumn] || card.status;\n' +
 '        card.is_ready = card.status === "open" && (card.blocked_by_count || 0) === 0;\n' +
 '        card.updated_at = new Date().toISOString();\n' +
+'      } else if (msg.type === "issue.claim") {\n' +
+'        card.assignee = "me"; card.status = "in_progress"; card.is_ready = false;\n' +
+'        card.lease_expires_at = new Date(Date.now() + 5 * 60000).toISOString();\n' +
+'      } else if (msg.type === "issue.heartbeat") {\n' +
+'        card.lease_expires_at = new Date(Date.now() + 5 * 60000).toISOString();\n' +
+'      } else if (msg.type === "issue.unclaim") {\n' +
+'        card.assignee = null; card.status = "open"; delete card.lease_expires_at;\n' +
+'        card.is_ready = (card.blocked_by_count || 0) === 0;\n' +
 '      } else if (msg.type === "issue.addLabel") {\n' +
 '        card.labels = card.labels || [];\n' +
 '        if (card.labels.indexOf(payload.label) === -1) { card.labels.push(payload.label); }\n' +
@@ -1524,7 +1538,8 @@ function generateHtml() {
 '          if (msg.type === "issue.create" || msg.type === "issue.update" ||\n' +
 '              msg.type === "issue.move" || msg.type === "issue.addComment" ||\n' +
 '              msg.type === "issue.addLabel" || msg.type === "issue.removeLabel" ||\n' +
-'              msg.type === "issue.addDependency" || msg.type === "issue.removeDependency") {\n' +
+'              msg.type === "issue.addDependency" || msg.type === "issue.removeDependency" ||\n' +
+'              msg.type === "issue.claim" || msg.type === "issue.unclaim" || msg.type === "issue.heartbeat") {\n' +
 '            var movedCard = msg.type === "issue.move" ? _mockFind((msg.payload || {}).id) : null;\n' +
 '            if (movedCard && msg.payload.fromStatus && movedCard.status !== msg.payload.fromStatus) {\n' +
 '              setTimeout(function() {\n' +

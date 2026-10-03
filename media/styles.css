@@ -549,6 +549,17 @@ body.vscode-light {
     flex: 1;
 }
 
+.lease-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0;
+}
+
+.lease-message {
+    color: var(--muted);
+}
+
 .toast {
     position: fixed;
     bottom: 14px;
@@ -788,6 +799,12 @@ main {
     background: rgba(77, 170, 252, 0.1);
     color: #4daafc;
     border-color: rgba(77, 170, 252, 0.25);
+}
+
+.badge-assignee.badge-lease-expired {
+    background: rgba(234, 84, 85, 0.15);
+    color: #ea5455;
+    border-color: rgba(234, 84, 85, 0.3);
 }
 
 .badge-assignee.badge-unassigned {

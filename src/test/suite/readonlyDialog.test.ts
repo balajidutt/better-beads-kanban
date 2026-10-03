@@ -23,7 +23,7 @@ suite('Read-only mode and the detail dialog', () => {
         const posts = extensionTs.match(/post\(\{ type: "board\.minimal"[^\n]*/g) ?? [];
         assert.strictEqual(posts.length, 2);
         for (const post of posts) {
-            assert.match(post, /\{ cards, readOnly, uiState \} : \{ cards, readOnly \}/, post);
+            assert.match(post, /\{ cards, readOnly, uiState[^}]*\} : \{ cards, readOnly[,} ]/, post);
         }
     });
 

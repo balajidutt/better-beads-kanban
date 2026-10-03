@@ -46,6 +46,10 @@
       {
         "command": "beadsKanban.openBoard",
         "title": "Beads: Open Kanban Board"
+      },
+      {
+        "command": "beadsKanban.reclaimStaleClaims",
+        "title": "Beads: Reclaim Stale Claims"
       }
     ],
     "configuration": {

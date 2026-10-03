@@ -421,6 +421,13 @@ export function getWebviewHtml(webview: vscode.Webview, extensionUri: vscode.Uri
           <div id="createModeCommentNote" class="muted-note hidden">Comments will be added after issue creation.</div>
         </div>
 
+        <div id="leaseActions" class="lease-actions hidden">
+          <button type="button" id="btnClaim" class="btn">Claim</button>
+          <button type="button" id="btnUnclaim" class="btn">Release claim</button>
+          <button type="button" id="btnHeartbeat" class="btn">Extend lease</button>
+          <span id="leaseMessage" class="lease-message" role="status"></span>
+        </div>
+
         <div id="closeRefusal" class="close-refusal hidden" role="alert">
           <span id="closeRefusalText" class="close-refusal-text"></span>
           <button type="button" id="btnCloseAnyway" class="btn">Close anyway</button>

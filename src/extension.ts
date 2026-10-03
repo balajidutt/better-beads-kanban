@@ -38,7 +38,8 @@ import {
   migrateUIState,
   ColumnDataMap,
   ColumnData,
-  IssueIdSchema
+  IssueIdSchema,
+  IssueRefSchema
 } from "./types";
 
 type WebMsg =
@@ -56,6 +57,7 @@ type WebMsg =
   | { type: "issue.copyToClipboard"; requestId: string; payload: { text: string } }
   | { type: "issue.update"; requestId: string; payload: { id: string; updates: unknown; force?: boolean } }
   | { type: "issue.addComment"; requestId: string; payload: { id: string; text: string; author?: string } }
+  | { type: "issue.claim" | "issue.unclaim" | "issue.heartbeat"; requestId: string; payload: { id: string } }
   | { type: "issue.addLabel"; requestId: string; payload: { id: string; label: string } }
   | { type: "issue.removeLabel"; requestId: string; payload: { id: string; label: string } }
   | { type: "issue.addDependency"; requestId: string; payload: { id: string; otherId: string; type: 'parent-child' | 'blocks' } }
@@ -65,7 +67,7 @@ type WebMsg =
 
 type ExtMsg =
   | { type: "board.data"; requestId: string; payload: BoardData }
-  | { type: "board.minimal"; requestId: string; payload: { cards: MinimalCard[]; readOnly: boolean; uiState?: UIState } }
+  | { type: "board.minimal"; requestId: string; payload: { cards: MinimalCard[]; readOnly: boolean; uiState?: UIState; capabilities: { leases: boolean } } }
   | { type: "board.columnData"; requestId: string; payload: { column: BoardColumnKey; cards: BoardCard[]; offset: number; totalCount: number; hasMore: boolean } }
   | { type: "table.pageData"; requestId: string; payload: { cards: BoardCard[]; offset: number; totalCount: number; hasMore: boolean } }
   | { type: "issue.full"; requestId: string; payload: { card: FullCard } }
@@ -387,7 +389,8 @@ export function activate(context: vscode.ExtensionContext) {
           // Check cancellation before posting
           if (!cancellationToken.cancelled) {
             const uiState = readPersistedUIState();
-            post({ type: "board.minimal", requestId, payload: uiState ? { cards, readOnly, uiState } : { cards, readOnly } });
+            const capabilities = { leases: !!adapter.getLastCapabilities()?.leases };
+            post({ type: "board.minimal", requestId, payload: uiState ? { cards, readOnly, uiState, capabilities } : { cards, readOnly, capabilities } });
           } else {
             output.appendLine(`[Extension] Skipped posting board.minimal - operation cancelled`);
           }
@@ -716,7 +719,8 @@ export function activate(context: vscode.ExtensionContext) {
           // Check cancellation before posting
           if (!cancellationToken.cancelled) {
             const uiState = readPersistedUIState();
-            post({ type: "board.minimal", requestId: msg.requestId, payload: uiState ? { cards, readOnly, uiState } : { cards, readOnly } });
+            const capabilities = { leases: !!(adapter as DaemonBeadsAdapter).getLastCapabilities()?.leases };
+            post({ type: "board.minimal", requestId: msg.requestId, payload: uiState ? { cards, readOnly, uiState, capabilities } : { cards, readOnly, capabilities } });
           } else {
             output.appendLine(`[Extension] Skipped posting board.minimal - operation cancelled`);
           }
@@ -929,6 +933,21 @@ export function activate(context: vscode.ExtensionContext) {
             post({ type: "mutation.error", requestId: msg.requestId, error: sanitizeError(e), code: "close_refused", payload: { id: validation.data.id } });
             return;
           }
+          post({ type: "mutation.ok", requestId: msg.requestId });
+          await sendBoard(msg.requestId);
+          return;
+        }
+
+        if (msg.type === "issue.claim" || msg.type === "issue.unclaim" || msg.type === "issue.heartbeat") {
+          const validation = IssueRefSchema.safeParse(msg.payload);
+          if (!validation.success) {
+            post({ type: "mutation.error", requestId: msg.requestId, error: `Invalid issue reference: ${describeValidationError(validation.error)}` });
+            return;
+          }
+          const id = validation.data.id;
+          if (msg.type === "issue.claim") { await adapter.claimIssue(id); }
+          else if (msg.type === "issue.unclaim") { await adapter.unclaimIssue(id); }
+          else { await adapter.heartbeatIssue(id); }
           post({ type: "mutation.ok", requestId: msg.requestId });
           await sendBoard(msg.requestId);
           return;
@@ -1227,6 +1246,43 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   context.subscriptions.push(openCmd);
+
+  const reclaimCmd = vscode.commands.registerCommand("beadsKanban.reclaimStaleClaims", async () => {
+    if (vscode.workspace.getConfiguration().get<boolean>("beadsKanban.readOnly", false)) {
+      vscode.window.showWarningMessage("Beads Kanban is in read-only mode, so stale claims were not reclaimed.");
+      return;
+    }
+    const reclaimAdapter = ensureAdapter();
+    if (!reclaimAdapter) {
+      vscode.window.showErrorMessage('Beads Kanban requires an open workspace folder.');
+      return;
+    }
+    try {
+      if (!(await reclaimAdapter.getCapabilities()).leases) {
+        vscode.window.showInformationMessage("Reclaiming stale claims needs bd 1.3.0 or later.");
+        return;
+      }
+      const choice = await vscode.window.showQuickPick([
+        { label: "30 minutes", window: "30m" },
+        { label: "1 hour", window: "1h" },
+        { label: "4 hours", window: "4h" },
+        { label: "24 hours", window: "24h" }
+      ], { title: "Reclaim stale claims", placeHolder: "Reclaim claims whose lease expired at least this long ago" });
+      if (!choice) { return; }
+      const confirmed = await vscode.window.showWarningMessage(
+        `Reclaim every claim whose lease expired more than ${choice.label} ago?`,
+        { modal: true, detail: "bd clears the assignee of each one and sets it back to open, so another worker can claim it. Only leases this replica of the Beads database granted are affected." },
+        "Reclaim"
+      );
+      if (confirmed !== "Reclaim") { return; }
+      const count = await reclaimAdapter.reclaimStaleClaims(choice.window);
+      vscode.window.showInformationMessage(count === 1 ? "Reclaimed 1 stale claim." : `Reclaimed ${count} stale claims.`);
+      for (const board of attachedBoards.values()) { board.reload(); }
+    } catch (e) {
+      vscode.window.showErrorMessage(sanitizeError(e));
+    }
+  });
+  context.subscriptions.push(reclaimCmd);
 
   context.subscriptions.push(vscode.window.registerWebviewPanelSerializer("beadsKanban.board", {
     async deserializeWebviewPanel(panel: vscode.WebviewPanel): Promise<void> {

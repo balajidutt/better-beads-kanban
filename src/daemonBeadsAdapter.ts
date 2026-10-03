@@ -52,6 +52,7 @@ export class DaemonBeadsAdapter {
   private storeCheckInFlight: Promise<BdCapabilities> | undefined;
   private readyIds: Set<string> | undefined;
   private readyFailureWarnedFor: string | undefined;
+  private lastCapabilities: BdCapabilities | undefined;
   private storeOpenedKey: string | undefined;
   private belowMinimumWarnedFor: string | undefined;
 
@@ -78,6 +79,11 @@ export class DaemonBeadsAdapter {
     return this.storeCheckInFlight;
   }
 
+  /** Capabilities from the most recent store check, without running bd again. */
+  public getLastCapabilities(): BdCapabilities | undefined {
+    return this.lastCapabilities;
+  }
+
   /** Which 1.3-only flags the installed bd accepts. */
   public getCapabilities(): Promise<BdCapabilities> {
     return this.ensureStoreReady();
@@ -88,6 +94,7 @@ export class DaemonBeadsAdapter {
     const version = parseBdVersion(await this.execBd(['version', '--json']));
     const capabilities = capabilitiesFor(version);
     if (this.workspaceRoot !== root) { return this.ensureStoreReady(); }
+    this.lastCapabilities = capabilities;
     this.warnIfBelowMinimum(version, root);
 
     const localVersion = this.readLocalVersion(root);
@@ -1634,6 +1641,53 @@ export class DaemonBeadsAdapter {
       throw new Error(msg, { cause: error });
     }
   }
+  /**
+   * bd 1.3 claim leases. bd itself refuses to claim, heartbeat or release a
+   * claim another actor holds, so none of these pass --force.
+   */
+  private async runLeaseCommand(id: string, args: string[], failure: string): Promise<void> {
+    try {
+      this.validateIssueId(id);
+      const capabilities = await this.ensureStoreReady();
+      if (!capabilities.leases) { throw new Error('Claim leases need bd 1.3.0 or later.'); }
+      await this.execBd(args);
+      this.trackMutation();
+    } catch (error) {
+      const msg = `${failure}: ${error instanceof Error ? error.message : String(error)}`;
+      this.output.appendLine(`[DaemonBeadsAdapter] ERROR: ${msg}`);
+      throw new Error(msg, { cause: error });
+    }
+  }
+
+  public claimIssue(id: string): Promise<void> {
+    return this.runLeaseCommand(id, ['update', '--claim', '--', id], 'Failed to claim issue');
+  }
+
+  public unclaimIssue(id: string): Promise<void> {
+    return this.runLeaseCommand(id, ['unclaim', '--', id], 'Failed to release claim');
+  }
+
+  public heartbeatIssue(id: string): Promise<void> {
+    return this.runLeaseCommand(id, ['heartbeat', '--', id], 'Failed to extend lease');
+  }
+
+  /** Returns how many claims bd reclaimed. `olderThan` is a bd duration such as 30m or 4h. */
+  public async reclaimStaleClaims(olderThan: string): Promise<number> {
+    try {
+      if (!/^\d{1,4}[mh]$/.test(olderThan)) { throw new Error(`Invalid reclaim window: ${olderThan}`); }
+      const capabilities = await this.ensureStoreReady();
+      if (!capabilities.leases) { throw new Error('Claim leases need bd 1.3.0 or later.'); }
+      const result = await this.execBd(['reclaim', '--older-than', olderThan, '--json']);
+      this.trackMutation();
+      const count = (result as { count?: unknown } | null)?.count;
+      return typeof count === 'number' ? count : 0;
+    } catch (error) {
+      const msg = `Failed to reclaim stale claims: ${error instanceof Error ? error.message : String(error)}`;
+      this.output.appendLine(`[DaemonBeadsAdapter] ERROR: ${msg}`);
+      throw new Error(msg, { cause: error });
+    }
+  }
+
 
   /**
    * Update the workspace root path (for switching repositories)
@@ -1655,6 +1709,7 @@ export class DaemonBeadsAdapter {
     this.columnDataCache.clear();
     if (rootChanged) {
       this.readyIds = undefined;
+      this.lastCapabilities = undefined;
       this.storeOpenedKey = undefined;
       this.storeCheckInFlight = undefined;
     }

@@ -47,6 +47,12 @@ export function isClosePolicyRefusal(error: unknown): boolean {
   return !!bdError && bdError.exitCode === 1 && CLOSE_POLICY_REASON.test(output(bdError));
 }
 
+/** bd 1.3: a claim, heartbeat or release was refused because another actor holds the claim. */
+export function isClaimHeldByOther(error: unknown): boolean {
+  const bdError = findBdCommandError(error);
+  return !!bdError && /issue already claimed by |claimed by a different actor/.test(output(bdError));
+}
+
 /** BEADS_MAX_ROWS (or --max-rows) capped a query below the number of matching rows. */
 export function isMaxRowsExceeded(error: unknown): boolean {
   const bdError = findBdCommandError(error);

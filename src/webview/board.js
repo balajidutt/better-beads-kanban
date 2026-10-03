@@ -4,6 +4,7 @@ import { dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import { GraphView } from './graph-view.js';
 import { buildRelationshipBadges } from './cardRelationships';
+import { assigneeBadge, leaseActionVisibility } from './leaseStatus';
 import {
     nextFilterSelection,
     computeFilterLabel,
@@ -328,6 +329,7 @@ let columnState = {
 // Legacy boardData for backward compatibility
 let boardData = null;
 let readOnly = false; // Read-only mode flag from extension
+let bdCapabilities = { leases: false };
 let detailDirty = false;
 let toastHideTimer = null;
 let openDetailGeneration = 0;
@@ -981,6 +983,22 @@ function storedStatusOf(id) {
     return typeof status === "string" && /^[a-z0-9][a-z0-9_-]*$/i.test(status) && status.length <= 64 ? status : undefined;
 }
 
+/** Lease countdowns change with time alone, so their badges are rewritten in place. */
+function refreshLeaseBadges() {
+    const now = Date.now();
+    for (const cardEl of document.querySelectorAll('.card[data-id]')) {
+        const card = cardCache.get(cardEl.dataset.id);
+        if (!card || !card.lease_expires_at) { continue; }
+        const badgeEl = cardEl.querySelector('.badge-assignee');
+        if (!badgeEl) { continue; }
+        const badge = assigneeBadge(card, now);
+        badgeEl.textContent = badge.text;
+        badgeEl.className = `badge ${sanitizeClassName(badge.cls)}`;
+        if (badge.title) { badgeEl.setAttribute('title', badge.title); } else { badgeEl.removeAttribute('title'); }
+    }
+}
+setInterval(refreshLeaseBadges, 30000);
+
 function columnForCard(card) {
     // Deterministic mapping (matches extension-side assumptions)
     if (card.status === "closed") return "closed";
@@ -1444,11 +1462,7 @@ function renderKanban() {
                 });
             }
             // Assignee badge positioned right after type
-            if (card.assignee) {
-                badges.push({ text: `Assignee: ${card.assignee}`, cls: 'badge-assignee' });
-            } else {
-                badges.push({ text: 'Assignee: Unassigned', cls: 'badge-assignee badge-unassigned' });
-            }
+            badges.push(assigneeBadge(card, Date.now()));
             if (card.estimated_minutes) {
                 const hours = Math.floor(card.estimated_minutes / 60);
                 const mins = card.estimated_minutes % 60;
@@ -2889,8 +2903,8 @@ window.addEventListener("message", (event) => {
 
     // Phase 2: Handle board.minimal response (fast loading with MinimalCard[])
     if (msg.type === "board.minimal") {
+        bdCapabilities = { leases: !!(msg.payload.capabilities && msg.payload.capabilities.leases) };
 
-        
         const cards = msg.payload.cards || [];
         
         // Initialize columns with default kanban columns
@@ -3638,6 +3652,51 @@ async function openDetail(card) {
         btnCloseAnyway.onclick = (e) => {
             e.preventDefault();
             saveDetail(true);
+        };
+    }
+
+    // Claim-lease actions (bd 1.3). bd refuses to touch another actor's claim itself.
+    const leaseActions = form.querySelector("#leaseActions");
+    const leaseMessage = form.querySelector("#leaseMessage");
+    const leaseVisibility = leaseActionVisibility(card, { readOnly, leases: bdCapabilities.leases, isCreateMode });
+    if (leaseActions) { leaseActions.classList.toggle("hidden", !leaseVisibility.row); }
+    if (leaseMessage) { leaseMessage.textContent = ""; }
+    const leaseButtons = [
+        { el: form.querySelector("#btnClaim"), type: "issue.claim", busy: "Claiming...", done: "Issue claimed", visible: leaseVisibility.claim },
+        { el: form.querySelector("#btnUnclaim"), type: "issue.unclaim", busy: "Releasing claim...", done: "Claim released", visible: leaseVisibility.unclaim },
+        { el: form.querySelector("#btnHeartbeat"), type: "issue.heartbeat", busy: "Extending lease...", done: "Lease extended", visible: leaseVisibility.heartbeat }
+    ];
+    const setLeaseButtonsDisabled = (disabled) => {
+        for (const action of leaseButtons) { if (action.el) { action.el.disabled = disabled; } }
+    };
+    setLeaseButtonsDisabled(false);
+    for (const action of leaseButtons) {
+        if (!action.el) { continue; }
+        action.el.hidden = !action.visible;
+        action.el.onclick = async (e) => {
+            e.preventDefault();
+            // These change status and assignee on the server, which unsaved form edits would then overwrite.
+            if (isEditFormDirty()) {
+                if (leaseMessage) { leaseMessage.textContent = "Save or discard your changes first."; }
+                return;
+            }
+            setLeaseButtonsDisabled(true);
+            try {
+                await postAsync(action.type, { id: card.id }, action.busy);
+                toast(action.done);
+                if (isCurrentDialog()) {
+                    if (isEditFormDirty()) {
+                        for (const other of leaseButtons) { if (other.el) { other.el.hidden = true; } }
+                        if (leaseMessage) { leaseMessage.textContent = `${action.done}. Your unsaved edits are still here.`; }
+                    } else {
+                        detDialog.close();
+                    }
+                }
+            } catch (err) {
+                if (leaseMessage && isCurrentDialog()) { leaseMessage.textContent = err.message; }
+            } finally {
+                setLeaseButtonsDisabled(false);
+            }
         };
     }
 

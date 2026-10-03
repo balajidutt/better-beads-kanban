@@ -1,5 +1,5 @@
 import {
-  findBdCommandError, isClosePolicyRefusal, isEventsJournalTruncated, isEventsTableMissing,
+  findBdCommandError, isClaimHeldByOther, isClosePolicyRefusal, isEventsJournalTruncated, isEventsTableMissing,
   isGuardMismatch, isMaxRowsExceeded, isPendingMigration, sanitizeError
 } from './shared/node';
 export { sanitizeError } from './shared/node';
@@ -58,6 +58,9 @@ export function sanitizeErrorWithContext(error: unknown): string {
   }
   if (isClosePolicyRefusal(error)) {
     return `Close refused: ${closeRefusalReason(error)}.`;
+  }
+  if (isClaimHeldByOther(error)) {
+    return 'Someone else holds the claim on this issue, so it was not changed. Refresh the board to see who.';
   }
   if (isMaxRowsExceeded(error)) {
     return 'bd refused the query because BEADS_MAX_ROWS is lower than the number of matching issues. Raise or unset BEADS_MAX_ROWS in the environment VS Code starts from.';

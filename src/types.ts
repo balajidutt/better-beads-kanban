@@ -227,6 +227,8 @@ export const SetStatusSchema = z.object({
   message: 'force only applies to closing an issue', path: ['force']
 });
 
+export const IssueRefSchema = z.object({ id: IssueIdSchema });
+
 export const CommentAddSchema = z.object({
   id: IssueIdSchema,
   text: z.string().min(1).max(10000),
