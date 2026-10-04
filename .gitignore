@@ -18,6 +18,7 @@ last-touched
 
 # Local beads issue tracking (do not commit)
 .beads/
+.beads.gate.lock
 
 # Legacy database files
 db.sqlite

@@ -24,6 +24,7 @@ node_modules/**
 .DS_Store
 *.log
 .beads/**
+.beads.gate.lock
 
 # Release artifacts. release-fork-vsix.sh writes SHA256SUMS after packaging,
 # so a leftover from a previous run (or from --dry-run) would otherwise be

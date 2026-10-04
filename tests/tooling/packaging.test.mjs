@@ -79,3 +79,24 @@ test('actual package listing excludes workflow tooling, shared-core internals an
     assert.equal(/(?:^|\/)auth\.json$/.test(file), false, file);
   }
 });
+
+test('VSCE ignore rules exclude the gate lock bd 1.3 writes beside .beads and include it when removed', async t => {
+  const scratchRoot = await realpath(await scratch(t));
+  await writeFile(path.join(scratchRoot, 'package.json'), JSON.stringify({
+    name: 'vsce-ignore-fixture', version: '1.0.0', publisher: 'fixture', engines: { vscode: '^1.90.0' },
+  }));
+  await writeFile(path.join(scratchRoot, 'README.md'), 'Inert package listing fixture.\n');
+  await writeFile(path.join(scratchRoot, 'LICENSE'), 'Inert fixture license.\n');
+  await writeFile(path.join(scratchRoot, '.beads.gate.lock'), '');
+  const ignore = await readFile(path.join(root, '.vscodeignore'), 'utf8');
+  const list = async rules => {
+    await writeFile(path.join(scratchRoot, '.vscodeignore'), rules);
+    const result = await processTools.run(process.execPath, [path.join(root, 'node_modules/@vscode/vsce/vsce'), 'ls', '--no-dependencies'], { cwd: scratchRoot, timeout: 30000 });
+    assert.equal(result.code, 0, 'VSCE listing must succeed');
+    return result.stdout.trim().split(/\r?\n/);
+  };
+  assert.equal((await list(ignore)).includes('.beads.gate.lock'), false);
+  const lines = ignore.split(/\r?\n/);
+  assert.equal(lines.filter(line => line === '.beads.gate.lock').length, 1);
+  assert.ok((await list(lines.filter(line => line !== '.beads.gate.lock').join('\n'))).includes('.beads.gate.lock'));
+});
