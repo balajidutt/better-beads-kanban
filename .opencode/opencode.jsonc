@@ -104,7 +104,7 @@
       }
     },
     "plan-reviewer": {
-      "model": "anthropic/claude-opus-5",
+      "model": "anthropic/claude-opus-5-5",
       "variant": "high",
       "permission": {
         "*": "deny",
@@ -989,7 +989,7 @@
       }
     },
     "code-reviewer": {
-      "model": "anthropic/claude-opus-5",
+      "model": "anthropic/claude-opus-5-5",
       "variant": "high",
       "permission": {
         "*": "deny",
@@ -2278,7 +2278,7 @@
       }
     },
     "test-strategist": {
-      "model": "anthropic/claude-opus-5",
+      "model": "anthropic/claude-opus-5-5",
       "variant": "high",
       "permission": {
         "*": "deny",
