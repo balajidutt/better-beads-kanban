@@ -6,7 +6,7 @@ import { PassThrough } from 'stream';
 import * as sinon from 'sinon';
 import type * as vscode from 'vscode';
 import { DaemonBeadsAdapter } from '../../daemonBeadsAdapter';
-import { EventsTail, HEALTHY_RUN_MS, KILL_GRACE_MS, MAX_CHILD_LIFETIME_MS, MAX_EVENT_LINE_CHARS } from '../../eventsTail';
+import { EventsTail, HEALTHY_RUN_MS, KILL_GRACE_MS, MAX_CHILD_LIFETIME_MS, MAX_EVENT_LINE_CHARS, affectsEventsFeed } from '../../eventsTail';
 import { BeadsEvent, EventsTruncation, capabilitiesFor, parseBdVersion } from '../../shared/node';
 
 type FakeChild = EventEmitter & { stdout: PassThrough; stderr: PassThrough; kill: sinon.SinonSpy; exitCode: number | null; signalCode: string | null };
@@ -206,6 +206,21 @@ suite('Events journal detection', () => {
         const old = adapterFor('1.2.2', { value: 'true' });
         assert.strictEqual(await old.adapter.isEventsJournalEnabled(), false);
         assert.deepStrictEqual(old.calls, []);
+    });
+});
+
+suite('Events journal feed restarts', () => {
+    const changed = (...sections: string[]) => ({ affectsConfiguration: (section: string) => sections.includes(section) });
+
+    test('a change to the journal toggle or the bd path restarts the feed, other settings do not', () => {
+        assert.strictEqual(affectsEventsFeed(changed('beadsKanban.useEventsJournal')), true);
+        assert.strictEqual(affectsEventsFeed(changed('beadsKanban.bdPath')), true);
+        assert.strictEqual(affectsEventsFeed(changed('beadsKanban.initialLoadLimit', 'beadsKanban.readOnly')), false);
+    });
+
+    test('the board\'s settings listener restarts the feed through that check', () => {
+        const extensionTs = fs.readFileSync(path.resolve(__dirname, '..', '..', '..', 'src', 'extension.ts'), 'utf8');
+        assert.match(extensionTs, /if \(affectsEventsFeed\(event\)\) \{\s*void startEventsFeed\(/);
     });
 });
 

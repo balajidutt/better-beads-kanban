@@ -26,6 +26,12 @@ export const HEALTHY_RUN_MS = 60000;
 export const MAX_CHILD_LIFETIME_MS = 30 * 60 * 1000;
 export const KILL_GRACE_MS = 2000;
 
+const EVENTS_FEED_SETTINGS = ['beadsKanban.useEventsJournal', 'beadsKanban.bdPath'];
+
+export function affectsEventsFeed(event: { affectsConfiguration(section: string): boolean }): boolean {
+  return EVENTS_FEED_SETTINGS.some(section => event.affectsConfiguration(section));
+}
+
 /**
  * Owns a long-running `bd events tail --follow` child: restarts it with backoff
  * when it exits, recycles it periodically, resumes from the last seq seen, and

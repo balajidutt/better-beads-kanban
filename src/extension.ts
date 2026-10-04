@@ -16,7 +16,7 @@ import {
 } from "./beadsWorkspace";
 import { BEADS_WATCH_PATTERNS, shouldTriggerRefresh } from "./beadsWatch";
 import { eventsCheckpointKey, isClosePolicyRefusal, isGuardMismatch, shouldRefreshForEvent } from "./shared/node";
-import { EventsTail } from "./eventsTail";
+import { EventsTail, affectsEventsFeed } from "./eventsTail";
 import {
   BoardData,
   BoardCard,
@@ -1230,7 +1230,7 @@ export function activate(context: vscode.ExtensionContext) {
         void startEventsFeed(root);
       };
       const configListener = vscode.workspace.onDidChangeConfiguration(event => {
-        if (event.affectsConfiguration("beadsKanban.useEventsJournal")) {
+        if (affectsEventsFeed(event)) {
           void startEventsFeed(adapter.getConnectedDbPath() ?? watchedRoot);
         }
       });
