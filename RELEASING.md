@@ -183,9 +183,11 @@ newest at the top; see existing entries for the category headings in use
 npm run release:bump -- X.Y.Z
 ```
 
-Updates `package.json` and the cache-busting `const version` in `src/webview.ts`
-in lockstep, and only after every check passes. The two must match or the webview
-serves stale assets.
+Updates `package.json`, the root `version` and `packages[""].version` in
+`package-lock.json`, and the cache-busting `const version` in `src/webview.ts` in
+lockstep, and only after every check passes. The webview version must match
+`package.json` or the webview serves stale assets. A lockfile change limited to
+those two root fields needs no dependency reinstall.
 
 Accepted shapes are `X.Y.Z` and `X.Y.Z-bd.N` (the legacy fork series, kept so
 those tags stay reproducible). The regex is duplicated in

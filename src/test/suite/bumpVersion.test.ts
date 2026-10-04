@@ -11,6 +11,7 @@ const RELEASE_SCRIPT = path.join(REPO_ROOT, 'scripts', 'release-fork-vsix.sh');
 interface Fixture {
     dir: string;
     pkgPath: string;
+    lockPath: string;
     webviewPath: string;
 }
 
@@ -23,6 +24,8 @@ function makeFixture(opts: {
     pkgVersion?: string;
     webviewVersion?: string;
     changelogHeadings?: string[];
+    lockVersion?: string;
+    lockRaw?: string;
 } = {}): Fixture {
     const pkgVersion = opts.pkgVersion ?? '2.2.0';
     const webviewVersion = opts.webviewVersion ?? pkgVersion;
@@ -40,6 +43,19 @@ function makeFixture(opts: {
         JSON.stringify({ name: 'better-beads-kanban', version: pkgVersion }, null, 2) + '\n'
     );
     fs.writeFileSync(
+        path.join(dir, 'package-lock.json'),
+        opts.lockRaw ?? JSON.stringify({
+            name: 'better-beads-kanban',
+            version: opts.lockVersion ?? pkgVersion,
+            lockfileVersion: 3,
+            requires: true,
+            packages: {
+                '': { name: 'better-beads-kanban', version: opts.lockVersion ?? pkgVersion, license: 'MIT' },
+                'node_modules/dep': { version: pkgVersion, resolved: 'https://example.invalid/dep.tgz' }
+            }
+        }, null, 2) + '\n'
+    );
+    fs.writeFileSync(
         path.join(dir, 'src', 'webview.ts'),
         'export function getHtml(): string {\n' +
         `    const version = "${webviewVersion}";\n` +
@@ -55,6 +71,7 @@ function makeFixture(opts: {
     return {
         dir,
         pkgPath: path.join(dir, 'package.json'),
+        lockPath: path.join(dir, 'package-lock.json'),
         webviewPath: path.join(dir, 'src', 'webview.ts')
     };
 }
@@ -72,9 +89,10 @@ function runBump(fx: Fixture, ...args: string[]): { status: number | null; stdou
     };
 }
 
-function snapshot(fx: Fixture): { pkg: string; webview: string } {
+function snapshot(fx: Fixture): { pkg: string; lock: string; webview: string } {
     return {
         pkg: fs.readFileSync(fx.pkgPath, 'utf8'),
+        lock: fs.readFileSync(fx.lockPath, 'utf8'),
         webview: fs.readFileSync(fx.webviewPath, 'utf8')
     };
 }
@@ -109,6 +127,78 @@ suite('scripts/bump-version.js', () => {
         assert.strictEqual(webviewVersionOf(fx), pkgVersionOf(fx));
     });
 
+    test('sets only the two root versions in package-lock.json', () => {
+        const fx = makeFixture({ pkgVersion: '2.2.0' });
+        const before = JSON.parse(fs.readFileSync(fx.lockPath, 'utf8'));
+
+        const run = runBump(fx, '2.2.1');
+
+        assert.strictEqual(run.status, 0, run.stderr);
+        const after = JSON.parse(fs.readFileSync(fx.lockPath, 'utf8'));
+        assert.strictEqual(after.version, '2.2.1');
+        assert.strictEqual(after.packages[''].version, '2.2.1');
+        before.version = '2.2.1';
+        before.packages[''].version = '2.2.1';
+        assert.deepStrictEqual(after, before);
+        assert.strictEqual(after.packages['node_modules/dep'].version, '2.2.0');
+        assert.strictEqual(fs.readFileSync(fx.lockPath, 'utf8'), JSON.stringify(before, null, 2) + '\n');
+    });
+
+    test('refuses a lockfile outside npm layout, and writes nothing', () => {
+        const fx = makeFixture({
+            pkgVersion: '2.2.0',
+            lockRaw: JSON.stringify({ name: 'better-beads-kanban', version: '2.2.0', packages: { '': { version: '2.2.0' } } }) + '\n'
+        });
+        const before = snapshot(fx);
+
+        const run = runBump(fx, '2.2.1');
+
+        assert.strictEqual(run.status, 1);
+        assert.ok(run.stderr.includes("not in npm's layout"), `expected the layout complaint: ${run.stderr}`);
+        assert.deepStrictEqual(snapshot(fx), before);
+    });
+
+    test('repairs lockfile root versions that already lag package.json', () => {
+        const fx = makeFixture({ pkgVersion: '2.2.2', lockVersion: '2.2.1', changelogHeadings: ['2.2.3', '2.2.2'] });
+
+        const run = runBump(fx, '2.2.3');
+
+        assert.strictEqual(run.status, 0, run.stderr);
+        const lock = JSON.parse(fs.readFileSync(fx.lockPath, 'utf8'));
+        assert.strictEqual(lock.version, '2.2.3');
+        assert.strictEqual(lock.packages[''].version, '2.2.3');
+        assert.strictEqual(lock.packages['node_modules/dep'].version, '2.2.2');
+    });
+
+    test('keeps CRLF line endings in a CRLF lockfile', () => {
+        const lf = makeFixture({ pkgVersion: '2.2.0' });
+        const crlfRaw = fs.readFileSync(lf.lockPath, 'utf8').replace(/\n/g, '\r\n');
+        const fx = makeFixture({ pkgVersion: '2.2.0', lockRaw: crlfRaw });
+
+        const run = runBump(fx, '2.2.1');
+
+        assert.strictEqual(run.status, 0, run.stderr);
+        const lock = JSON.parse(crlfRaw);
+        lock.version = '2.2.1';
+        lock.packages[''].version = '2.2.1';
+        const expected = JSON.stringify(lock, null, 2).replace(/\n/g, '\r\n') + '\r\n';
+        assert.strictEqual(fs.readFileSync(fx.lockPath, 'utf8'), expected);
+    });
+
+    test('refuses when package-lock.json is missing, and writes nothing', () => {
+        const fx = makeFixture({ pkgVersion: '2.2.0' });
+        fs.rmSync(fx.lockPath);
+        const pkg = fs.readFileSync(fx.pkgPath, 'utf8');
+        const webview = fs.readFileSync(fx.webviewPath, 'utf8');
+
+        const run = runBump(fx, '2.2.1');
+
+        assert.strictEqual(run.status, 1);
+        assert.ok(run.stderr.includes('package-lock.json not found'), `expected the missing-lockfile complaint: ${run.stderr}`);
+        assert.strictEqual(fs.readFileSync(fx.pkgPath, 'utf8'), pkg);
+        assert.strictEqual(fs.readFileSync(fx.webviewPath, 'utf8'), webview);
+    });
+
     test('success output names the fork release script, not the marketplace path', () => {
         const fx = makeFixture({ pkgVersion: '2.2.0' });
 
@@ -136,6 +226,7 @@ suite('scripts/bump-version.js', () => {
         assert.strictEqual(run.status, 0, run.stderr);
         assert.strictEqual(pkgVersionOf(fx), '2.1.4-bd.5');
         assert.strictEqual(webviewVersionOf(fx), '2.1.4-bd.5');
+        assert.strictEqual(JSON.parse(fs.readFileSync(fx.lockPath, 'utf8')).packages[''].version, '2.1.4-bd.5');
     });
 
     test('rejects a pre-release tag the marketplace would bounce', () => {

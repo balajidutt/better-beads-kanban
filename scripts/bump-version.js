@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 /**
- * Bumps the extension version in lockstep across the three places that must
- * stay in sync, and refuses to proceed if CHANGELOG.md isn't ready:
+ * Bumps the extension version in lockstep across the places that must stay in
+ * sync, and refuses to proceed if CHANGELOG.md isn't ready:
  *
  *   1. package.json "version"
- *   2. src/webview.ts  const version = "..."  (cache-busting query string)
- *   3. CHANGELOG.md must already contain a `## [X.Y.Z]` heading
+ *   2. package-lock.json root "version" and packages[""].version
+ *   3. src/webview.ts  const version = "..."  (cache-busting query string)
+ *   4. CHANGELOG.md must already contain a `## [X.Y.Z]` heading
  *
  * VS Code marketplace requires major.minor.patch with no semver pre-release
  * tags (per https://code.visualstudio.com/api/working-with-extensions/publishing-extension),
@@ -54,6 +55,32 @@ const pkgUpdated = pkgRaw.replace(
   `$1${newVersion}$2`
 );
 
+// --- package-lock.json ------------------------------------------------------
+const lockPath = path.join(PROJECT_ROOT, 'package-lock.json');
+if (!fs.existsSync(lockPath)) {
+  fail('package-lock.json not found');
+}
+const lockRaw = fs.readFileSync(lockPath, 'utf8');
+let lock;
+try {
+  lock = JSON.parse(lockRaw);
+} catch {
+  fail('package-lock.json is not valid JSON');
+}
+// npm keeps a lockfile's existing line endings, so CRLF checkouts stay CRLF.
+const lockEol = lockRaw.includes('\r\n') ? '\r\n' : '\n';
+const serializeLock = value => JSON.stringify(value, null, 2).replace(/\n/g, lockEol) + lockEol;
+// Re-serializing must not touch any line but the two root versions.
+if (serializeLock(lock) !== lockRaw) {
+  fail('package-lock.json is not in npm\'s layout (2-space indent, one line-ending style, trailing newline); restore it from git and retry');
+}
+if (typeof lock.version !== 'string' || typeof lock.packages?.['']?.version !== 'string') {
+  fail('could not find the root "version" and packages[""].version in package-lock.json');
+}
+lock.version = newVersion;
+lock.packages[''].version = newVersion;
+const lockUpdated = serializeLock(lock);
+
 // --- src/webview.ts ---------------------------------------------------------
 const webviewPath = path.join(PROJECT_ROOT, 'src', 'webview.ts');
 const webviewRaw = fs.readFileSync(webviewPath, 'utf8');
@@ -78,13 +105,15 @@ if (!headingRe.test(changelogRaw)) {
   );
 }
 
-// --- Write all three changes only after every check passes ------------------
+// --- Write every change only after every check passes ----------------------
 fs.writeFileSync(pkgPath, pkgUpdated);
+fs.writeFileSync(lockPath, lockUpdated);
 fs.writeFileSync(webviewPath, webviewUpdated);
 
 process.stdout.write(
   `\nrelease:bump — ${oldVersion} → ${newVersion}\n` +
   `  ✓ package.json\n` +
+  `  ✓ package-lock.json\n` +
   `  ✓ src/webview.ts\n` +
   `  ✓ CHANGELOG.md heading present\n\n` +
   `Next:  bash scripts/release-fork-vsix.sh --dry-run\n\n`
