@@ -1,6 +1,12 @@
 import { EnrichedCard, FullCard, validateIssueId } from './issueTypes';
 import { mapBdListIssuesToEnrichedCards, mapBdShowIssueToFullCard } from './issueMapping';
 
+/** bd 1.2.2: "no issue found matching"; bd 1.3: "Issue <id> not found" and "no issues found matching". */
+function reportsNotFound(message: string, issueId: string): boolean {
+  const escaped = issueId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return /no issues? found/.test(message) || new RegExp(`Issue ${escaped} not found`).test(message);
+}
+
 export type BeadsReadExecutor = (args: string[]) => Promise<unknown>;
 
 export interface BeadsReaderOptions {
@@ -38,8 +44,8 @@ export class BeadsReader {
       const related = this.options.includeRelated ? ['--include-comments', '--include-dependents'] : [];
       result = await this.execute(['show', '--json', ...related, issueId]);
     } catch (error) {
-      if (error instanceof Error && error.message.includes('no issue found')) {
-        throw new Error(`Issue not found: ${issueId}`);
+      if (error instanceof Error && reportsNotFound(error.message, issueId)) {
+        throw new Error(`Issue not found: ${issueId}`, { cause: error });
       }
       throw error;
     }

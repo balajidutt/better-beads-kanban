@@ -108,4 +108,19 @@ suite('Independent shared reader', () => {
     }
     assert.strictEqual(calls, 0);
   });
+
+  test('not-found wording from both bd 1.2.2 and bd 1.3.1 maps to Issue not found', async () => {
+    for (const stderr of [
+      'bd command failed with exit code 1: Error fetching fx-nope: no issue found matching "fx-nope"',
+      'bd command failed with exit code 1: Issue fx-nope not found\nHint: this ID may have never existed',
+      'bd command failed with exit code 1: {"error": "no issues found matching the provided IDs"}'
+    ]) {
+      const reader = new BeadsReader(async () => { throw new Error(stderr); });
+      await assert.rejects(reader.getIssueFull('fx-nope'), { message: 'Issue not found: fx-nope' }, stderr);
+    }
+    const relatedMissing = new BeadsReader(async () => { throw new Error('bd command failed with exit code 1: Issue fx-other not found'); });
+    await assert.rejects(relatedMissing.getIssueFull('fx-nope'), { message: 'bd command failed with exit code 1: Issue fx-other not found' });
+    const other = new BeadsReader(async () => { throw new Error('bd command failed with exit code 1: database is locked'); });
+    await assert.rejects(other.getIssueFull('fx-nope'), { message: 'bd command failed with exit code 1: database is locked' });
+  });
 });
