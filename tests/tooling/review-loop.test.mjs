@@ -401,6 +401,20 @@ test('bd and sync forms named in contracts resolve to ask for their role', async
   for (const command of ['command bd -C "/m" init', 'command bd -C "/m" dolt push', 'bd dolt pull']) assert.equal(bashAction(bm, command), 'deny', command);
 });
 
+test('beads-manager denies bd commands outside the backlog procedure, including those added in bd 1.3', async () => {
+  const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
+  const bm = settings.agent['beads-manager'].permission.bash;
+  const subcommands = ['sync', 'serve', 'conflicts resolve bbk-1', 'reclaim', 'unclaim bbk-1', 'heartbeat bbk-1', 'hb bbk-1', 'events prune --below 5', 'provenance append', 'codex-hook', 'cursor-hook', 'db-proxy-child',
+    'purge', 'prune --older-than 30d', 'gc', 'flatten', 'rename bbk-1 bbk-2', 'rename-prefix abc', 'migrate-issues --to x', 'migrate-personal -y', 'doctor --fix --yes', 'batch', 'edit bbk-1', 'upgrade', 'setup claude', 'worktree create x', 'repo sync', 'branch feature-x', 'mol burn bbk-1',
+    'github sync', 'gitlab sync', 'jira sync', 'linear sync', 'notion sync', 'ado sync', 'mail inbox', 'ship cap'];
+  for (const sub of subcommands) {
+    for (const command of [`bd ${sub}`, `command bd ${sub}`, `command bd -C "/m" ${sub}`]) assert.equal(bashAction(bm, command), 'deny', command);
+  }
+  for (const command of ['command bd -C "/m" create --title "Fix sync after purge"', 'command bd -C "/m" update bbk-1 --notes "gc and serve"', 'command bd -C "/m" close bbk-1 --reason "after events prune"']) {
+    assert.equal(bashAction(bm, command), 'ask', command);
+  }
+});
+
 test('only beads-manager may write or sync the backlog; other flipped roles keep their exact read forms', async () => {
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
   const writes = ['command bd -C "/m" update bbk-1 --notes y', 'command bd -C "/m" create --title x', 'command bd -C "/m" close bbk-1 --reason done', 'bd update bbk-1 --claim', 'command bd close bbk-1 --reason --help', 'scripts/bd-sync.sh', 'command bd -C "/m" update bbk-1 --notes --readonly'];
@@ -502,7 +516,7 @@ test('no agent carries a list permission, which OpenCode 1.18.31 has no tool for
 
 test('every bash map denies a simple-command redirection after its allows, keeping only named ask forms after it', async () => {
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
-  const after = { 'ci-build-engineer': ['oc-commit *', 'git log -1 *', 'git --no-optional-locks -c core.fsmonitor=false log -1 *', '*agent-wt-merge*--close-beads*'], 'beads-manager': ['command bd -C * create *', 'command bd -C * update *', 'command bd -C * close *'] };
+  const after = { 'ci-build-engineer': ['oc-commit *', 'git log -1 *', 'git --no-optional-locks -c core.fsmonitor=false log -1 *', '*agent-wt-merge*--close-beads*'], 'beads-manager': ['command bd -C * create *', 'command bd -C * update *', 'command bd -C * close *', 'command bd -C * worktree create *'] };
   for (const [name, agent] of Object.entries(settings.agent)) {
     const bash = agent.permission?.bash;
     if (typeof bash !== 'object') continue;
@@ -510,7 +524,7 @@ test('every bash map denies a simple-command redirection after its allows, keepi
     const tail = keys.slice(keys.indexOf('*>*') + 1);
     assert.equal(bash['*>*'], 'deny', name);
     assert.deepEqual(tail, after[name] ?? [], name);
-    for (const key of tail) assert.equal(bash[key], key.includes('--close-beads') ? 'deny' : 'ask', `${name} ${key}`);
+    for (const key of tail) assert.equal(bash[key], key.includes('--close-beads') || key.includes('worktree create') ? 'deny' : 'ask', `${name} ${key}`);
     for (const key of keys.filter(key => bash[key] === 'allow')) {
       assert.equal(bashAction(bash, `${key.replaceAll('*', 'x')} > /tmp/out`), 'deny', `${name} ${key}`);
     }
