@@ -425,6 +425,13 @@ test('only beads-manager may write or sync the backlog; other flipped roles keep
   assert.equal(bashAction(settings.agent['release-manager'].permission.bash, 'command bd -C "/m" --readonly show bbk-ek0'), 'ask');
   assert.equal(bashAction(settings.agent['code-reviewer'].permission.bash, 'command bd -C "/m" --readonly dep list bbk-ek0 --type blocks'), 'ask');
   assert.equal(bashAction(settings.agent['ci-build-engineer'].permission.bash, 'command bd -C "/m" --readonly show bbk-ek0'), 'deny');
+  for (const name of ['plan', 'release-manager']) assert.equal(bashAction(settings.agent[name].permission.bash, 'command bd -C "/m" --readonly blocked --json'), 'ask', name);
+  for (const name of ['ci-build-engineer', 'code-reviewer', 'typescript-specialist']) assert.equal(bashAction(settings.agent[name].permission.bash, 'command bd -C "/m" --readonly blocked --json'), 'deny', name);
+  const agents = await readFile(new URL('../../AGENTS.md', import.meta.url), 'utf8');
+  assert.ok(agents.includes('Claim it when preparation starts and keep it in progress through publication, like any other work. It is ready when it is absent from `bd blocked`'));
+  const manager = await readFile(new URL('../../.opencode/agents/beads-manager.md', import.meta.url), 'utf8');
+  assert.ok(manager.includes('Claims start ordinary implementation or approved release preparation, not backlog grooming.'));
+  assert.equal(manager.includes('not backlog grooming or release preparation'), false);
   const bm = settings.agent['beads-manager'].permission.bash;
   assert.equal(bashAction(bm, 'command bd -C "/m" update bbk-1 --notes y'), 'ask');
   assert.equal(bashAction(bm, 'scripts/bd-sync.sh'), 'ask');
@@ -467,10 +474,10 @@ test('beads-manager Git forms named in its contract are allowed', async () => {
 test('every agent with bd rules has exact help rules for its subcommands, named in its contract', async () => {
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
   const expected = {
-    plan: ['show', 'ready', 'list'],
+    plan: ['show', 'ready', 'blocked', 'list'],
     'code-reviewer': ['show', 'dep', 'dep list'],
     'beads-manager': ['show', 'ready', 'list', 'history', 'create', 'update', 'dep', 'dep add', 'dep remove', 'close'],
-    'release-manager': ['show', 'ready', 'dep', 'dep list']
+    'release-manager': ['show', 'blocked', 'dep', 'dep list']
   };
   const withBd = Object.entries(settings.agent).filter(([, agent]) => typeof agent.permission?.bash === 'object' && Object.entries(agent.permission.bash).some(([key, action]) => key.startsWith('command bd -C ') && action !== 'deny'));
   assert.deepEqual(withBd.map(([name]) => name).sort(), Object.keys(expected).sort());

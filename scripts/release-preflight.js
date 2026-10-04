@@ -97,13 +97,14 @@ async function preflight({ issue, source = process.cwd(), tooling = path.resolve
 
   await assertBeadsTarget(sourceGit.main, execute);
   const issues = await bdJson(sourceGit.main, ['show', '--json', '--', issue], execute);
-  if (!Array.isArray(issues) || issues.length !== 1 || issues[0].id !== issue || issues[0].status !== 'open' || issues[0].issue_type !== 'task') throw new WorkflowError('RELEASE_TASK_NOT_OPEN');
+  if (!Array.isArray(issues) || issues.length !== 1 || issues[0].id !== issue || !['open', 'in_progress'].includes(issues[0].status) || issues[0].issue_type !== 'task') throw new WorkflowError('RELEASE_TASK_NOT_OPEN');
   const dependencies = await bdJson(sourceGit.main, ['dep', 'list', '--type', 'blocks', '--json', '--', issue], execute);
   if (!Array.isArray(dependencies) || !dependencies.length || dependencies.some(item => typeof item.id !== 'string' || !item.id || item.dependency_type !== 'blocks')) throw new WorkflowError('RELEASE_SCOPE_INVALID');
   const scope = [...new Set(dependencies.map(item => item.id))].sort();
   if (scope.length !== dependencies.length) throw new WorkflowError('RELEASE_SCOPE_INVALID');
-  const ready = await bdJson(sourceGit.main, ['ready', '--json', '--limit', '0'], execute);
-  if (!Array.isArray(ready) || !ready.some(item => item.id === issue)) throw new WorkflowError('RELEASE_TASK_NOT_READY');
+  const blocked = await bdJson(sourceGit.main, ['blocked', '--json'], execute);
+  if (!Array.isArray(blocked)) throw new WorkflowError('BEADS_QUERY_FAILED');
+  if (blocked.some(item => item?.id === issue)) throw new WorkflowError('RELEASE_TASK_BLOCKED');
 
   const repository = await github('', execute, source);
   if (repository?.full_name?.toLowerCase() !== REPOSITORY) throw new WorkflowError('GITHUB_REPOSITORY_MISMATCH');

@@ -16,7 +16,7 @@ async function fixture(t, changes = {}) {
   await writeFile(path.join(root, 'src/webview.ts'), "const version = '9.8.7';\n");
   await writeFile(path.join(root, 'CHANGELOG.md'), '## [9.8.7] - 2026-09-24\n');
   const source = await realpath(root);
-  const state = { head: 'a'.repeat(40), remote: 'b'.repeat(40), dependencies: ['bbk-one'], ready: true, issueStatus: 'open', issueType: 'task', dirty: '', ancestor: true, tag: false, missingObject: false, apiFailure: false, ignored: [], ...changes };
+  const state = { head: 'a'.repeat(40), remote: 'b'.repeat(40), dependencies: ['bbk-one'], blocked: false, issueStatus: 'open', issueType: 'task', dirty: '', ancestor: true, tag: false, missingObject: false, apiFailure: false, ignored: [], ...changes };
   const calls = [];
   const http = (status, value) => ({ code: status === 200 ? 0 : 1, stdout: `HTTP/2.0 ${status}\ncontent-type: application/json\n\n${JSON.stringify(value)}`, stderr: 'SYNTHETIC_PRIVATE_DIAGNOSTIC' });
   const execute = async (command, args, options) => {
@@ -40,7 +40,7 @@ async function fixture(t, changes = {}) {
       if (args.includes('context')) return { code: 0, stdout: JSON.stringify({ beads_dir: path.join(source, '.beads') }) };
       if (args.includes('show')) return { code: 0, stdout: JSON.stringify([{ id: 'bbk-release', status: state.issueStatus, issue_type: state.issueType }]) };
       if (args.includes('dep')) return { code: 0, stdout: JSON.stringify(state.dependencies.map(id => ({ id, dependency_type: 'blocks' }))) };
-      if (args.includes('ready')) return { code: 0, stdout: JSON.stringify(state.ready ? [{ id: 'bbk-release' }] : []) };
+      if (args.includes('blocked')) return { code: 0, stdout: JSON.stringify(state.blockedPayload !== undefined ? state.blockedPayload : state.blocked ? [{ id: 'bbk-other' }, { id: 'bbk-release' }] : [{ id: 'bbk-other' }]) };
     }
     if (command === 'gh') {
       const endpoint = args.at(-1);
@@ -54,6 +54,15 @@ async function fixture(t, changes = {}) {
   return { root, source, tooling: source, execute, state, calls, issue: 'bbk-release' };
 }
 
+test('release preflight accepts an unblocked scoped task whether it is open or claimed', async t => {
+  for (const issueStatus of ['open', 'in_progress']) {
+    const data = await fixture(t, { issueStatus });
+    assert.deepEqual((await release.preflight(data)).scope, ['bbk-one'], issueStatus);
+    assert.equal(data.calls.some(([, args]) => args.includes('ready')), false, issueStatus);
+    assert.ok(data.calls.some(([, args]) => args.slice(3).join(' ') === 'blocked --json'), issueStatus);
+  }
+});
+
 test('release preflight accepts a ready scoped task and proves ancestry against fresh API SHA', async t => {
   const data = await fixture(t);
   const result = await release.preflight(data);
@@ -64,12 +73,16 @@ test('release preflight accepts a ready scoped task and proves ancestry against 
   assert.equal(data.calls.some(([, args]) => args.includes('fetch') || args.includes('push') || args.includes('origin/main')), false);
 });
 
-test('release preflight refuses nonready, empty-scope, dirty, unavailable and reused-tag states', async t => {
+test('release preflight refuses blocked, empty-scope, dirty, unavailable and reused-tag states', async t => {
   for (const [changes, code] of [
-    [{ ready: false }, 'RELEASE_TASK_NOT_READY'],
+    [{ blocked: true }, 'RELEASE_TASK_BLOCKED'],
+    [{ blocked: true, issueStatus: 'in_progress' }, 'RELEASE_TASK_BLOCKED'],
+    [{ blockedPayload: null }, 'BEADS_QUERY_FAILED'],
+    [{ blockedPayload: { id: 'bbk-release' } }, 'BEADS_QUERY_FAILED'],
     [{ dependencies: [] }, 'RELEASE_SCOPE_INVALID'],
     [{ dependencies: ['bbk-one', 'bbk-one'] }, 'RELEASE_SCOPE_INVALID'],
-    [{ issueStatus: 'in_progress' }, 'RELEASE_TASK_NOT_OPEN'],
+    [{ issueStatus: 'closed' }, 'RELEASE_TASK_NOT_OPEN'],
+    [{ issueStatus: 'blocked' }, 'RELEASE_TASK_NOT_OPEN'],
     [{ issueType: 'epic' }, 'RELEASE_TASK_NOT_OPEN'],
     [{ dirty: ' M package.json\0' }, 'SOURCE_DIRTY'],
     [{ ancestor: false }, 'SOURCE_NOT_PROVEN_ON_REMOTE_MAIN'],
@@ -170,7 +183,7 @@ test('actual release wrapper uses guarded full-SHA publication and restores its 
       assert.equal(published[0].args[published[0].args.indexOf('--target') + 1], 'a'.repeat(40));
     }
     assert.equal(JSON.parse(await readFile(f.stateFile, 'utf8')).account, 'fixture-user');
-    assert.equal(calls.filter(call => call.name === 'bd' && call.args.includes('ready')).length, 2);
+    assert.equal(calls.filter(call => call.name === 'bd' && call.args.includes('blocked')).length, 2);
   }
 });
 
@@ -189,6 +202,16 @@ test('actual release wrapper refuses an undated heading before building, and its
     }
     assert.equal(JSON.parse(await readFile(f.stateFile, 'utf8')).account, 'fixture-user');
   }
+});
+
+test('actual release wrapper stops on a blocked release task before building or publishing', async t => {
+  const f = await wrapperFixture(t, { releaseBlocked: true });
+  const result = await processTools.run('bash', [path.join(f.source, 'scripts/release-fork-vsix.sh'), '--release-issue', 'bbk-release'], { cwd: f.source, env: f.env, timeout: 30000 });
+  assert.notEqual(result.code, 0);
+  assert.match(result.stderr, /Release preflight blocked: RELEASE_TASK_BLOCKED/);
+  const calls = (await readFile(f.log, 'utf8')).trim().split('\n').map(line => JSON.parse(line));
+  assert.equal(calls.some(call => call.name === 'vsce' || call.name === 'gh' && call.args[0] === 'release'), false);
+  assert.equal(JSON.parse(await readFile(f.stateFile, 'utf8')).account, 'fixture-user');
 });
 
 test('actual release wrapper keeps primary failure observable when restoration also fails', async t => {

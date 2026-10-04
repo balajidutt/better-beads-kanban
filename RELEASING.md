@@ -56,8 +56,9 @@ command bd -C "/absolute/main-checkout" create --type=task --priority=1 --title=
 
 Replace the path with the verified shared main checkout; do not initialize a
 worktree database. OpenCode routes these approved writes through beads-manager.
-Keep the release task **open and unclaimed** through preparation/publication:
-`in_progress` is excluded from `bd ready`.
+Claim the release task when preparation starts and keep it in progress through
+publication, as with any other work. Readiness does not depend on whether it is
+claimed: `bd blocked` reports open and in-progress tasks alike.
 
 **2. Issues in scope get an edge into it.** The release depends on the work.
 
@@ -69,12 +70,12 @@ Add these as you decide, one at a time. Re-scoping is `bd dep remove`, not a
 relabelling sweep.
 
 **3. `bd show <release-id>` is the scope.** Exact and queryable. The release bead
-stays blocked until every scoped issue closes, then surfaces in `bd ready` — the
+stays in `bd blocked` until every scoped issue closes, then drops out of it — the
 cut signal is derived, not remembered.
 
-A release bead with no edges appears in `bd ready` immediately. That reads as
-"ship now" but means "scope undecided", so attach at least one edge when you
-create it.
+A release bead with no edges is never blocked. That reads as "ship now" but means
+"scope undecided", so attach at least one edge when you create it; preflight
+refuses an empty scope.
 
 **4. At cut time, write the CHANGELOG entry from the release's blocking dependencies.**
 Verify the installed CLI's JSON shape; inspected `bd show` output uses `dependencies`
@@ -103,8 +104,8 @@ overload that structure with a second, unrelated axis. Use `blocks`.
 
 ### Readiness, source selection and verification obligations
 
-A nonempty designated release task appearing in `bd ready --json --limit 0` is the
-signal to begin preparation. Do not require the yet-to-be-derived version, title
+A nonempty designated release task absent from `bd blocked --json` is the signal
+to begin preparation. Do not require the yet-to-be-derived version, title
 or CHANGELOG heading before preparation can start. Missing or ambiguous release
 designation requires a human decision, not selection by recency.
 
@@ -145,8 +146,8 @@ The wrapper and anchored `scripts/release-preflight.js` require:
 
 - Clean tracked source, no unrelated untracked source files, and clean tracked
   release tooling in the same Git common repository.
-- An open release task with a nonempty blocking scope and membership in the CLI's
-  complete `bd ready` result, queried against verified shared main.
+- An open or in-progress release task that has a nonempty blocking scope and is
+  absent from the CLI's `bd blocked` result, queried against verified shared main.
 - Matching package/webview version and CHANGELOG heading; accepted versions are
   `X.Y.Z` and `X.Y.Z-bd.N`. A real release also requires the heading to carry a
   `YYYY-MM-DD` date; a dry run accepts it undated.

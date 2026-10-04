@@ -189,7 +189,7 @@ Resolve Git's absolute common directory as in [AGENTS.md](../../AGENTS.md#beads-
 
 Keep task approval distinct from backlog-only approval. Preserve existing title, description, notes, history, ownership, labels, priority, parent and relationships except exact authorized changes. Large preserving design updates may use a user-approved complete payload file with native `--design-file`; a plan-only file is not preserving. Verify the payload against the approved text and current values, reread before writing, serialize this parent's writes, and verify stored fields afterward. Stop stale/uncertain/partial results rather than blindly replaying them. This is not cross-session transactional locking.
 
-Implementation closure needs reviewed, verified main landing and an approved reason; publication is not an extra general task-close condition. Release closeout additionally needs verified publication and transferred obligations. The release task stays open/unclaimed; in-progress tasks are excluded from `bd ready`. Enrollment is a blocking dependency from release to work, not a label or parent/epic relationship.
+Implementation closure needs reviewed, verified main landing and an approved reason; publication is not an extra general task-close condition. Release closeout additionally needs verified publication and transferred obligations. The release task is claimed when preparation starts and stays in progress through publication; its readiness is absence from `bd blocked`, which reports open and in-progress tasks alike. Enrollment is a blocking dependency from release to work, not a label or parent/epic relationship.
 
 ### Guarded sync
 

@@ -60,9 +60,11 @@ export const roles = {
       ["command bd --help", "allow"],
       ["command bd show --help", "allow"],
       ["command bd ready --help", "allow"],
+      ["command bd blocked --help", "allow"],
       ["command bd list --help", "allow"],
       ["command bd -C * --readonly show *", "ask"],
       ["command bd -C * --readonly ready *", "ask"],
+      ["command bd -C * --readonly blocked *", "ask"],
       ["command bd -C * --readonly list *", "ask"]
     ],
     denyBlocks: [],
@@ -257,11 +259,11 @@ export const roles = {
       ["gh release download v* --repo balajidutt/better-beads-kanban --pattern SHA256SUMS --output -", "ask"],
       ["command bd --help", "allow"],
       ["command bd show --help", "allow"],
-      ["command bd ready --help", "allow"],
+      ["command bd blocked --help", "allow"],
       ["command bd dep --help", "allow"],
       ["command bd dep list --help", "allow"],
       ["command bd -C * --readonly show *", "ask"],
-      ["command bd -C * --readonly ready *", "ask"],
+      ["command bd -C * --readonly blocked *", "ask"],
       ["command bd -C * --readonly dep list *", "ask"]
     ],
     afterRedirect: []

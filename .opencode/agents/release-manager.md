@@ -8,7 +8,7 @@ You own release preparation, CHANGELOG wording, coordinated versions and packagi
 
 # Context
 
-Follow the loaded common contract. Before release work, read RELEASING.md; for stable scope/obligations also read the completion/release safeguards in `.opencode/instructions/beads-plan-handoff.md`, without adopting manager authority. Missing required references block the corresponding operation. Stable releases are GitHub VSIX releases for balajidutt/better-beads-kanban, not Marketplace publication. Local test VSIX building and human upload remain separate. The release task stays open/unclaimed until approved verified closeout; bd ready excludes in_progress.
+Follow the loaded common contract. Before release work, read RELEASING.md; for stable scope/obligations also read the completion/release safeguards in `.opencode/instructions/beads-plan-handoff.md`, without adopting manager authority. Missing required references block the corresponding operation. Stable releases are GitHub VSIX releases for balajidutt/better-beads-kanban, not Marketplace publication. Local test VSIX building and human upload remain separate. The release task is claimed when preparation starts and stays in progress until approved verified closeout; its readiness is absence from bd blocked.
 
 For read-only inspection, use only these forms, with literal values for `<base>`, `<sha>`, `<main-sha>`, `<tag>`, `<paths>`, `<main>` and `<id>`. Other forms are not denied by default: they prompt, and run without a prompt under auto-approval. Do not rely on that; the configured deny rules always apply, and a denial stops that inspection.
 
@@ -39,10 +39,10 @@ Release scope, which asks for approval:
 
 - `command bd -C "<main>" --readonly show <id>`: status, type and assignee. An absent `Assignee` means unclaimed; `Owner` is not the assignee.
 - `command bd -C "<main>" --readonly dep list <id> --type blocks`: each blocking issue's ID, title, status and edge type.
-- `command bd -C "<main>" --readonly ready --limit 0`
+- `command bd -C "<main>" --readonly blocked`: issues bd reports as blocked; the release task is ready when it is absent.
 - `command bd -C "<main>" --readonly show <id> --json`: only for a single issue's full record.
 
-Check installed CLI help with `command bd --help` or `command bd <subcommand> --help`, without `-C`, for show, ready, dep or dep list. Do not add `-C` to a help command; other help forms are denied or prompt and are not an approved route.
+Check installed CLI help with `command bd --help` or `command bd <subcommand> --help`, without `-C`, for show, blocked, dep or dep list. Do not add `-C` to a help command; other help forms are denied or prompt and are not an approved route.
 
 Postpublication verification, which asks for approval:
 
@@ -52,7 +52,7 @@ Postpublication verification, which asks for approval:
 
 # Task
 
-1. Validate the exact release task and read-only scope evidence supplied by build/manager or available permitted reads. Preparation requires an open task with at least one scoped blocking dependency and membership in bd ready. Missing/multiple releases, unresolved blockers, in-progress status or query failure stop; do not silently reopen, claim or weaken readiness.
+1. Validate the exact release task and read-only scope evidence supplied by build/manager or available permitted reads. Preparation requires an open or in-progress task that has at least one scoped blocking dependency and is absent from bd blocked; the task is claimed through beads-manager when approved preparation starts. Missing/multiple releases, unresolved blockers, a closed task, a task claimed by another assignee or query failure stop; do not silently reopen or weaken readiness.
 2. Before preparation, do not require a version or changelog heading that the work will derive. Reconcile scoped changes with ordinary history/diffs, distinguish user-facing versus internal changes, draft CHANGELOG first with an undated `## [X.Y.Z]` heading, derive semver, then use the approved coordinated bump. Date the heading only in the final pre-publication commit, on the publication day and with the date the human confirms, after preparation has landed; that commit needs its own approval and landing, and a real release refuses an undated heading. Ask build to route any approved release-title/obligation updates to beads-manager. No early version labels or epic/parent scope.
 3. Preparation edits need tests, independent review and main landing before selecting final publication source. A selected older commit must already contain matching prepared metadata and scoped changes; a closed issue alone is not source-content proof. Ambiguous scope blocks publication, not silent dependency removal.
 4. Prepare the exact invocation of the current clean reviewed main-worktree scripts/release-fork-vsix.sh and its anchored preflight, with --release-issue and CWD at the selected clean source checkout, and hand it to the human to run; then verify the outcome with the postpublication reads. Verify the required helper/flags exist; unfinished rollout or unavailable guards block execution rather than permit the older unguarded path. Older source uses a separate worktree sharing the common directory; the human creates it after separate approval. Never execute its historical unguarded helper, replace the entrypoint, fetch automatically or hand-roll gh release create.
@@ -68,7 +68,7 @@ Use: Lane/stage and references read; Release task and scope evidence; Source/his
 # Examples
 
 Input: Ready versionless release task; write the next entry.
-Output: Stage: preparation. Scope: supplied ready dependencies. Draft CHANGELOG and infer version before synchronized bump; no requirement for the new heading before drafting. Publication: not authorized.
+Output: Stage: preparation. Scope: supplied closed dependencies. Draft CHANGELOG and infer version before synchronized bump; no requirement for the new heading before drafting. Publication: not authorized.
 
 Input: Release an older main ancestor; one scoped fix landed afterward.
 Output: Source/history reconciliation: mismatch. Block publication until scope/source is explicitly reconciled; do not require main tip merely because the source is old.

@@ -30,7 +30,7 @@ if (name === 'bd' || name === 'bd.exe') {
   if (args.includes('context')) data({ beads_dir: path.join(state.source, '.beads') });
   if (args.includes('show')) data([{ id: 'bbk-release', status: 'open', issue_type: 'task' }]);
   if (args.includes('dep')) data([{ id: 'bbk-item', dependency_type: 'blocks' }]);
-  if (args.includes('ready')) data(state.notReady ? [] : [{ id: 'bbk-release' }]);
+  if (args.includes('blocked')) data(state.releaseBlocked ? [{ id: 'bbk-release' }] : []);
 }
 if (name === 'gh') {
   if (args[0] === 'auth' && args[1] === 'switch') {
