@@ -7,7 +7,7 @@ const guarded = (rule, action) => {
 };
 const git = (...verbs) => verbs.flatMap(verb => [`git ${verb}`, `git * ${verb}`, `command git ${verb}`, `command git * ${verb}`]);
 const withCommand = (tool, ...rest) => rest.flatMap(arg => [`${tool} ${arg}`, `command ${tool} ${arg}`]);
-const bd = (...subcommands) => subcommands.flatMap(sub => [`bd ${sub} *`, `command bd ${sub} *`, `command bd -C * ${sub} *`]);
+const bd = (...subcommands) => subcommands.flatMap(sub => [`bd ${sub} *`, `bd * ${sub} *`, `command bd ${sub} *`, `command bd * ${sub} *`, `*/bd ${sub} *`, `*/bd * ${sub} *`]);
 const launched = (dir, name) => [`${name}*`, `${dir}/${name}*`, `./${dir}/${name}*`, `/*/${name}*`];
 const asPath = name => [`* ${name}*`, `*/${name}*`, `*"${name}*`, `*'${name}*`, `*=${name}*`];
 
@@ -23,7 +23,7 @@ export const blocks = {
     ...bd('init', 'dolt', 'sql', 'compact', 'delete', 'hooks', 'vc', 'federation', 'admin', 'migrate', 'import', 'restore', 'backup', 'bootstrap', 'config',
       'sync', 'serve', 'conflicts', 'reclaim', 'unclaim', 'heartbeat', 'hb', 'events', 'provenance', 'codex-hook', 'cursor-hook', 'db-proxy-child',
       'purge', 'prune', 'gc', 'flatten', 'rename', 'rename-prefix', 'migrate-issues', 'migrate-personal', 'doctor', 'batch', 'edit', 'upgrade', 'setup',
-      'worktree', 'repo', 'branch', 'mol', 'github', 'gitlab', 'jira', 'linear', 'notion', 'ado', 'mail', 'ship'),
+      'worktree', 'repo', 'branch', 'mol', 'protomolecule', 'github', 'gitlab', 'jira', 'linear', 'notion', 'ado', 'mail', 'ship'),
     'sh', 'sh *', 'bash', 'bash *', 'zsh', 'zsh *', 'eval *', 'sudo *', 'command sudo *',
     ...asPath('.env'), ...asPath('.ssh'), ...asPath('.beads'), '*auth.json*', '*.npmrc*',
     'rm -rf /*', 'rm -fr /*', 'rm -r -f /*', 'rm -r -f ~*', 'rm -rf ~*', 'rm -fr ~*', 'rm -rf $HOME*', 'rm -fr $HOME*',
@@ -43,7 +43,7 @@ export const blocks = {
     'sed -i*', 'sed * -i*', 'tee *', 'cp *', 'mv *', 'rm *', 'touch *', 'mkdir *', 'ln *', 'chmod *', 'chown *', 'truncate *',
     'rsync *', 'xargs *', 'find * -delete*', 'find * -exec*', 'curl *', 'wget *'
   ],
-  backlog: ['bd', 'bd *', 'command bd', 'command bd *', ...launched('scripts', 'bd-sync.sh')]
+  backlog: ['bd', 'bd *', 'command bd', 'command bd *', '*/bd', '*/bd *', ...launched('scripts', 'bd-sync.sh')]
 };
 
 export const roles = {
@@ -117,7 +117,10 @@ export const roles = {
       ["command bd -C * create *", "ask"],
       ["command bd -C * update *", "ask"],
       ["command bd -C * close *", "ask"],
-      ["command bd -C * worktree create *", "deny"]
+      ["command bd -C * worktree create *", "deny"],
+      ["command bd -C * mol wisp create *", "deny"],
+      ["command bd -C * protomolecule wisp create *", "deny"],
+      ...['--global', '--db', '--database'].flatMap(flag => [`bd ${flag}*`, `bd * ${flag}*`, `command bd ${flag}*`, `command bd * ${flag}*`, `*/bd ${flag}*`, `*/bd * ${flag}*`]).map(rule => [rule, "deny"])
     ]
   },
   "code-reviewer": {

@@ -407,8 +407,11 @@ test('beads-manager denies bd commands outside the backlog procedure, including 
   const subcommands = ['sync', 'serve', 'conflicts resolve bbk-1', 'reclaim', 'unclaim bbk-1', 'heartbeat bbk-1', 'hb bbk-1', 'events prune --below 5', 'provenance append', 'codex-hook', 'cursor-hook', 'db-proxy-child',
     'purge', 'prune --older-than 30d', 'gc', 'flatten', 'rename bbk-1 bbk-2', 'rename-prefix abc', 'migrate-issues --to x', 'migrate-personal -y', 'doctor --fix --yes', 'batch', 'edit bbk-1', 'upgrade', 'setup claude', 'worktree create x', 'repo sync', 'branch feature-x', 'mol burn bbk-1',
     'github sync', 'gitlab sync', 'jira sync', 'linear sync', 'notion sync', 'ado sync', 'mail inbox', 'ship cap'];
-  for (const sub of subcommands) {
-    for (const command of [`bd ${sub}`, `command bd ${sub}`, `command bd -C "/m" ${sub}`]) assert.equal(bashAction(bm, command), 'deny', command);
+  for (const sub of [...subcommands, 'protomolecule burn bbk-1']) {
+    for (const command of [`bd ${sub}`, `command bd ${sub}`, `command bd -C "/m" ${sub}`, `bd --json ${sub}`, `command bd --readonly -C "/m" ${sub}`, `command bd --db /tmp/x.db ${sub}`, `/opt/homebrew/bin/bd ${sub}`, `/opt/homebrew/bin/bd -C /m ${sub}`, `~/go/bin/bd ${sub}`, `./bd ${sub}`]) assert.equal(bashAction(bm, command), 'deny', command);
+  }
+  for (const command of ['command bd -C "/m" --global update bbk-1 --notes x', 'command bd -C "/m" --db /tmp/x.db create --title x', 'command bd --database other -C "/m" close bbk-1 --reason x', 'command bd -C "/m" --db=/tmp/x.db show bbk-1', 'bd --global list', '/usr/local/bin/bd -C /m --database other ready', 'command bd -C "/m" update bbk-1 --notes x --db /tmp/x.db', 'command bd -C "/m" mol wisp create proto-x', 'command bd -C "/m" protomolecule wisp create proto-x']) {
+    assert.equal(bashAction(bm, command), 'deny', command);
   }
   for (const command of ['command bd -C "/m" create --title "Fix sync after purge"', 'command bd -C "/m" update bbk-1 --notes "gc and serve"', 'command bd -C "/m" close bbk-1 --reason "after events prune"']) {
     assert.equal(bashAction(bm, command), 'ask', command);
@@ -417,7 +420,7 @@ test('beads-manager denies bd commands outside the backlog procedure, including 
 
 test('only beads-manager may write or sync the backlog; other flipped roles keep their exact read forms', async () => {
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
-  const writes = ['command bd -C "/m" update bbk-1 --notes y', 'command bd -C "/m" create --title x', 'command bd -C "/m" close bbk-1 --reason done', 'bd update bbk-1 --claim', 'command bd close bbk-1 --reason --help', 'scripts/bd-sync.sh', 'command bd -C "/m" update bbk-1 --notes --readonly'];
+  const writes = ['/opt/homebrew/bin/bd update bbk-1 --notes y', '~/go/bin/bd close bbk-1 --reason x', 'command bd -C "/m" update bbk-1 --notes y', 'command bd -C "/m" create --title x', 'command bd -C "/m" close bbk-1 --reason done', 'bd update bbk-1 --claim', 'command bd close bbk-1 --reason --help', 'scripts/bd-sync.sh', 'command bd -C "/m" update bbk-1 --notes --readonly'];
   for (const name of ['typescript-specialist', 'webview-specialist', 'ci-build-engineer', 'release-manager', 'plan-reviewer', 'code-reviewer', 'test-strategist']) {
     const bash = settings.agent[name].permission.bash;
     for (const command of writes) assert.equal(bashAction(bash, command), 'deny', `${name} ${command}`);
@@ -435,6 +438,9 @@ test('only beads-manager may write or sync the backlog; other flipped roles keep
   const bm = settings.agent['beads-manager'].permission.bash;
   assert.equal(bashAction(bm, 'command bd -C "/m" update bbk-1 --notes y'), 'ask');
   assert.equal(bashAction(bm, 'scripts/bd-sync.sh'), 'ask');
+  for (const name of ['typescript-specialist', 'release-manager', 'code-reviewer']) {
+    for (const helper of ['scripts/bd-sync.sh', '/m/scripts/bd-sync.sh', './scripts/bd-sync.sh']) assert.equal(bashAction(settings.agent[name].permission.bash, helper), 'deny', `${name} ${helper}`);
+  }
 });
 
 test('CI names and may run its branch identity query', async () => {
@@ -535,7 +541,7 @@ test('no agent carries a list permission, which OpenCode 1.18.31 has no tool for
 
 test('every bash map denies a simple-command redirection after its allows, keeping only named ask forms after it', async () => {
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
-  const after = { 'ci-build-engineer': ['oc-commit *', 'git log -1 *', 'git --no-optional-locks -c core.fsmonitor=false log -1 *', '*agent-wt-merge*--close-beads*'], 'beads-manager': ['command bd -C * create *', 'command bd -C * update *', 'command bd -C * close *', 'command bd -C * worktree create *'] };
+  const after = { 'ci-build-engineer': ['oc-commit *', 'git log -1 *', 'git --no-optional-locks -c core.fsmonitor=false log -1 *', '*agent-wt-merge*--close-beads*'], 'beads-manager': ['command bd -C * create *', 'command bd -C * update *', 'command bd -C * close *', 'command bd -C * worktree create *', 'command bd -C * mol wisp create *', 'command bd -C * protomolecule wisp create *', ...['--global', '--db', '--database'].flatMap(flag => [`bd ${flag}*`, `bd * ${flag}*`, `command bd ${flag}*`, `command bd * ${flag}*`, `*/bd ${flag}*`, `*/bd * ${flag}*`])] };
   for (const [name, agent] of Object.entries(settings.agent)) {
     const bash = agent.permission?.bash;
     if (typeof bash !== 'object') continue;
@@ -543,7 +549,7 @@ test('every bash map denies a simple-command redirection after its allows, keepi
     const tail = keys.slice(keys.indexOf('*>*') + 1);
     assert.equal(bash['*>*'], 'deny', name);
     assert.deepEqual(tail, after[name] ?? [], name);
-    for (const key of tail) assert.equal(bash[key], key.includes('--close-beads') || key.includes('worktree create') ? 'deny' : 'ask', `${name} ${key}`);
+    for (const key of tail) assert.equal(bash[key], /--close-beads|worktree create|wisp create|bd (\* )?--(global|db|database)\*/.test(key) ? 'deny' : 'ask', `${name} ${key}`);
     for (const key of keys.filter(key => bash[key] === 'allow')) {
       assert.equal(bashAction(bash, `${key.replaceAll('*', 'x')} > /tmp/out`), 'deny', `${name} ${key}`);
     }
