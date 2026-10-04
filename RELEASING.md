@@ -148,7 +148,8 @@ The wrapper and anchored `scripts/release-preflight.js` require:
 - An open release task with a nonempty blocking scope and membership in the CLI's
   complete `bd ready` result, queried against verified shared main.
 - Matching package/webview version and CHANGELOG heading; accepted versions are
-  `X.Y.Z` and `X.Y.Z-bd.N`.
+  `X.Y.Z` and `X.Y.Z-bd.N`. A real release also requires the heading to carry a
+  `YYYY-MM-DD` date; a dry run accepts it undated.
 - A fresh GitHub main SHA and local proof that the source is its ancestor. Missing
   local objects block rather than trigger an automatic fetch.
 - Confirmed absence of the local/remote tag and GitHub release, with query failures
@@ -176,6 +177,11 @@ explicit publication approval remain human/agent workflow obligations.
 newest at the top; see existing entries for the category headings in use
 (`💥 Breaking`, `✨ Added` / `Changed`, `🐛 Bug Fixes`, `🔧 Internal`,
 `📚 Documentation`, `🧹 Cleanup`).
+
+Leave the heading undated during preparation: write `## [X.Y.Z]`, not
+`## [X.Y.Z] - YYYY-MM-DD`. Publication can slip after preparation lands, and a
+date written early has to be corrected, reviewed and landed again each time it
+does. Step 4 adds the date.
 
 ### 2. Bump
 
@@ -213,7 +219,18 @@ shrug.
 The printed sha256 is indicative only — VSIX zips are not guaranteed
 byte-reproducible across runs. Take the authoritative value from the real run.
 
-### 4. Ship
+### 4. Date the CHANGELOG heading
+
+On the day of publication, make the final pre-publication commit: change the
+heading to `## [X.Y.Z] - YYYY-MM-DD` with the publication date the maintainer
+confirms, and nothing else. It needs its own approval, review and landing on main
+like any preparation edit, and the publication approval names the resulting source
+SHA. The dated commit must also be on `origin/main` before step 5: preflight proves
+the source is an ancestor of GitHub main and does not fetch. A real release refuses
+an undated heading with `CHANGELOG_UNDATED`; a dry run before this step runs against
+the undated heading and passes.
+
+### 5. Ship
 
 ```bash
 bash scripts/release-fork-vsix.sh --release-issue <release-id>
@@ -244,7 +261,7 @@ The script also prints a pin block — tag, asset name, sha256, version — for
 anyone installing this release from a pinned reference rather than from the
 releases page. Nothing in this repo consumes those values.
 
-### 5. Verify publication and account restoration
+### 6. Verify publication and account restoration
 
 ```bash
 git ls-remote --tags origin refs/tags/vX.Y.Z "refs/tags/vX.Y.Z^{}"
@@ -265,7 +282,7 @@ error is that evidence. Complete any transferred
 postpublication checks. If upload, verification or restoration partly fails,
 report actual state and stop; do not blindly republish, delete or recreate a release.
 
-### 6. Close the release task
+### 7. Close the release task
 
 Only after the preceding evidence and remaining obligations pass, obtain closure
 approval with a reason recording tag, source SHA and the actual published checksum.

@@ -92,7 +92,9 @@ if [ "$(gh api user --jq .login 2>/dev/null || true)" != "$EXPECTED_OWNER" ]; th
   exit 1
 fi
 
-BBK_RELEASE_SNAPSHOT=$(node "$TOOL_DIR/release-preflight.js" --release-issue "$RELEASE_ISSUE")
+DRY_RUN_FLAG=""
+if [ "$DRY_RUN" -eq 1 ]; then DRY_RUN_FLAG=--dry-run; fi
+BBK_RELEASE_SNAPSHOT=$(node "$TOOL_DIR/release-preflight.js" --release-issue "$RELEASE_ISSUE" ${DRY_RUN_FLAG:+"$DRY_RUN_FLAG"})
 export BBK_RELEASE_SNAPSHOT
 FULL_SHA=$(node -p 'JSON.parse(process.env.BBK_RELEASE_SNAPSHOT).sourceSha')
 ORIG_NAME=$(node -p 'JSON.parse(process.env.BBK_RELEASE_SNAPSHOT).displayName')
@@ -135,7 +137,7 @@ echo "==> Packaging ${TARGET_VSIX}"
 (set -C; sha256_file "${TARGET_VSIX}" > SHA256SUMS)
 EXPECTED_SHA=$(cut -d ' ' -f 1 < SHA256SUMS)
 
-node "$TOOL_DIR/release-preflight.js" --release-issue "$RELEASE_ISSUE" --expected-snapshot "$BBK_RELEASE_SNAPSHOT" >/dev/null
+node "$TOOL_DIR/release-preflight.js" --release-issue "$RELEASE_ISSUE" --expected-snapshot "$BBK_RELEASE_SNAPSHOT" ${DRY_RUN_FLAG:+"$DRY_RUN_FLAG"} >/dev/null
 
 if [ "$DRY_RUN" -eq 1 ]; then
   echo ""

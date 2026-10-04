@@ -90,9 +90,20 @@ test('release metadata mismatches and output collisions fail before publication'
   await writeFile(path.join(data.root, 'src/webview.ts'), "const version = '9.8.7';");
   await writeFile(path.join(data.root, 'CHANGELOG.md'), '## [1.0.0]\n');
   await assert.rejects(release.preflight(data), { code: 'CHANGELOG_VERSION_MISMATCH' });
-  await writeFile(path.join(data.root, 'CHANGELOG.md'), '## [9.8.7]\n');
+  await writeFile(path.join(data.root, 'CHANGELOG.md'), '## [9.8.7] - 2026-09-24\n');
   await writeFile(path.join(data.root, 'SHA256SUMS'), 'pre-existing');
   await assert.rejects(release.preflight(data), { code: 'OUTPUT_COLLISION' });
+});
+
+test('a real release requires a dated CHANGELOG heading and a dry run accepts an undated one', async t => {
+  const data = await fixture(t);
+  for (const heading of ['## [9.8.7]', '## [9.8.7] - ', '## [9.8.7] - TBD', '## [9.8.7] - 2026-02-30', '## [9.8.7] - 2026-9-24', '## [9.8.7] - 2026-09-24 (draft)']) {
+    await writeFile(path.join(data.root, 'CHANGELOG.md'), `${heading}\n`);
+    await assert.rejects(release.preflight(data), { code: 'CHANGELOG_UNDATED' }, heading);
+    assert.equal((await release.preflight({ ...data, dryRun: true })).tag, 'v9.8.7', heading);
+  }
+  await writeFile(path.join(data.root, 'CHANGELOG.md'), '## [9.8.7] - 2026-09-24\n');
+  assert.equal((await release.preflight(data)).tag, 'v9.8.7');
 });
 
 test('post-build snapshots reject changed scope and unexpected outputs but allow fresh main advancement', async t => {
@@ -109,11 +120,14 @@ test('post-build snapshots reject changed scope and unexpected outputs but allow
 });
 
 test('release helper flags reject duplicate, unknown and malformed snapshot inputs', () => {
-  assert.deepEqual(release.argumentsFor(['--release-issue', 'bbk-release']), { issue: 'bbk-release', expected: null });
-  for (const args of [['--release-issue'], ['--unknown', 'x'], ['--release-issue', 'one', '--release-issue', 'two'], ['--expected-snapshot', '']]) assert.throws(() => release.argumentsFor(args));
+  assert.deepEqual(release.argumentsFor(['--release-issue', 'bbk-release']), { issue: 'bbk-release', expected: null, dryRun: false });
+  assert.deepEqual(release.argumentsFor(['--release-issue', 'bbk-release', '--dry-run']), { issue: 'bbk-release', expected: null, dryRun: true });
+  assert.deepEqual(release.argumentsFor(['--dry-run', '--release-issue', 'bbk-release']), { issue: 'bbk-release', expected: null, dryRun: true });
+  assert.deepEqual(release.argumentsFor(['--release-issue', 'bbk-release', '--dry-run', '--expected-snapshot', '{"schemaVersion":1}']), { issue: 'bbk-release', expected: { schemaVersion: 1 }, dryRun: true });
+  for (const args of [['--release-issue'], ['--unknown', 'x'], ['--release-issue', 'one', '--release-issue', 'two'], ['--expected-snapshot', ''], ['--release-issue', 'bbk-release', '--dry-run', '--dry-run']]) assert.throws(() => release.argumentsFor(args));
 });
 
-async function wrapperFixture(t, changes = {}) {
+async function wrapperFixture(t, changes = {}, changelog = '## [9.8.7] - 2026-09-24\n') {
   const root = await scratch(t);
   const source = path.join(await realpath(root), 'source');
   await mkdir(path.join(source, '.git'), { recursive: true });
@@ -134,7 +148,7 @@ async function wrapperFixture(t, changes = {}) {
   await chmod(vsce, 0o755);
   await writeFile(path.join(source, 'package.json'), JSON.stringify({ name: 'better-beads-kanban', displayName: 'Fixture', version: '9.8.7' }));
   await writeFile(path.join(source, 'src/webview.ts'), "const version = '9.8.7';\n");
-  await writeFile(path.join(source, 'CHANGELOG.md'), '## [9.8.7]\n');
+  await writeFile(path.join(source, 'CHANGELOG.md'), changelog);
   const log = path.join(root, 'calls.jsonl');
   const stateFile = path.join(root, 'state.json');
   const state = { source, log, sha: 'a'.repeat(40), account: 'fixture-user', ...changes };
@@ -157,6 +171,23 @@ test('actual release wrapper uses guarded full-SHA publication and restores its 
     }
     assert.equal(JSON.parse(await readFile(f.stateFile, 'utf8')).account, 'fixture-user');
     assert.equal(calls.filter(call => call.name === 'bd' && call.args.includes('ready')).length, 2);
+  }
+});
+
+test('actual release wrapper refuses an undated heading before building, and its dry run accepts one', async t => {
+  for (const dryRun of [true, false]) {
+    const f = await wrapperFixture(t, {}, '## [9.8.7]\n');
+    const result = await processTools.run('bash', [path.join(f.source, 'scripts/release-fork-vsix.sh'), '--release-issue', 'bbk-release', ...(dryRun ? ['--dry-run'] : [])], { cwd: f.source, env: f.env, timeout: 30000 });
+    const calls = (await readFile(f.log, 'utf8')).trim().split('\n').map(line => JSON.parse(line));
+    if (dryRun) {
+      assert.equal(result.code, 0, result.stderr);
+      assert.ok(calls.some(call => call.name === 'vsce'));
+    } else {
+      assert.notEqual(result.code, 0);
+      assert.match(result.stderr, /Release preflight blocked: CHANGELOG_UNDATED/);
+      assert.equal(calls.some(call => call.name === 'vsce' || call.name === 'gh' && call.args[0] === 'release'), false);
+    }
+    assert.equal(JSON.parse(await readFile(f.stateFile, 'utf8')).account, 'fixture-user');
   }
 });
 

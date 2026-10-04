@@ -116,5 +116,5 @@ process.stdout.write(
   `  ✓ package-lock.json\n` +
   `  ✓ src/webview.ts\n` +
   `  ✓ CHANGELOG.md heading present\n\n` +
-  `Next:  bash scripts/release-fork-vsix.sh --dry-run\n\n`
+  `Next:  bash scripts/release-fork-vsix.sh --release-issue <release-id> --dry-run\n\n`
 );
