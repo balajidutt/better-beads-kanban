@@ -437,6 +437,18 @@ test('CI names and may run its branch identity query', async () => {
   assert.equal(bashAction(settings.agent['ci-build-engineer'].permission.bash, 'git branch --show-current'), 'allow');
 });
 
+test('the CHANGELOG heading stays undated through preparation and is dated in the final pre-publication commit', async () => {
+  const contract = await readFile(new URL('../../.opencode/agents/release-manager.md', import.meta.url), 'utf8');
+  assert.ok(contract.includes('draft CHANGELOG first with an undated `## [X.Y.Z]` heading'));
+  assert.ok(contract.includes('Date the heading only in the final pre-publication commit, on the publication day and with the date the human confirms, after preparation has landed; that commit needs its own approval and landing, and a real release refuses an undated heading.'));
+  const releasing = await readFile(new URL('../../RELEASING.md', import.meta.url), 'utf8');
+  assert.ok(releasing.includes('Leave the heading undated during preparation'));
+  assert.ok(releasing.includes('### 4. Date the CHANGELOG heading'));
+  assert.ok(releasing.includes('`CHANGELOG_UNDATED`'));
+  assert.ok(releasing.indexOf('### 3. Dry run') < releasing.indexOf('### 4. Date the CHANGELOG heading'));
+  assert.ok(releasing.indexOf('### 4. Date the CHANGELOG heading') < releasing.indexOf('### 5. Ship'));
+});
+
 test('dependency preparation triggers on dependency entries, not a root version change', async () => {
   for (const file of ['instructions/development-lifecycle.md', 'agents/build.md']) {
     const text = await readFile(new URL(`../../.opencode/${file}`, import.meta.url), 'utf8');

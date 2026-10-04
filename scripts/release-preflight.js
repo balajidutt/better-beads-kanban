@@ -51,7 +51,7 @@ async function status(cwd, execute) {
   });
 }
 
-async function preflight({ issue, source = process.cwd(), tooling = path.resolve(__dirname, '..'), expected = null, execute = run }) {
+async function preflight({ issue, source = process.cwd(), tooling = path.resolve(__dirname, '..'), expected = null, dryRun = false, execute = run }) {
   if (typeof issue !== 'string' || !issue || issue.length > 256 || /[\s\0]/.test(issue)) throw new WorkflowError('INVALID_RELEASE_ISSUE');
   if (expected !== null && (!expected || typeof expected !== 'object' || Array.isArray(expected) || expected.schemaVersion !== 1)) throw new WorkflowError('INVALID_SNAPSHOT');
   source = await realpath(source);
@@ -77,7 +77,9 @@ async function preflight({ issue, source = process.cwd(), tooling = path.resolve
   if (versions.length !== 1 || versions[0][2] !== pkg.version) throw new WorkflowError('WEBVIEW_VERSION_MISMATCH');
   const changelog = await textFile(source, 'CHANGELOG.md');
   const heading = `## [${pkg.version}]`;
-  if (!changelog.split(/\r?\n/).some(line => line === heading || line.startsWith(`${heading} - `))) throw new WorkflowError('CHANGELOG_VERSION_MISMATCH');
+  const headingLine = changelog.split(/\r?\n/).find(line => line === heading || line.startsWith(`${heading} - `));
+  if (headingLine === undefined) throw new WorkflowError('CHANGELOG_VERSION_MISMATCH');
+  if (!dryRun && !isCalendarDate(headingLine.slice(`${heading} - `.length))) throw new WorkflowError('CHANGELOG_UNDATED');
   const asset = `${pkg.name}-${pkg.version}.vsix`;
   const tag = `v${pkg.version}`;
   const states = await status(source, execute);
@@ -128,15 +130,27 @@ async function preflight({ issue, source = process.cwd(), tooling = path.resolve
   return snapshot;
 }
 
+function isCalendarDate(text) {
+  const date = new Date(`${text}T00:00:00Z`);
+  return /^\d{4}-\d{2}-\d{2}$/.test(text) && !Number.isNaN(date.getTime()) && date.toISOString().startsWith(text);
+}
+
 function argumentsFor(argv) {
   const result = {};
+  let dryRun = false;
   for (let index = 0; index < argv.length; index += 2) {
     const flag = argv[index];
+    if (flag === '--dry-run') {
+      if (dryRun) throw new WorkflowError('INVALID_ARGUMENTS');
+      dryRun = true;
+      index -= 1;
+      continue;
+    }
     const value = argv[index + 1];
     if (!['--release-issue', '--expected-snapshot'].includes(flag) || value === undefined || Object.hasOwn(result, flag)) throw new WorkflowError('INVALID_ARGUMENTS');
     result[flag] = value;
   }
-  return { issue: result['--release-issue'], expected: Object.hasOwn(result, '--expected-snapshot') ? json(result['--expected-snapshot'], 'INVALID_SNAPSHOT') : null };
+  return { issue: result['--release-issue'], expected: Object.hasOwn(result, '--expected-snapshot') ? json(result['--expected-snapshot'], 'INVALID_SNAPSHOT') : null, dryRun };
 }
 
 if (require.main === module) {
