@@ -91,7 +91,7 @@ suite('Claim leases: messages and refusals', () => {
 });
 
 suite('Claim leases: wiring that unit tests cannot reach', () => {
-    const read = (...parts: string[]) => fs.readFileSync(path.resolve(__dirname, '..', '..', '..', ...parts), 'utf8');
+    const read = (...parts: string[]) => fs.readFileSync(path.resolve(__dirname, '..', '..', '..', ...parts), 'utf8').replace(/\r\n/g, '\n');
 
     test('the lease message handlers sit after the read-only gate', () => {
         const extensionTs = read('src', 'extension.ts');
