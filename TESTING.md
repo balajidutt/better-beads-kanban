@@ -178,8 +178,12 @@ directory can overwrite each other mid-run.
 ### The bd fixture
 
 `src/test/suite/daemonAdapter.test.ts` exercises `DaemonBeadsAdapter` against a real
-`bd` CLI, so it needs a real database. The suite builds a throwaway one under the
-OS temporary directory, outside the repository's shared backlog:
+`bd` CLI, so it needs a real database. It uses `BD_BIN` when set and `bd` from PATH
+otherwise, so another bd version can be tested without putting it on PATH. Do not put
+a newer bd on PATH while working in this repository: any bd run here, by the test host,
+hooks or you, would migrate the shared backlog, after which bd 1.2.2 refuses it. The
+suite builds a throwaway database under the OS temporary directory, outside the
+repository's shared backlog:
 
 - `bd init --non-interactive --quiet --skip-agents --skip-hooks --prefix bktest`
   creates an embedded Dolt database.
@@ -261,7 +265,10 @@ real `bd`, outside the VS Code host:
 throwaway bd workspace under the OS temp directory (`scripts/lib/bd-scratch-workspace.js`)
 and run every command against it with `bd -C`. They never touch this repo's backlog, and
 there is nothing to clean up afterwards. The helper refuses to run at all if `bd context`
-does not resolve inside that temp directory.
+does not resolve inside that temp directory. Set `BD_BIN` to run them against another
+bd version. A date-only `--due` or `--defer` is compared by calendar day
+(`scripts/lib/bd-dates.js`), because bd 1.2.2 stores midnight UTC and bd 1.3 stores
+local midnight.
 
 The workspace is removed on exit, including on Ctrl-C. A `kill -9` does leave one behind:
 these scripts are a straight line of synchronous `spawnSync` calls, so Node never reaches

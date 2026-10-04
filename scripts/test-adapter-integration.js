@@ -14,6 +14,7 @@ const { spawnSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const { createScratchWorkspace, BD, SPAWN_DEFAULTS } = require('./lib/bd-scratch-workspace');
+const { sameCalendarDay } = require('./lib/bd-dates');
 
 // Configuration
 const TEST_PREFIX = 'ADAPTER_TEST';
@@ -243,8 +244,7 @@ function verifyIssue(id, expectedFields) {
     // Handle special cases
     if (field === 'due_at' || field === 'defer_until') {
       if (expected && actual) {
-        // Allow timezone differences - just check date portion
-        if (!actual.includes(expected.split('T')[0])) {
+        if (!sameCalendarDay(expected, actual)) {
           mismatches.push(`${field}: expected "${expected}", got "${actual}"`);
         }
       } else if (expected !== actual) {

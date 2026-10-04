@@ -11,6 +11,7 @@
 const path = require('path');
 const fs = require('fs');
 const { createScratchWorkspace, BD, SPAWN_DEFAULTS } = require('./lib/bd-scratch-workspace');
+const { sameCalendarDay } = require('./lib/bd-dates');
 
 // Configuration
 const TEST_PREFIX = 'BD_CLI_TEST';
@@ -257,11 +258,8 @@ function testIssueUpdates() {
 
       const actual = bdExec(['show', issueId]).data?.[0]?.[field.jsonField];
 
-      // bd normalises dates to a full timestamp, so the input is a prefix of
-      // what comes back rather than equal to it.
       const isDateField = field.jsonField === 'due_at' || field.jsonField === 'defer_until';
-      const matches = actual === expected ||
-        (isDateField && typeof actual === 'string' && actual.includes(field.value));
+      const matches = actual === expected || (isDateField && sameCalendarDay(field.value, actual));
 
       return {
         pass: matches,

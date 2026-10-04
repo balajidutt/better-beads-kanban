@@ -24,6 +24,7 @@
 const { spawnSync } = require('child_process');
 const path = require('path');
 const { createScratchWorkspace, BD, SPAWN_DEFAULTS } = require('./lib/bd-scratch-workspace');
+const { sameCalendarDay } = require('./lib/bd-dates');
 
 let workspace = null;
 
@@ -122,9 +123,8 @@ function compareValues(fieldName, expected, actual, testName) {
       return false;
     }
 
-    // Extract date part (YYYY-MM-DD) and compare
     const expectedDate = expected.split('T')[0];
-    if (actual && actual.includes(expectedDate)) {
+    if (sameCalendarDay(expected, actual)) {
       return true;
     }
 

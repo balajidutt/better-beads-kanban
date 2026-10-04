@@ -7,6 +7,8 @@ import * as path from 'path';
 import { DaemonBeadsAdapter } from '../../daemonBeadsAdapter';
 
 const FIXTURE_PREFIX = 'bktest';
+// Read before suiteSetup clears every BD_* variable from the environment.
+const BD_EXECUTABLE = process.env.BD_BIN || 'bd';
 let fixtureDir: string;
 let originalEnvironment: NodeJS.ProcessEnv | undefined;
 const fixtureEnvironmentKey = (name: string): boolean => /^(BD_|BEADS_|DOLT_|GIT_|XDG_)/i.test(name)
@@ -19,12 +21,12 @@ suite('DaemonBeadsAdapter Integration Tests', () => {
 
     /** True when the bd CLI is callable at all. */
     function bdAvailable(): boolean {
-        const probe = cp.spawnSync('bd', ['version'], { cwd: fixtureDir, encoding: 'utf8', timeout: 10000, maxBuffer: 1048576 });
+        const probe = cp.spawnSync(BD_EXECUTABLE, ['version'], { cwd: fixtureDir, encoding: 'utf8', timeout: 10000, maxBuffer: 1048576 });
         return !probe.error && probe.status === 0;
     }
 
     function bd(args: string[]): string {
-        const result = cp.spawnSync('bd', args[0] === 'init' ? args : ['-C', fixtureDir, ...args], {
+        const result = cp.spawnSync(BD_EXECUTABLE, args[0] === 'init' ? args : ['-C', fixtureDir, ...args], {
             cwd: fixtureDir,
             encoding: 'utf8',
             timeout: args[0] === 'init' ? 120000 : 30000,
@@ -157,6 +159,7 @@ suite('DaemonBeadsAdapter Integration Tests', () => {
         output = vscode.window.createOutputChannel('Test');
         workspaceRoot = fixtureDir;
         adapter = new DaemonBeadsAdapter(workspaceRoot, output);
+        (adapter as unknown as { getBdCommand: () => string }).getBdCommand = () => BD_EXECUTABLE;
     });
 
     teardown(function() {

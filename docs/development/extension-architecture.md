@@ -89,7 +89,7 @@ The current toolbar stamp is **`topBarFiltersVersion: 3`**. Inclusive multi-sele
 
 ## Data adapter and load paths
 
-The extension never opens Dolt, SQLite, or JSONL files as data. `execBd` passes the configured `bd` executable to the shared `executeBd`, which runs it with argument arrays and `shell: false`; `ensureConnected()` probes `bd stats --json`. The name `DaemonBeadsAdapter` and some diagnostic strings are historical names, not a daemon-start protocol. The executable comes from `beadsKanban.bdPath` or PATH; the extension does not manage a separate Dolt executable.
+The extension never opens Dolt, SQLite, or JSONL files as data. `execBd` passes the configured `bd` executable to the shared `executeBd`, which runs it with argument arrays, `shell: false` and a child environment without `BD_JSON_ENVELOPE` (that variable wraps every JSON result); a non-zero exit rejects with `BdCommandError`, which carries the exit code and raw streams for classification and never reaches the webview. `ensureConnected()` probes `bd stats --json`. The name `DaemonBeadsAdapter` and some diagnostic strings are historical names, not a daemon-start protocol. The executable comes from `beadsKanban.bdPath` or PATH; the extension does not manage a separate Dolt executable.
 
 The card types express different data/evidence levels:
 
@@ -103,9 +103,20 @@ The card types express different data/evidence levels:
 
 Do not use a universal “list has field X; show never has X” table. The adapter accepts multiple shapes, including metadata/top-level flags, string/object labels, and dependency arrays. It derives `parent`, `children`, `blocks`, and `blocked_by` projections from CLI edges where available. `bd show` may report relationship counts without returning every corresponding relationship array. Verify a required shape with supported CLI output and fixtures rather than assuming absence means zero.
 
-Important fields include opaque `id`, `title`, `description`, `status`, numeric `priority`, `issue_type`, assignee/estimate/labels, created/updated/closed times, `external_ref`, `acceptance_criteria`, `design`, `notes`, due/deferred times, flags and event/agent metadata. Comments and relationships have their own shapes; schema and mapper validation belong at the boundary.
+Important fields include opaque `id`, `title`, `description`, `status` (including `deferred`), numeric `priority`, `issue_type`, assignee/estimate/labels, created/updated/closed times, `external_ref`, `acceptance_criteria`, `design`, `notes`, due/deferred times, flags and event/agent metadata. `owner` is the creator on every issue and is never a fallback for `assignee`. `started_at` is set on claimed issues; bd 1.3 adds `lease_expires_at` and `heartbeat_at`. Comment ids are UUID strings. Comments and relationships have their own shapes; schema and mapper validation belong at the boundary. `src/test/fixtures/bd-<version>/` holds recorded output for each supported bd version.
 
 `bd ready` is the readiness authority. The minimal board and the detail view take `is_ready` from it: an issue is ready when it is `open` and `bd ready` lists it. `bd list --json` has blocking edges but no blocker counts, so the shared mappers' own `is_ready` is only a fallback for when `bd ready` fails, and the user is warned once when that happens. Do not extend the mappers into a competing readiness algorithm.
+
+### bd version support
+
+The adapter supports bd 1.2.2 and 1.3.x through one code path. Before every board load, detail load and mutation it runs `bd version --json`, which opens no store, and derives `BdCapabilities` (`src/shared/bdVersion.ts`); every 1.3-only flag is gated on them, and an unknown version gets none. When `.beads/.local_version` names a different bd, the next store-opening command runs as `bd stats --json` with a 10-minute timeout under a progress notification, because the first bd 1.3 open migrates the store; with no readable `.local_version` it gets the same timeout without the notification.
+
+On bd 1.3:
+
+- A close refused by bd's close policy (open children or a live blocker) shows bd's reason with an explicit "Close anyway" that retries with `--force`; the edit dialog shows it inside the dialog. Force is never sent without that click.
+- A drag sends the card's stored status as `--if-status`; exit 13 means the issue changed since the board loaded, and the board is re-sent.
+- Claim, release and lease extension run `bd update --claim`, `bd unclaim` and `bd heartbeat`; bd itself refuses another actor's claim. The "Beads: Reclaim Stale Claims" command runs `bd reclaim --older-than` after a modal confirmation.
+- A date-only due or defer date is stored as local midnight in UTC, where bd 1.2.2 used midnight UTC.
 
 ### Columns, pagination and settings
 

@@ -23,7 +23,7 @@
 #
 # Depends only on bd, git and node. Not dolt: it is mise-managed here and absent
 # from a minimal PATH. `bd sql` would answer all of this with one query against
-# dolt_status, but returns "not yet supported in embedded mode" as of bd 1.2.2 —
+# dolt_status, but returns "not yet supported in embedded mode" as of bd 1.3.1 —
 # retest after a bd upgrade and most of this script can collapse into that.
 
 set -euo pipefail

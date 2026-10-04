@@ -105,10 +105,10 @@ Issue editing with all metadata fields, dependencies, and comments.
 - Markdown support with live preview
 - Rich metadata fields (priority, assignee, estimated time, etc.)
 
-**Daemon Integration**
+**bd CLI Integration**
 
-- Uses the `bd` CLI daemon for all database operations
-- Auto-starts the daemon when the extension loads
+- Uses the `bd` CLI for all database operations
+- Detects the installed bd version and uses bd 1.3 features where available
 - Efficient incremental data loading
 
 ## Installation
@@ -134,8 +134,9 @@ code --uninstall-extension balaji-dutt.beads-kanban-bd-fixes
 
 ## Prerequisites
 
-- **Beads CLI** (`bd`): required for all database operations. Install from [github.com/gastownhall/beads](https://github.com/gastownhall/beads).
-- The extension auto-starts the `bd` daemon when needed.
+- **Beads CLI** (`bd`): required for all database operations. Install from [github.com/gastownhall/beads](https://github.com/gastownhall/beads). bd 1.2.2 is the minimum and bd 1.3.1 is recommended. The board warns when bd is older than 1.2.2.
+- On bd 1.3 the board also explains close-policy refusals and offers an explicit "Close anyway", makes drags compare-and-set, shows claim leases with Claim, Release and Extend actions, adds the "Beads: Reclaim Stale Claims" command, and can follow the events journal (`beadsKanban.useEventsJournal`, which also needs `bd config set events-journal true`). On 1.2.2 those features are not offered.
+- Upgrade bd on every machine that shares a Beads database at the same time. The first bd 1.3 command to open a 1.2.2 store migrates it, after which bd 1.2.2 refuses that store. The board gives that first open up to 10 minutes and shows a progress notification.
 
 ## Quick Start
 
@@ -172,6 +173,7 @@ As of bd 1.x, issues are stored in a [Dolt](https://www.dolthub.com/) database u
 | `beadsKanban.preloadClosedColumn` | `false` | Load closed issues on initial load |
 | `beadsKanban.lazyLoadDependencies` | `true` | Load dependencies on-demand |
 | `beadsKanban.issuePrefix` | `""` | Issue ID prefix. Leave empty to auto-detect. |
+| `beadsKanban.useEventsJournal` | `false` | Also refresh from bd's events journal (bd 1.3+, needs `bd config set events-journal true`) |
 
 ## Development
 
@@ -219,7 +221,7 @@ npm run test:adapter
 ## Architecture
 
 - **Extension Host** (`src/extension.ts`): command registration, webview lifecycle, message routing
-- **Data Adapter** (`src/daemonBeadsAdapter.ts`): CLI-based daemon adapter for all database operations
+- **Data Adapter** (`src/daemonBeadsAdapter.ts`): bd CLI adapter for all database operations
 - **Webview UI** (`src/webview/board.js`, `src/webview/treeBuilder.ts`, `media/styles.css`): reactive UI with incremental loading
 
 See the [extension architecture reference](https://github.com/balajidutt/better-beads-kanban/blob/main/docs/development/extension-architecture.md) for detailed architecture documentation.
