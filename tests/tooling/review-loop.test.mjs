@@ -256,16 +256,34 @@ test('build external directory access falls back to deny around the Plannotator 
   assert.deepEqual(Object.entries(external), [['*', 'deny'], ['$HOME/.plannotator/plans/**', 'allow']]);
 });
 
-test('Plannotator plugin takes its version from the dotfiles pin and keeps the user-managed CLI options', async () => {
+// Copy of the {env:} substitution in OpenCode v1.18.31 packages/opencode/src/config/variable.ts, with the environment passed in.
+function substituteEnv(text, env) {
+  return text.replace(/\{env:([^}]+)\}/g, (_, name) => env[name] || '');
+}
+
+test('Plannotator plugin takes its version from PLANNOTATOR_PIN_VERSION and keeps the user-managed CLI options', async () => {
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
   const docs = await readFile(new URL('../../docs/development/opencode-workflow.md', import.meta.url), 'utf8');
   assert.equal(settings.plugin.length, 1);
   assert.equal(settings.plugin[0].length, 2);
   const [spec, options] = settings.plugin[0];
-  assert.equal(spec, '@plannotator/opencode@{file:~/.config/dotfiles/versions/plannotator}');
+  assert.equal(spec, '@plannotator/opencode@{env:PLANNOTATOR_PIN_VERSION}');
   assert.deepEqual(options, { workflow: 'user-managed', runtime: 'cli', planningAgents: ['plan', 'plan-GPT-xhigh', 'special-builder', 'agent-engineer'] });
-  assert.ok(docs.includes('The project registers `@plannotator/opencode@{file:~/.config/dotfiles/versions/plannotator}`'));
+  assert.ok(docs.includes('The project registers `@plannotator/opencode@{env:PLANNOTATOR_PIN_VERSION}`'));
+  assert.equal(docs.includes('`PLANNOTATOR_VERSION`'), false);
   assert.ok(docs.includes('The following results are historical. They were recorded against the earlier exact pin `@plannotator/opencode@0.27.14`'));
+});
+
+test('the Plannotator spec resolves to the pinned version when the variable is set and to an unpinned spec when it is unset or empty', async () => {
+  const raw = await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8');
+  const resolve = env => JSON.parse(substituteEnv(raw, env)).plugin[0];
+  const [pinned, options] = resolve({ PLANNOTATOR_PIN_VERSION: '0.27.14' });
+  assert.equal(pinned, '@plannotator/opencode@0.27.14');
+  assert.deepEqual(options, { workflow: 'user-managed', runtime: 'cli', planningAgents: ['plan', 'plan-GPT-xhigh', 'special-builder', 'agent-engineer'] });
+  for (const env of [{}, { PLANNOTATOR_PIN_VERSION: '' }]) assert.equal(resolve(env)[0], '@plannotator/opencode@');
+  assert.equal(resolve({ PLANNOTATOR_VERSION: '9.9.9' })[0], '@plannotator/opencode@');
+  assert.equal((raw.match(/\{env:[^}]+\}/g) ?? []).length, 1);
+  assert.equal(raw.includes('{file:'), false);
 });
 
 test('every workflow role may read the Plannotator plans directory and keeps its external default otherwise', async () => {

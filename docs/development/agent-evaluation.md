@@ -31,7 +31,7 @@ Historical static evidence was 27/27 bootstrap checks. A later configuration-onl
 
 ## Plannotator discovery and functional exercise
 
-The first discovery exposed Markdown permission widening from the integrated planning mode. The approved correction pinned `@plannotator/opencode@0.27.14` in user-managed mode while preserving the CLI backend and planning-agent list. It changed neither the ten prompt bodies nor their model/permission declarations. The project now takes the plugin version from the dotfiles pin described in [OpenCode workflow](opencode-workflow.md#plannotator); the observations in this section are historical results for 0.27.14.
+The first discovery exposed Markdown permission widening from the integrated planning mode. The approved correction pinned `@plannotator/opencode@0.27.14` in user-managed mode while preserving the CLI backend and planning-agent list. It changed neither the ten prompt bodies nor their model/permission declarations. The project now takes the plugin version from the `PLANNOTATOR_PIN_VERSION` environment variable described in [OpenCode workflow](opencode-workflow.md#plannotator); the observations in this section are historical results for 0.27.14.
 
 A fresh-session report on OpenCode 1.18.31 recorded the correct worktree/project identity, one pinned registration, ten loaded candidates, the intended ordered edit denials, and submission permission for plan/agent-engineer but not build/leaves. The parent separately compared the relevant public config/plugin/permission/agent/tool/prompt source paths between 1.18.30 and 1.18.31; those paths were unchanged. This is narrow compatibility evidence, not a review of all dependency or runtime changes. No SDK upgrade was inferred from the patch-version difference.
 
