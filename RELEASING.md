@@ -196,6 +196,11 @@ lockstep, and only after every check passes. The webview version must match
 `package.json` or the webview serves stale assets. A lockfile change limited to
 those two root fields needs no dependency reinstall.
 
+Retitle the release task in the same preparation, now that the version is known,
+with the command in step 5 of the backlog section above (OpenCode routes it through
+beads-manager). Preflight does not read the title, so a missed retitle does not
+block publication, but the backlog then misnames the release through closeout.
+
 Accepted shapes are `X.Y.Z` and `X.Y.Z-bd.N` (the legacy fork series, kept so
 those tags stay reproducible). The regex is duplicated in
 `scripts/bump-version.js` and `scripts/release-fork-vsix.sh` — change one and you
@@ -209,13 +214,15 @@ bash scripts/release-fork-vsix.sh --release-issue <release-id> --dry-run
 
 Verifies, packages, and checksums without publishing, but creates local outputs and
 temporarily switches GitHub identity; it is not read-only and needs separate approval.
-Confirm the emitted `TAG` and `ASSET` look right. Historical packages were around
-35–40 files and 1.25–1.35 MB; these are reference observations, not current test results.
+Confirm the emitted `TAG` and `ASSET` look right. `vsce package` reported 32 files
+and 949 KB for 2.2.3, and 20 files and 924 KB for a build on 2026-10-05 that packaged
+only the four runtime bundles from `out/`. Both counts include the two VSIX metadata
+files, so `vsce ls` lists two fewer. These are reference observations, not current
+test results; update them when a release legitimately adds or removes packaged files.
 Inspect the actual listing for unintended internal files and missing extension assets.
-A count in the hundreds can indicate a bundling regression. A drift of a
-file or two past the edges usually means something was legitimately added and
-these bounds need widening, which is worth a moment's thought rather than a
-shrug.
+Under `out/` it should list exactly `extension.js`, `webview/board.js`,
+`webview/graph-layout.js` and `webview/graph-view.js`.
+A count in the hundreds can indicate a bundling regression.
 
 The printed sha256 is indicative only — VSIX zips are not guaranteed
 byte-reproducible across runs. Take the authoritative value from the real run.

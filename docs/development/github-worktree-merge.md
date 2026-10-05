@@ -112,6 +112,16 @@ from the verified contract; do not execute an illustrative or remembered flag li
   substitute a green main run/older attempt. Only missing or active matching evidence
   may wait within the approved bound. API/auth, malformed identity and terminal
   failures stop. There is no GitHub override or CI-to-local downgrade.
+- **Inspection race:** a `prepare-ci` that stops with one of the helper's
+  `GitHub evidence changed ...; check again` errors (during inspection, during
+  pagination, or across required workflows) may be invoked a second time under the
+  same approval while the feature worktree HEAD is still the approved SHA. The run
+  moved while the helper was reading it. The helper takes the SHA from HEAD on every
+  invocation and pushes it again; for the same SHA that push updates no ref and
+  starts no workflow, and the helper prints `Reusing already published <branch> at
+  <approved SHA>`. A `Published` line instead means a different SHA went out under
+  an approval that did not name it: stop and report it. A second identical stop, or
+  any other failure, stops as before.
 - **Landing (`ff` / `no-ff`, when advertised):** approve the target main worktree,
   pinned source SHA, fresh fetch, merge mode, any main update, any merge message and
   attributed merge commit, and the helper's mandatory exact-lease remote feature

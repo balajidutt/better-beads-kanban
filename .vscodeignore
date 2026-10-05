@@ -1,17 +1,14 @@
 # VS Code settings
 .vscode/**
 
-# Source files (bundled into out/extension.js and out/webview/board.js)
+# Source files (bundled into out/extension.js and the out/webview/ bundles)
 src/**
 **/*.ts
 
 # Source maps (exclude for production, keep for debugging if needed)
 **/*.map
 
-# Test outputs
-out/test/**
-
-# Node modules (everything is bundled into out/extension.js and out/webview/board.js)
+# Node modules (everything is bundled into out/extension.js and the out/webview/ bundles)
 node_modules/**
 # Note: All dependencies are bundled, no node_modules needed in VSIX
 
@@ -46,8 +43,7 @@ SHA256SUMS
 
 # Git worktrees created by orchestrator workflows live at
 # worktrees/<branch>-<hash>/ alongside the main clone. Excluded from the
-# VSIX so the package stays at the ~1.1 MB baseline instead of bundling
-# every checked-out branch.
+# VSIX so the package does not bundle every checked-out branch.
 worktrees/**
 
 # Documentation
@@ -120,7 +116,10 @@ Screenshot*.png
 Edit Form*.jpg
 *.code-workspace
 
-# Output
-out/test/**
-out/shared/**
+# Output: only the bundles the extension loads
+out/**
+!out/extension.js
+!out/webview/board.js
+!out/webview/graph-layout.js
+!out/webview/graph-view.js
 terminal/**

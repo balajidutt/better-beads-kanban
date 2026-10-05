@@ -68,7 +68,9 @@ test('actual package listing excludes workflow tooling, shared-core internals an
   const result = await processTools.run(process.execPath, [path.join(root, 'node_modules/@vscode/vsce/vsce'), 'ls', '--no-dependencies'], { cwd: root, timeout: 30000 });
   assert.equal(result.code, 0, 'VSCE listing must succeed');
   const files = result.stdout.trim().split(/\r?\n/);
-  for (const name of ['package.json', 'README.md', 'CHANGELOG.md', 'LICENSE', 'out/extension.js', 'out/webview/board.js', 'media/purify.min.js', 'media/marked.min.js', 'images/icon.png']) assert.ok(files.includes(name), name);
+  for (const name of ['package.json', 'README.md', 'CHANGELOG.md', 'LICENSE', 'out/extension.js', 'out/webview/board.js', 'out/webview/graph-layout.js', 'out/webview/graph-view.js', 'media/purify.min.js', 'media/marked.min.js', 'images/icon.png']) assert.ok(files.includes(name), name);
+  const runtime = ['out/extension.js', 'out/webview/board.js', 'out/webview/graph-layout.js', 'out/webview/graph-view.js'];
+  for (const file of files.filter(name => name.startsWith('out/'))) assert.ok(runtime.includes(file), `unbundled output packaged: ${file}`);
   const exact = new Set(['THIRD_PARTY_NOTICES.md', 'LICENSES/dotfiles-workflow-MIT.txt', 'configs/pipeline-guard.json', 'configs/schemas/pipeline-guard.v1.schema.json', ...['agent-wt-merge', 'resolve-python3', 'check-pipeline.py', 'pipeline_guard.py', 'pipeline_policy.py', 'pipeline_runtime.py', 'github_pipeline.py', 'pipeline_evidence.py', 'gitlab_pipeline_runtime.py', 'check-gitlab-pipeline.py'].map(name => `assets/${name}`)]);
   for (const file of files) {
     assert.equal(exact.has(file), false, file);
@@ -99,4 +101,31 @@ test('VSCE ignore rules exclude the gate lock bd 1.3 writes beside .beads and in
   const lines = ignore.split(/\r?\n/);
   assert.equal(lines.filter(line => line === '.beads.gate.lock').length, 1);
   assert.ok((await list(lines.filter(line => line !== '.beads.gate.lock').join('\n'))).includes('.beads.gate.lock'));
+});
+
+test('VSCE ignore rules package only the four runtime bundles from out/ and include extra output when removed', async t => {
+  const scratchRoot = await realpath(await scratch(t));
+  await writeFile(path.join(scratchRoot, 'package.json'), JSON.stringify({
+    name: 'vsce-ignore-fixture', version: '1.0.0', publisher: 'fixture', engines: { vscode: '^1.90.0' },
+  }));
+  await writeFile(path.join(scratchRoot, 'README.md'), 'Inert package listing fixture.\n');
+  await writeFile(path.join(scratchRoot, 'LICENSE'), 'Inert fixture license.\n');
+  const runtime = ['out/extension.js', 'out/webview/board.js', 'out/webview/graph-layout.js', 'out/webview/graph-view.js'];
+  const planted = ['out/types.js', 'out/daemonBeadsAdapter.js', 'out/webview/treeBuilder.js', 'out/webview/leaseStatus.js', 'out/shared/node.js', 'out/test/suite/a.test.js', 'out/extension.js.map'];
+  for (const file of [...runtime, ...planted]) {
+    await mkdir(path.dirname(path.join(scratchRoot, file)), { recursive: true });
+    await writeFile(path.join(scratchRoot, file), 'inert fixture output\n');
+  }
+  const ignore = await readFile(path.join(root, '.vscodeignore'), 'utf8');
+  const list = async rules => {
+    await writeFile(path.join(scratchRoot, '.vscodeignore'), rules);
+    const result = await processTools.run(process.execPath, [path.join(root, 'node_modules/@vscode/vsce/vsce'), 'ls', '--no-dependencies'], { cwd: scratchRoot, timeout: 30000 });
+    assert.equal(result.code, 0, 'VSCE listing must succeed');
+    return result.stdout.trim().split(/\r?\n/).filter(name => name.startsWith('out/')).sort();
+  };
+  assert.deepEqual(await list(ignore), [...runtime].sort());
+  const lines = ignore.split(/\r?\n/);
+  assert.equal(lines.filter(line => line === 'out/**').length, 1);
+  const exposed = await list(lines.filter(line => line !== 'out/**').join('\n'));
+  for (const file of planted.filter(name => !name.endsWith('.map'))) assert.ok(exposed.includes(file), `missing mutation-control file: ${file}`);
 });

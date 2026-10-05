@@ -480,6 +480,17 @@ test('the CHANGELOG heading stays undated through preparation and is dated in th
   assert.ok(releasing.indexOf('### 4. Date the CHANGELOG heading') < releasing.indexOf('### 5. Ship'));
 });
 
+test('the CI contract and merge procedure allow exactly one prepare-ci retry after an inspection race', async () => {
+  const contract = await readFile(new URL('../../.opencode/agents/ci-build-engineer.md', import.meta.url), 'utf8');
+  assert.ok(contract.includes('may be invoked a second time under that approval while HEAD is still the approved SHA'));
+  assert.ok(contract.includes('anything but `Reusing already published` at that SHA, or a second stop, ends the operation.'));
+  const procedure = (await readFile(new URL('../../docs/development/github-worktree-merge.md', import.meta.url), 'utf8')).replace(/\s+/g, ' ');
+  assert.ok(procedure.includes('may be invoked a second time under the same approval while the feature worktree HEAD is still the approved SHA'));
+  assert.ok(procedure.includes('A `Published` line instead means a different SHA went out under an approval that did not name it: stop and report it.'));
+  const helper = await readFile(new URL('../../assets/github_pipeline.py', import.meta.url), 'utf8');
+  for (const where of ['during inspection', 'during pagination', 'across required workflows']) assert.ok(helper.includes(`raise PipelineError("GitHub evidence changed ${where}; check again")`), where);
+});
+
 test('dependency preparation triggers on dependency entries, not a root version change', async () => {
   for (const file of ['instructions/development-lifecycle.md', 'agents/build.md']) {
     const text = await readFile(new URL(`../../.opencode/${file}`, import.meta.url), 'utf8');
