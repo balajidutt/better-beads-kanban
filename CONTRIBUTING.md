@@ -77,7 +77,8 @@ are available. They are not included in this repository. Their current installed
 implementations also process optional attestation handoffs and trailers; the
 fallback below deliberately preserves **only author and committer identity**.
 
-Before committing, obtain approval of the intended files and message, complete the
+Before committing, confirm the commit is inside the approved plan or an approval
+received through an accepted channel (see [AGENTS.md](AGENTS.md)), complete the
 applicable review/checks, and inspect the staged diff. Higher-priority harness rules
 and actual permissions take precedence: if they require a wrapper, stop when it is
 unavailable. The current repository OpenCode CI profile permits the wrapper command,
@@ -121,7 +122,7 @@ identity procedure. If no permitted procedure is available, stop and hand off to
 the human. This does not establish native Windows OpenCode workflow support.
 
 Contributors following the ordinary fork/PR path do not need the global
-`worktree-merge` skill. For separately approved local-main landing, use the
+`worktree-merge` skill. For local-main landing in the maintainer environment, use the
 [repository merge procedure](docs/development/github-worktree-merge.md); a missing
 skill is not permission to bypass a required helper or CI guard.
 
@@ -222,6 +223,25 @@ describes its role split, approval gates and capability limits; Claude imports
 shared policy through its adapter without claiming OpenCode runtime parity.
 
 External contributors do not need `bd` for issue tracking — use GitHub Issues.
+
+## Maintainer environment
+
+Parts of the agent workflow describe one supported setup, the maintainer's, not
+requirements for contributors:
+
+- the shared-main Beads backlog and its sync helper, `scripts/bd-sync.sh`;
+- landing on `main` through the CI-gated merge helper, described in the
+  [repository merge procedure](docs/development/github-worktree-merge.md);
+- fork releases through `scripts/release-fork-vsix.sh` ([RELEASING.md](RELEASING.md));
+- the `oc-commit` and `cc-commit` attribution wrappers, the `balajidutt` GitHub
+  identity and its SSH alias;
+- running OpenCode with `--auto`, the Plannotator version pin, and the session
+  manager and dotfiles that provide them, described in the maintainer section of the
+  [OpenCode workflow](docs/development/opencode-workflow.md).
+
+Without them, track work in a GitHub issue (or state an explicit tracking waiver),
+land through a pull request whose CI is the gate, and attribute commits as
+[Portable commit attribution](#portable-commit-attribution) describes.
 
 ## Reporting Bugs and Suggesting Features
 

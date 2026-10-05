@@ -491,6 +491,43 @@ test('the CI contract and merge procedure allow exactly one prepare-ci retry aft
   for (const where of ['during inspection', 'during pagination', 'across required workflows']) assert.ok(helper.includes(`raise PipelineError("GitHub evidence changed ${where}; check again")`), where);
 });
 
+test('AGENTS.md states the intent-and-boundaries model in harness-neutral terms and drops the per-step approval rules', async () => {
+  const agents = (await readFile(new URL('../../AGENTS.md', import.meta.url), 'utf8')).replace(/\s+/g, ' ');
+  for (const text of [
+    'An approved plan is a boundary contract, not a script.',
+    '| E | Pushes of main, tags, or anything else outside the merge helper\'s own publication, backlog sync, release dry runs and publication, account changes, and hook installation, modification, or validation | the operator runs it; agents hand over the exact command |',
+    'An operation is one approved plan, from its approval to its final report; the operator is the human directing the session',
+    'The targets of the default steps are the plan\'s worktree branch, the `origin` remote and the reviewed commit\'s SHA.',
+    '`npm ci --ignore-scripts` when dependency entries change or `node_modules/.package-lock.json` is missing',
+    '**Default chain.** Approving a plan authorizes its work through landing as an ordered chain',
+    '(3) independent review passes on the exact final diff with no unresolved must-fix finding',
+    'A failed gate, a review failure or an unresolved must-fix finding is a failed step',
+    'Closure is never a default: the plan lists it with the close reason',
+    'No plan authorizes a class E operation.',
+    "Only three inputs carry the operator's authority:",
+    'in OpenCode, the result of `plan`\'s `submit_plan` call through Plannotator, or without Plannotator an operator message, sent after the most recent plan the session presented, that approves it; a reply with conditions or requested changes is a rejection)',
+    'It cannot add one:',
+    'retry a guarded helper once, only for an error its documented contract names as safe to retry',
+    '(7) a denied class B, C or D action; (8) a failed required step.',
+    'Evidence the operator supplies through an accepted channel satisfies an item unless the plan marks it must-observe',
+    'A timeout, a retry, a client error or a restart is not a change.',
+    'Without them, a GitHub issue or an explicit tracking waiver satisfies the tracking rule, and changes land through a pull request',
+    'Backlog sync is class E: the operator runs `scripts/bd-sync.sh`'
+  ]) assert.ok(agents.includes(text), text);
+  for (const gone of [
+    'Implementation approval grants none of these implicitly.',
+    'need separate approval naming targets and effects',
+    'exact operation approval permit it',
+    'Unresolved annotations, denial, scope conflicts, or a new human pause suspend continuation.',
+    'Authorized routine backlog sync uses',
+    'Propose the commit message and exact lifecycle commands when ready, then wait for approval.',
+    'Use the exact approved plan and current handoff'
+  ]) assert.equal(agents.includes(gone), false, gone);
+  const contributing = await readFile(new URL('../../CONTRIBUTING.md', import.meta.url), 'utf8');
+  assert.ok(contributing.includes('\n## Maintainer environment\n'));
+  assert.ok(agents.includes('[CONTRIBUTING.md](CONTRIBUTING.md#maintainer-environment)'));
+});
+
 test('dependency preparation triggers on dependency entries, not a root version change', async () => {
   for (const file of ['instructions/development-lifecycle.md', 'agents/build.md']) {
     const text = await readFile(new URL(`../../.opencode/${file}`, import.meta.url), 'utf8');
