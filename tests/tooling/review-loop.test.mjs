@@ -559,6 +559,42 @@ test('the OpenCode lifecycle states its accepted channels, plan approval forms a
   }
 });
 
+test('build runs the default chain and plan writes boundary-contract plans', async () => {
+  const build = (await readFile(new URL('../../.opencode/agents/build.md', import.meta.url), 'utf8')).replace(/\s+/g, ' ');
+  for (const text of [
+    'Unless the plan excludes them, run the default chain after a passing review',
+    'continue from the commit (AGENTS.md steps 4-7): dispatch ci-build-engineer to commit exactly the reviewed diff with the reviewed message verbatim',
+    'draft the commit message following CONTRIBUTING.md, then send the actual scope, diff, evidence and that message to code-reviewer',
+    'A hook-induced change reported by the commit step returns to step 6.',
+    'with the plan path or its verbatim text, the lifecycle\'s dispatch fields',
+    'dispatch release-manager for the one-line CHANGELOG dating edit',
+    'For a release plan whose phase 2 the plan states',
+    'A failed step is trigger 8.',
+    'Hand the operator the exact class E commands',
+    'Only beads-manager closes issues, and only those the plan lists with their close reasons',
+    'run the publication-day phase when the operator says they are publishing: ask the date once at the start of phase 2',
+    'Approvals relied on, quoted with their channels'
+  ]) assert.ok(build.includes(text), text);
+  for (const gone of ['propose the commit message without committing', 'Route each separately approved lifecycle operation', 'explicit closure approval']) assert.equal(build.includes(gone), false, gone);
+  const plan = (await readFile(new URL('../../.opencode/agents/plan.md', import.meta.url), 'utf8')).replace(/\s+/g, ' ');
+  for (const text of [
+    'Write evidence-backed plans that state intent and boundaries, not scripts',
+    'a plan authorizes a helper by reference and never restates, reorders or forbids its steps',
+    'every acceptance item names a role and tool in scope that can produce it, and no open question concerns required evidence',
+    'one plan per turn, and state that no earlier approval carries over to a revised plan',
+    'On a denial or annotations, revise from the feedback and submit again',
+    '- Budgets: attempts per gate (3 unless stated).',
+    '- Scope: files (globs) with the owning role for each, Beads issues, worktrees.',
+    '- Exclusions: any default step the plan does not authorize',
+    'and any item marked must-observe',
+    '- Operator decisions recorded up front, such as a release\'s QA decision (smoke test done, waived or not required).',
+    'closures with their close reasons',
+    'stop-on-denial for a named mutating step',
+    'phase 2, on the publication day, the date asked once, the CHANGELOG dating commit through the same chain'
+  ]) assert.ok(plan.includes(text), text);
+  for (const gone of ['ordered steps, verification and approvals', 'Incorporate denial/annotations without mutation']) assert.equal(plan.includes(gone), false, gone);
+});
+
 test('dependency preparation triggers on dependency entries, not a root version change', async () => {
   for (const file of ['instructions/development-lifecycle.md', 'agents/build.md']) {
     const text = await readFile(new URL(`../../.opencode/${file}`, import.meta.url), 'utf8');
@@ -721,10 +757,12 @@ test('every role treats a denied read as class A, and stop-on-denial applies onl
   assert.equal(lifecycle.includes('Bootstrap pause'), false);
   assert.equal(lifecycle.includes('may recover once'), false);
   assert.equal(lifecycle.includes('a later call in the same dispatch is denied'), false);
+  assert.ok(lifecycle.includes('A denied read is a class A event (the denied-read rule)'));
   for (const file of ['build', 'plan']) {
     const text = await readFile(new URL(`../../.opencode/agents/${file}.md`, import.meta.url), 'utf8');
-    assert.ok(text.includes('read-only denial rule'), file);
+    assert.ok(text.includes("the lifecycle's denied-read rule"), file);
     assert.equal(text.includes('one-recovery rule'), false, file);
+    assert.equal(text.includes('read-only denial rule'), false, file);
   }
 });
 
