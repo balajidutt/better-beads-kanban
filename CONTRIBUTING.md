@@ -237,7 +237,7 @@ requirements for contributors:
   identity and its SSH alias;
 - running OpenCode with `--auto`, the Plannotator version pin, and the session
   manager and dotfiles that provide them, described in the maintainer section of the
-  [OpenCode workflow](docs/development/opencode-workflow.md).
+  [OpenCode workflow](docs/development/opencode-workflow.md#maintainer-environment).
 
 Without them, track work in a GitHub issue (or state an explicit tracking waiver),
 land through a pull request whose CI is the gate, and attribute commits as

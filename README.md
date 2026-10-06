@@ -249,7 +249,7 @@ See `scripts/seed-test-data.sh` for creating representative test data in a real 
 
 Issues and pull requests are welcome at [balajidutt/better-beads-kanban](https://github.com/balajidutt/better-beads-kanban).
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, branch and commit conventions, the test layout, and what a reviewable pull request looks like. [TESTING.md](TESTING.md) covers running the suite and the manual QA pass before a release.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, branch and commit conventions, the test layout, and what a reviewable pull request looks like. [TESTING.md](TESTING.md) covers running the suite and the release QA checklist.
 
 The short version:
 

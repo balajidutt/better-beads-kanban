@@ -289,7 +289,7 @@ test('the Plannotator spec resolves to the pinned version when the variable is s
 test('every workflow role may read the Plannotator plans directory and keeps its external default otherwise', async () => {
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
   const lifecycle = await readFile(new URL('../../.opencode/instructions/development-lifecycle.md', import.meta.url), 'utf8');
-  assert.ok(lifecycle.includes('Read only the exact plan path your handoff, dispatch or Plannotator result names'));
+  assert.ok(lifecycle.includes('Read only the exact plan path your handoff, dispatch or plan-review result names'));
   const defaults = { plan: 'deny', build: 'deny', 'plan-reviewer': 'deny', 'code-reviewer': 'deny', 'typescript-specialist': 'deny', 'webview-specialist': 'deny', 'test-strategist': 'deny', 'beads-manager': 'ask', 'ci-build-engineer': 'ask', 'release-manager': 'ask' };
   for (const [name, fallback] of Object.entries(defaults)) {
     const external = settings.agent[name].permission.external_directory;
@@ -505,7 +505,7 @@ test('AGENTS.md states the intent-and-boundaries model in harness-neutral terms 
     'Closure is never a default: the plan lists it with the close reason',
     'No plan authorizes a class E operation.',
     "Only three inputs carry the operator's authority:",
-    'in OpenCode, the result of `plan`\'s `submit_plan` call through Plannotator, or without Plannotator an operator message, sent after the most recent plan the session presented, that approves it; a reply with conditions or requested changes is a rejection)',
+    'in OpenCode, the result of a plan-review tool when the session has a working one, or otherwise an operator message, sent after the most recent plan the session presented, that approves it; a reply with conditions or requested changes is a rejection)',
     'It cannot add one:',
     'retry a guarded helper once, only for an error its documented contract names as safe to retry',
     '(7) a denied class B, C or D action; (8) a failed required step.',
@@ -531,7 +531,7 @@ test('AGENTS.md states the intent-and-boundaries model in harness-neutral terms 
 test('the OpenCode lifecycle states its accepted channels, plan approval forms and approval recording, and the Beads instructions follow the plan model', async () => {
   const lifecycle = (await readFile(new URL('../../.opencode/instructions/development-lifecycle.md', import.meta.url), 'utf8')).replace(/\s+/g, ' ');
   for (const text of [
-    'In OpenCode the accepted channels are: the operator\'s message (a user-role message) in the primary session; the operator\'s answer to a question asked with the question tool in the primary session; and the result of a `submit_plan` call made in the primary session.',
+    'In OpenCode the accepted channels are: the operator\'s message (a user-role message) in the primary session; the operator\'s answer to a question asked with the question tool in the primary session; and the result of a plan-review tool call made in the primary session, when the session has such a tool.',
     'plan revises the plan from the feedback and submits it again',
     'Such an approval cannot add an operation, file, role or issue.',
     'With a new approval through an accepted channel, it may continue the stopped session with its task_id or dispatch a fresh one; without one it does neither.',
@@ -593,6 +593,90 @@ test('build runs the default chain and plan writes boundary-contract plans', asy
     'phase 2, on the publication day, the date asked once, the CHANGELOG dating commit through the same chain'
   ]) assert.ok(plan.includes(text), text);
   for (const gone of ['ordered steps, verification and approvals', 'Incorporate denial/annotations without mutation']) assert.equal(plan.includes(gone), false, gone);
+});
+
+test('the runbooks describe the plan-boundary chain, the release plan and the maintainer environment', async () => {
+  const read = async file => (await readFile(new URL(`../../${file}`, import.meta.url), 'utf8')).replace(/\s+/g, ' ');
+  const workflow = await read('docs/development/opencode-workflow.md');
+  for (const text of [
+    '### References by operation',
+    '## Maintainer environment',
+    'Without the Plannotator CLI its `submit_plan` tool cannot open a review, and plan presents the plan as text',
+    'After a PASS on the exact final diff, unless the plan excludes them, build runs the rest of the chain',
+    'Under the lifecycle\'s denied-read rule, a denied read is a class A event for every role',
+    'A plan that names the merge helper authorizes every step of its documented contract',
+    'Sync is class E: the operator runs it against the shared main checkout',
+    'The maintainer runs OpenCode with `--auto`',
+    'run `tmux set-environment -g PATH "$PATH"` from that terminal before starting sessions',
+    'the chain ends at the reviewed commit and the change lands through a pull request'
+  ]) assert.ok(workflow.includes(text), text);
+  for (const gone of ['#permission-aware-recovery', '### Context on demand', 'keep their distinct approvals', 'read-only denial rule', 'run it only under separate sync authorization', 'Every future CI mutation still needs']) assert.equal(workflow.includes(gone), false, gone);
+  const releasing = await read('RELEASING.md');
+  for (const text of [
+    '**Release QA decision.** The plan records up front whether a release smoke test was done, is waived or is not required.',
+    '**Phase 1, preparation.**',
+    '**Phase 2, publication day.** When the operator says they are publishing, the agent asks the date once',
+    'The release plan\'s phase 2 authorizes it',
+    'it is not read-only, so it is class E and the operator runs it.',
+    'close the release task if the release plan lists the closure',
+    'the same chain, including exact-SHA CI on the landed main',
+    'through review, the CI-gated landing and exact-SHA CI on the landed main'
+  ]) assert.ok(releasing.includes(text), text);
+  for (const gone of ['are distinct approvals', 'needs separate approval', 'It needs its own approval', 'obtain closure approval', 'explicit publication approval', 'Approve those editing']) assert.equal(releasing.includes(gone), false, gone);
+  const planIndex = releasing.indexOf('### The release plan');
+  assert.ok(planIndex >= 0 && releasing.indexOf('### Preconditions') > planIndex);
+  const testing = await read('TESTING.md');
+  assert.ok(testing.includes('## Release QA Checklist'));
+  assert.ok(testing.includes('the release plan records up front whether one was done, is waived or is not required'));
+  assert.equal(testing.includes('Manual QA Before a Release'), false);
+  assert.ok((await read('.opencode/agents/plan.md')).includes('When it has none or the tool fails, present the plan as text in the session instead'));
+  assert.ok(workflow.indexOf('### Plannotator') > workflow.indexOf('## Maintainer environment'));
+});
+
+test('agent instructions describe plan review without naming Plannotator', async () => {
+  const { readdir } = await import('node:fs/promises');
+  const root = new URL('../../', import.meta.url);
+  const files = ['AGENTS.md', 'CLAUDE.md'];
+  for (const dir of ['.opencode/agents', '.opencode/instructions']) {
+    for (const name of await readdir(new URL(`${dir}/`, root))) if (name.endsWith('.md')) files.push(`${dir}/${name}`);
+  }
+  for (const file of files) {
+    const text = await readFile(new URL(file, root), 'utf8');
+    assert.equal(/plannotator|submit_plan/i.test(text), false, file);
+  }
+});
+
+test('relative Markdown links in agent-read docs point at headings that exist', async () => {
+  const { readdir } = await import('node:fs/promises');
+  const root = new URL('../../', import.meta.url);
+  const slug = heading => heading.trim().toLowerCase().replace(/[^\p{L}\p{N} _-]/gu, '').replace(/ /g, '-');
+  const anchors = async file => {
+    const seen = new Map();
+    const result = new Set();
+    let fenced = false;
+    for (const line of (await readFile(new URL(file, root), 'utf8')).split('\n')) {
+      if (/^\s*(```|~~~)/.test(line)) fenced = !fenced;
+      const match = !fenced && /^#{1,6} (.+)$/.exec(line);
+      if (!match) continue;
+      const base = slug(match[1]);
+      const count = seen.get(base) ?? 0;
+      seen.set(base, count + 1);
+      result.add(count ? `${base}-${count}` : base);
+    }
+    return result;
+  };
+  const files = ['AGENTS.md', 'CLAUDE.md', 'RELEASING.md', 'TESTING.md', 'CONTRIBUTING.md'];
+  for (const dir of ['.opencode/agents', '.opencode/instructions', 'docs/development']) {
+    for (const name of await readdir(new URL(`${dir}/`, root))) if (name.endsWith('.md')) files.push(`${dir}/${name}`);
+  }
+  for (const file of files) {
+    const text = (await readFile(new URL(file, root), 'utf8')).replace(/^\s*(```|~~~)[\s\S]*?^\s*\1/gm, '');
+    for (const [, target, fragment] of text.matchAll(/\]\(([^)\s#]*\.md|)#([^)\s]+)\)/g)) {
+      const resolved = target ? new URL(target, new URL(file, root)) : new URL(file, root);
+      const relative = resolved.pathname.slice(root.pathname.length);
+      assert.ok((await anchors(relative)).has(fragment), `${file} links to ${relative}#${fragment}`);
+    }
+  }
 });
 
 test('dependency preparation triggers on dependency entries, not a root version change', async () => {

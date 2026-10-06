@@ -10,7 +10,7 @@ This document describes the testing infrastructure for the Better Beads Kanban V
 - [Workflow Tooling](#workflow-tooling)
 - [Visual Testing](#visual-testing)
 - [The Extension Development Host](#the-extension-development-host)
-- [Manual QA Before a Release](#manual-qa-before-a-release)
+- [Release QA Checklist](#release-qa-checklist)
 - [Continuous Improvement](#continuous-improvement)
 
 ## Extension Test Suite
@@ -431,11 +431,16 @@ concluding a change did nothing, check the log for a second banner and for a
 matching `=== Opening Beads Kanban Board ===`; if that second line is missing you
 are looking at a dead panel, not a bug. Tracked in the backlog.
 
-## Manual QA Before a Release
+## Release QA Checklist
 
-The automated suites do not touch the webview. Walk this before cutting a release
-(see [RELEASING.md](RELEASING.md)); `scripts/seed-test-data.sh` gives you a
-representative database only within an explicitly approved isolated fixture scope.
+The automated suites do not touch the webview. Each feature's own tests, including
+any Extension Host checks it needs, run when that feature lands and are recorded in
+its review evidence. A release needs at most a smoke test on top: the release plan
+records up front whether one was done, is waived or is not required (see
+[RELEASING.md](RELEASING.md#the-release-plan)), and the decision is never a gate
+discovered at closeout. Draw smoke tests from this checklist; a release does not
+require walking all of it. `scripts/seed-test-data.sh` gives you a representative
+database only within an explicitly approved isolated fixture scope.
 
 1. **Board load and filtering**
    - Board loads with the seeded dataset; column distribution looks right

@@ -8,9 +8,11 @@ runbook was removed in bbk-vi1; if you find instructions anywhere that mention
 `vsce publish` or a publisher account, they are not this path.
 
 [AGENTS.md](AGENTS.md) owns shared approval and identity policy. OpenCode also reads
-its [release executor contract](.opencode/agents/release-manager.md). Preparation,
-real dry runs, publication, and backlog closure are distinct approvals. Examples
-below document procedures, not permission to execute them.
+its [release executor contract](.opencode/agents/release-manager.md). An approved
+release plan authorizes the preparation and dating commits through landing and main
+CI, as [The release plan](#the-release-plan) describes; dry runs and publication are
+class E, run by the operator. Examples below document procedures, not permission to
+execute them.
 
 The guarded entrypoint is `scripts/release-fork-vsix.sh --release-issue ID`.
 It anchors preflight and the locked packaging tool to its own reviewed tooling
@@ -118,10 +120,10 @@ ancestry alone do not prove that an older source includes every scoped change.
 Never silently remove dependencies to make the source appear ready.
 
 Require a fresh remote-main query and local ancestry proof. Missing history stops
-the operation; it does not authorize an automatic fetch, merge or push. Publication
-approval names repository, full SHA, version, tag, Latest promotion, assets,
-reviewed scope and remaining pre/postpublication obligations. Recheck near
-publication and renew approval if those approved fields change. These are
+the operation; it does not authorize an automatic fetch, merge or push. The
+publication handover names repository, full SHA, version, tag, Latest promotion,
+assets, reviewed scope and remaining pre/postpublication obligations. Recheck near
+publication and hand over again if any of those fields change. These are
 point-in-time checks, not an atomic remote transaction or per-issue attestation.
 
 Some tests genuinely need a release artifact. An explicit approved transfer records
@@ -139,6 +141,30 @@ some number of issues have closed. 2.1.4-bd.4 → bd.5 shipped the same day and
 bd.5 was pure repackaging; that is the failure mode.
 
 ## Cutting a release
+
+### The release plan
+
+A release runs under one approved plan, a boundary contract as [AGENTS.md](AGENTS.md)
+describes, with one recorded decision and two phases.
+
+**Release QA decision.** The plan records up front whether a release smoke test was
+done, is waived or is not required. Each feature's own tests, including any Extension
+Host checks it needs, ran when that feature landed; a release needs at most a smoke
+test on top, drawn from the [release QA checklist](TESTING.md#release-qa-checklist).
+The decision is never discovered as a gate at closeout.
+
+**Phase 1, preparation.** Claim the release task, then steps 1 and 2 below: the
+CHANGELOG entry with an undated heading, the bump and the retitle. They go through
+the default chain: gates, independent review, commit, exact-SHA CI, CI-gated landing
+and exact-SHA CI on the landed main. The operator then pushes main and runs step 3's
+dry run.
+
+**Phase 2, publication day.** When the operator says they are publishing, the agent
+asks the date once, unless the operator's message already states it, and again only
+if the date rolls over before landing. Step 4's one-line dating edit then goes through
+the same chain, including exact-SHA CI on the landed main. The operator pushes main and
+runs step 5. Step 6's verification follows, and step 7's closure runs only if the plan
+lists it with its reason.
 
 ### Preconditions
 
@@ -170,7 +196,8 @@ scope and metadata against the initial snapshot and checking unexpected outputs.
 Fresh main may advance only while retaining the selected source as an ancestor.
 These are point-in-time guards, not atomic publication or proof that each closed
 issue's implementation is present. History-backed scope reconciliation and the
-explicit publication approval remain human/agent workflow obligations.
+publication handover remain workflow obligations; publication itself is the
+operator's class E run.
 
 ### 1. Write the CHANGELOG entry first
 
@@ -213,7 +240,8 @@ bash scripts/release-fork-vsix.sh --release-issue <release-id> --dry-run
 ```
 
 Verifies, packages, and checksums without publishing, but creates local outputs and
-temporarily switches GitHub identity; it is not read-only and needs separate approval.
+temporarily switches GitHub identity; it is not read-only, so it is class E and the
+operator runs it.
 Confirm the emitted `TAG` and `ASSET` look right. `vsce package` reported 32 files
 and 949 KB for 2.2.3, and 20 files and 924 KB for a build on 2026-10-05 that packaged
 only the four runtime bundles from `out/`. Both counts include the two VSIX metadata
@@ -230,10 +258,12 @@ byte-reproducible across runs. Take the authoritative value from the real run.
 ### 4. Date the CHANGELOG heading
 
 On the day of publication, make the final pre-publication commit: change the
-heading to `## [X.Y.Z] - YYYY-MM-DD` with the publication date the maintainer
-confirms, and nothing else. It needs its own approval, review and landing on main
-like any preparation edit, and the publication approval names the resulting source
-SHA. The dated commit must also be on `origin/main` before step 5: preflight proves
+heading to `## [X.Y.Z] - YYYY-MM-DD` with the publication date the operator
+confirms, and nothing else. The release plan's phase 2 authorizes it; it goes
+through review, the CI-gated landing and exact-SHA CI on the landed main, like the
+preparation commit, and the
+publication handover names the resulting source SHA. The dated commit must also be
+on `origin/main` before step 5: preflight proves
 the source is an ancestor of GitHub main and does not fetch. A real release refuses
 an undated heading with `CHANGELOG_UNDATED`; a dry run before this step runs against
 the undated heading and passes.
@@ -253,7 +283,7 @@ For an older prepared source, invoke the absolute path to the approved main
 checkout's wrapper with CWD at that source's linked worktree. Both checkouts must
 share the Git common directory. The wrapper uses main's preflight and installed
 VSCE, not the selected source's historical release script. Creating the source
-worktree or preparing its dependencies requires explicit approval. Packaging
+worktree or preparing its dependencies needs a plan that names it. Packaging
 runs the selected source's normal prepublish build; review that source accordingly.
 
 `SHA256SUMS` is load-bearing, not decoration. An installer that pins this
@@ -292,9 +322,9 @@ report actual state and stop; do not blindly republish, delete or recreate a rel
 
 ### 7. Close the release task
 
-Only after the preceding evidence and remaining obligations pass, obtain closure
-approval with a reason recording tag, source SHA and the actual published checksum.
-OpenCode delegates that approved closure to beads-manager:
+Only after the preceding evidence and remaining obligations pass, close the release
+task if the release plan lists the closure, with a reason recording tag, source SHA
+and the actual published checksum. OpenCode delegates the closure to beads-manager:
 
 ```bash
 command bd -C "/absolute/main-checkout" close <release-id> --reason="Released vX.Y.Z from <full-sha>. Published asset sha256: <sha256>."
@@ -303,8 +333,8 @@ command bd -C "/absolute/main-checkout" close <release-id> --reason="Released vX
 ### Local iteration is a separate lane
 
 `scripts/build-local-vsix.sh` produces a branch/SHA-marked local VSIX and temporarily
-edits `package.json` while packaging. Approve those editing/build effects and use an
-editing executor, not non-editing build. A blocked stable release task does not block
+edits `package.json` while packaging. A plan that names its temporary package edit
+authorizes it; use an editing executor, not non-editing build. A blocked stable release task does not block
 this local lane. Upload and prerelease selection remain manual; no new automated
 upload or naming scheme is defined here. A local build or manual test upload does
 not close the stable release task.
