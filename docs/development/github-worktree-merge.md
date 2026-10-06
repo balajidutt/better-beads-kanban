@@ -59,7 +59,7 @@ The compatible hook executes main's `assets/resolve-python3` and
 runtime assets. Fork-main pushes can fail the fixed repository-identity check. This
 maintainer-oriented guard is not a PR prerequisite; do not rewrite remotes or bypass
 the policy to make it accept a foreign fork. Hook installation/modification and
-actual-clone validation require their own approvals.
+actual-clone validation are class E: the operator runs them.
 
 The local URL adaptation recognizes only `github-balajidutt` as `github.com` in
 validated SCP/SSH forms. It does not alias HTTPS hosts or arbitrary SSH names and
@@ -95,15 +95,19 @@ this runbook also does not grant a specialist another role's capabilities.
 
 ## Guarded helper operations
 
-Before a mutating helper call, finish the applicable implementation review/tests and
-obtain approval of its exact targets and effects. Prepare literal command arguments
-from the verified contract; do not execute an illustrative or remembered flag list.
+Before a mutating helper call, finish the applicable implementation review/tests.
+An approved plan that names this helper authorizes every step of its documented
+contract for the plan's targets, as [AGENTS.md](../../AGENTS.md#operations-and-effect-classes)
+describes; without such a plan, obtain approval of the exact targets and effects.
+Prepare literal command arguments from the verified contract; do not execute an
+illustrative or remembered flag list.
 
 - **Inspection:** establish feature/main identities, cleanliness, ahead/behind state,
-  ancestry and helper provenance. A fetch or main update needs its own approval;
-  inspection permission is not implicit network/mutation permission.
-- **Feature CI preparation (`prepare-ci`, when advertised):** approval names the
-  repository/remote, same-named feature ref and full pinned SHA, evidence writes and
+  ancestry and helper provenance. Inspection is not network or mutation permission;
+  a fetch or main update outside a helper step the plan authorizes needs its own
+  approval.
+- **Feature CI preparation (`prepare-ci`, when advertised):** the plan's targets
+  name the repository/remote, same-named feature ref and full pinned SHA, evidence writes and
   bounded monitoring. Do not publish a movable branch without verifying the exact
   advertised SHA. Do not force a ref or trigger a workflow rerun to manufacture a pass.
 - **CI evidence:** require all selected GitHub workflows successful for the exact
@@ -122,29 +126,32 @@ from the verified contract; do not execute an illustrative or remembered flag li
   <approved SHA>`. A `Published` line instead means a different SHA went out under
   an approval that did not name it: stop and report it. A second identical stop, or
   any other failure, stops as before.
-- **Landing (`ff` / `no-ff`, when advertised):** approve the target main worktree,
-  pinned source SHA, fresh fetch, merge mode, any main update, any merge message and
-  attributed merge commit, and the helper's mandatory exact-lease remote feature
-  deletion attempt. Choose ff when possible; no-ff is for genuine divergence, not an
-  arbitrary fallback after an error. If a required side effect is not approved and
-  cannot be omitted, do not invoke the operation.
+- **Landing (`ff` / `no-ff`, when advertised):** the plan's targets name the main
+  worktree and pinned source SHA; naming the helper authorizes its fresh fetch, merge
+  mode, main update, merge message and attributed merge commit, and its mandatory
+  exact-lease remote feature deletion attempt. Choose ff when possible; no-ff is for
+  genuine divergence, not an arbitrary fallback after an error. If the plan excludes
+  a required side effect that cannot be omitted, do not invoke the operation.
 - **Main-CI recovery (`prepare-main-ci`, when advertised):** a rewritten/batched main
   may need evidence for its exact final SHA rather than an earlier feature SHA.
-  Separately approve the narrowly scoped reserved-ref publication and cleanup. This
-  never authorizes pushing main or tags.
+  Its reserved-ref publication and cleanup are step 7 of a release plan's chain and
+  otherwise run only when a plan names them. This never authorizes pushing main or
+  tags.
 
 Helper-created merge commits follow its approved invoking-harness attribution
 contract; verify author and committer. Never invoke `--close-beads` in OpenCode.
-The manager alone performs separately approved closure after landing/review/evidence
-and reconciliation of relevant partial failures.
+The manager alone closes an issue, only when the plan lists the closure with its
+reason, after landing, review and evidence and reconciliation of relevant partial
+failures.
 
 If Git lands but receipt persistence or remote cleanup fails, report the actual main
 SHA and applied/unapplied effects. Do not rerun or roll back the merge, fabricate
 receipts, delete a moved remote ref, or close the issue to hide the partial result.
-Changed helper/policy contracts require rediscovery and renewed approval as applicable.
+Changed helper/policy contracts require rediscovery; a change that alters the plan's
+operations needs a new plan.
 
-Main/tag publication, evidence pruning, actual-clone hook validation and local
-cleanup retain separate approvals. Preserve custom hooks and any `core.hooksPath`;
+Main and tag pushes and actual-clone hook validation are class E, run by the
+operator; evidence pruning and local cleanup run only when a plan names them. Preserve custom hooks and any `core.hooksPath`;
 do not overwrite or disable them to make a guard pass. An installed hook without
 main's policy/runtime is not an active CI guard. Defer AoE-owned cleanup to AoE.
 

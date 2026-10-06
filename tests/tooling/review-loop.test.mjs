@@ -404,7 +404,7 @@ test('code-reviewer history forms ask while its exact inspection forms stay allo
 
 test('bd and sync forms named in contracts resolve to ask for their role', async () => {
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
-  const expected = { 'release-manager': 4, 'code-reviewer': 2, 'beads-manager': 3 };
+  const expected = { 'release-manager': 4, 'code-reviewer': 2, 'beads-manager': 2 };
   for (const [name, count] of Object.entries(expected)) {
     const text = await readFile(new URL(`../../.opencode/agents/${name}.md`, import.meta.url), 'utf8');
     const forms = [...text.matchAll(/`((?:command bd -C |scripts\/bd-sync\.sh)[^`]*)`/g)].map(([, form]) => form
@@ -471,7 +471,7 @@ test('CI names and may run its branch identity query', async () => {
 test('the CHANGELOG heading stays undated through preparation and is dated in the final pre-publication commit', async () => {
   const contract = await readFile(new URL('../../.opencode/agents/release-manager.md', import.meta.url), 'utf8');
   assert.ok(contract.includes('draft CHANGELOG first with an undated `## [X.Y.Z]` heading'));
-  assert.ok(contract.includes('Date the heading only in the final pre-publication commit, on the publication day and with the date the human confirms, after preparation has landed; that commit needs its own approval and landing, and a real release refuses an undated heading.'));
+  assert.ok(contract.includes("Date the heading only in the final pre-publication commit, on the publication day and with the date the operator confirms, after preparation has landed; the release plan's phase 2 authorizes that commit through the same chain, and a real release refuses an undated heading."));
   const releasing = await readFile(new URL('../../RELEASING.md', import.meta.url), 'utf8');
   assert.ok(releasing.includes('Leave the heading undated during preparation'));
   assert.ok(releasing.includes('### 4. Date the CHANGELOG heading'));
@@ -631,6 +631,62 @@ test('the runbooks describe the plan-boundary chain, the release plan and the ma
   assert.equal(testing.includes('Manual QA Before a Release'), false);
   assert.ok((await read('.opencode/agents/plan.md')).includes('When it has none or the tool fails, present the plan as text in the session instead'));
   assert.ok(workflow.indexOf('### Plannotator') > workflow.indexOf('## Maintainer environment'));
+});
+
+const leaves = ['plan-reviewer', 'code-reviewer', 'test-strategist', 'typescript-specialist', 'webview-specialist', 'beads-manager', 'ci-build-engineer', 'release-manager'];
+
+test('leaf role cards keep their prose under 500 words, excluding exact command-form list items', async () => {
+  for (const name of leaves) {
+    const text = await readFile(new URL(`../../.opencode/agents/${name}.md`, import.meta.url), 'utf8');
+    const prose = text.split('\n').filter(line => !/^\s*- `/.test(line)).join(' ');
+    assert.ok(prose.split(/\s+/).filter(Boolean).length < 500, name);
+    assert.ok(text.includes("Denied reads follow the lifecycle's denied-read rule."), name);
+  }
+});
+
+test('review role cards review against the plan model', async () => {
+  const read = async name => readFile(new URL(`../../.opencode/agents/${name}.md`, import.meta.url), 'utf8');
+  const flat = text => text.replace(/\s+/g, ' ');
+  const code = flat(await read('code-reviewer'));
+  assert.ok(code.includes('When given a commit message, check it against the diff and CONTRIBUTING.md'));
+  assert.ok(code.includes('A mismatch is a must-fix; return corrected wording.'));
+  assert.ok(code.includes("it satisfies the plan's review step and authorizes nothing else"));
+  assert.equal(code.includes('It is not implementation, commit or publication approval'), false);
+  const plan = flat(await read('plan-reviewer'));
+  assert.ok(plan.includes('Check the plan is a complete boundary contract'));
+  assert.ok(plan.includes('Do not ask for per-step approvals the default chain already grants.'));
+  assert.ok(plan.includes('Check every acceptance item names a role and tool in scope, or the operator, that can produce it; that no open question concerns required evidence'));
+  assert.equal(plan.includes('distinct lifecycle approvals'), false);
+  const strategy = flat(await read('test-strategist'));
+  assert.ok(strategy.includes('Name the role and tool that can produce each evidence item'));
+  assert.equal(strategy.includes('requires its own approval'), false);
+});
+
+test('executing role cards run the plan model and hand class E commands to the operator', async () => {
+  const read = async file => (await readFile(new URL(`../../${file}`, import.meta.url), 'utf8')).replace(/\s+/g, ' ');
+  const ci = await read('.opencode/agents/ci-build-engineer.md');
+  for (const text of [
+    "Commit with `oc-commit` and the reviewed message verbatim; never edit it.",
+    'a staged diff that differs from the one code-reviewer passed returns to build',
+    'A hook-induced change returns to build for review, without reversion.',
+    'The plan authorizes the helper by reference: never restate, reorder or skip its steps.',
+    'the dry-run push (it runs installed hooks)'
+  ]) assert.ok(ci.includes(text), text);
+  for (const gone of ['before every next step', 'Permission-aware recovery', 'separate approval', 'one-time approval']) assert.equal(ci.includes(gone), false, gone);
+  const manager = await read('.opencode/agents/beads-manager.md');
+  assert.ok(manager.includes('Pass that quoted path as `-C` on every bd command, writes included: only the `-C` readback proves which database a write reached.'));
+  assert.ok(manager.includes('Backlog sync is class E: hand the operator the sync command AGENTS.md names.'));
+  for (const gone of ['it is denied', 'scripts/bd-sync.sh', 'separately approved']) assert.equal(manager.includes(gone), false, gone);
+  const release = await read('.opencode/agents/release-manager.md');
+  assert.ok(release.includes('and hand them to the operator with repository, full source SHA, version, tag, Latest promotion, assets, reviewed scope and remaining obligations'));
+  for (const gone of ['Publication approval tuple', 'obtain explicit approval', 'needs its own approval']) assert.equal(release.includes(gone), false, gone);
+  for (const name of ['typescript-specialist', 'webview-specialist']) {
+    assert.ok((await read(`.opencode/agents/${name}.md`)).includes('Stop at an escalation trigger rather than widen authority'), name);
+  }
+  const merge = await read('docs/development/github-worktree-merge.md');
+  assert.ok(merge.includes('An approved plan that names this helper authorizes every step of its documented contract'));
+  assert.ok(merge.includes('only when the plan lists the closure with its reason'));
+  for (const gone of ['separately approved closure', 'retain separate approvals', 'Separately approve the narrowly scoped']) assert.equal(merge.includes(gone), false, gone);
 });
 
 test('agent instructions describe plan review without naming Plannotator', async () => {
