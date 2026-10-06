@@ -528,6 +528,37 @@ test('AGENTS.md states the intent-and-boundaries model in harness-neutral terms 
   assert.ok(agents.includes('[CONTRIBUTING.md](CONTRIBUTING.md#maintainer-environment)'));
 });
 
+test('the OpenCode lifecycle states its accepted channels, plan approval forms and approval recording, and the Beads instructions follow the plan model', async () => {
+  const lifecycle = (await readFile(new URL('../../.opencode/instructions/development-lifecycle.md', import.meta.url), 'utf8')).replace(/\s+/g, ' ');
+  for (const text of [
+    'In OpenCode the accepted channels are: the operator\'s message (a user-role message) in the primary session; the operator\'s answer to a question asked with the question tool in the primary session; and the result of a `submit_plan` call made in the primary session.',
+    'plan revises the plan from the feedback and submits it again',
+    'Such an approval cannot add an operation, file, role or issue.',
+    'With a new approval through an accepted channel, it may continue the stopped session with its task_id or dispatch a fresh one; without one it does neither.',
+    'must not attempt such changes through any other form',
+    'admits only the verified helper executable with its documented flags, never a lookalike path',
+    'Classify a denial by the harness\'s actual outcome for the call',
+    'hook changes are class E by policy and have no deny rule',
+    'An operator message sent after the most recent plan that approves it is the approval; a reply with conditions or requested changes is a rejection.',
+    'After compaction, a plan that existed only as session text is void until the operator supplies it again.',
+    'the primary asks with the question tool for class C or D, using the exact operation and target as the option label',
+    'an approval quoted only in an earlier dispatch of a continued task session is void',
+    'returns a command\'s stdout and stderr to the model but never its exit code.',
+    'Agents hand the operator the exact command in every case.'
+  ]) assert.ok(lifecycle.includes(text), text);
+  for (const gone of ['Separate approval is required for commits', 'At CI\'s permission prompt the human chooses Once', 'deny every class E command']) assert.equal(lifecycle.includes(gone), false, gone);
+  const handoff = await readFile(new URL('../../.opencode/instructions/beads-plan-handoff.md', import.meta.url), 'utf8');
+  assert.ok(handoff.includes('Backlog writes require an approved plan that names the issue IDs'));
+  assert.ok(handoff.includes('Backlog sync is class E: the operator runs scripts/bd-sync.sh'));
+  assert.ok(handoff.includes('Agents never run it, its `--pull` or `--flush` modes, or bare bd dolt push/pull'));
+  assert.ok(handoff.includes('plus the close reason the plan lists to beads-manager'));
+  assert.ok(handoff.includes('A follow-up needs the plan to state its title, type, priority, description and links.'));
+  const backlog = await readFile(new URL('../../.opencode/instructions/beads-backlog-workflow.md', import.meta.url), 'utf8');
+  for (const [name, text] of [['handoff', handoff], ['backlog', backlog]]) {
+    for (const gone of ['bootstrap pause', 'user-confirmed', 'Separately approved sync']) assert.equal(text.includes(gone), false, `${name} ${gone}`);
+  }
+});
+
 test('dependency preparation triggers on dependency entries, not a root version change', async () => {
   for (const file of ['instructions/development-lifecycle.md', 'agents/build.md']) {
     const text = await readFile(new URL(`../../.opencode/${file}`, import.meta.url), 'utf8');
@@ -577,7 +608,7 @@ test('every agent with bd rules has exact help rules for its subcommands, named 
 test('the lifecycle keeps the stop-on-any-denial, terminal-stop and truncation sentences', async () => {
   const lifecycle = await readFile(new URL('../../.opencode/instructions/development-lifecycle.md', import.meta.url), 'utf8');
   assert.ok(lifecycle.includes('Truncated tool output is not a denial or a failed gate.'));
-  assert.ok(lifecycle.includes('An instruction to stop on any denial covers every denied call, even when a permitted tool could reach the same result, and makes that denial a terminal stop.'));
+  assert.ok(lifecycle.includes('A plan may impose stop-on-denial on a named step; that instruction covers every denied call in the step, even when a permitted tool could reach the same result, and makes that denial a terminal stop.'));
   assert.ok(lifecycle.includes('After a terminal stop, issue no further tool calls'));
 });
 
@@ -677,16 +708,17 @@ test('every read-only git rule resolves the same with the no-optional-locks fsmo
   assert.ok(checked > 40);
 });
 
-test('non-mutating reviewers treat a denied read as an error; mutating steps keep stop on any denial', async () => {
+test('every role treats a denied read as class A, and stop-on-denial applies only where a plan names a step', async () => {
   const lifecycle = await readFile(new URL('../../.opencode/instructions/development-lifecycle.md', import.meta.url), 'utf8');
   assert.ok(lifecycle.includes('a rule-based denial of a read is an error, not a stop'));
-  assert.ok(lifecycle.includes('A dispatch to one of them does not include an instruction to stop on any denial; if one does, that instruction controls. The conditions above still apply to each replacement call.'));
   assert.ok(lifecycle.includes('Do not resend the same command text or probe which variants are allowed.'));
-  assert.ok(lifecycle.includes("return the review as incomplete in your role's result format and name what is missing"));
-  assert.ok(lifecycle.includes("A denied call aimed at a protected path (`.env*`, `.ssh`, `auth.json` or `.beads`), whichever tool's rule denied it, is never pursued through another tool."));
-  assert.ok(lifecycle.includes('A human rejecting a call, or any denied call that is not a read, is a terminal stop.'));
-  assert.ok(lifecycle.includes('Reserve an instruction to stop on any denial for steps that can mutate state.'));
-  assert.ok(lifecycle.includes('Every other role uses one evidence-backed recovery sequence'));
+  assert.ok(lifecycle.includes("return your result as incomplete in your role's format and name what is missing"));
+  assert.ok(lifecycle.includes("A denied call aimed at a protected path (`.env*`, `.ssh`, `auth.json`, `.npmrc` or `.beads`), whichever tool's rule denied it, is never pursued through another tool."));
+  assert.ok(lifecycle.includes('A denied class B, C or D action is trigger 7, and a human rejecting a call is trigger 6: either is a terminal stop for that dispatch.'));
+  assert.ok(lifecycle.includes('Reserve it for steps that can mutate state.'));
+  assert.equal(lifecycle.includes('evidence-backed recovery sequence'), false);
+  assert.equal(lifecycle.includes('Permission-aware recovery'), false);
+  assert.equal(lifecycle.includes('Bootstrap pause'), false);
   assert.equal(lifecycle.includes('may recover once'), false);
   assert.equal(lifecycle.includes('a later call in the same dispatch is denied'), false);
   for (const file of ['build', 'plan']) {

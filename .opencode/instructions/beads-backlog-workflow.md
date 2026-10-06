@@ -1,6 +1,6 @@
 # Backlog-only workflow
 
-Read this procedure before planning, dispatching, performing or reviewing backlog-only operations. Also read the safe-mutation, sync and completion safeguards in `.opencode/instructions/beads-plan-handoff.md`; its implementation-approval prerequisite does not apply to backlog-only work. Backlog grooming, issue creation/enrichment, linking, prioritization, status changes and closure are distinct from implementation. Classify every backlog mutation as medium/high, obtain a reviewed Plannotator plan, and route its exact approved handoff from build to beads-manager. Plan cannot mutate or call a writer. A backlog-only approval does not authorize source edits, implementation, claiming, new state files, sync or publication, or lift the bootstrap pause.
+Read this procedure before planning, dispatching, performing or reviewing backlog-only operations. Also read the safe-mutation, sync and completion safeguards in `.opencode/instructions/beads-plan-handoff.md`; its implementation-approval prerequisite does not apply to backlog-only work. Backlog grooming, issue creation/enrichment, linking, prioritization, status changes and closure are distinct from implementation. Every backlog mutation is medium/high work: it needs a reviewed, approved plan that names the issue IDs or states new issues' metadata, and build routes it to beads-manager. Plan cannot mutate or call a writer. A backlog-only plan does not authorize source edits, implementation, claiming, new state files, sync or publication.
 
 ## Approved handoff fields
 
@@ -9,7 +9,7 @@ Read this procedure before planning, dispatching, performing or reviewing backlo
 - No implementation: true.
 - Field updates: individually authorized values or preserving additions.
 - Preserve: title, status, assignee, priority, labels, parent/dependencies, external_ref, description and history unless explicitly changed.
-- Approval source: exact approved text or user-confirmed artifact, not the latest archive.
+- Approval source: the exact approved plan path or plan text, with the approval's channel, not the latest archive.
 - Readback: observable expected result and approved close reason when applicable.
 
 An existing issue reference means preserve and update that issue, not create a duplicate. A linked follow-up means create the approved distinct item and relationship, not replace its parent's design. Ambiguous identity, release selection or relationship direction stops for the parent to clarify.
