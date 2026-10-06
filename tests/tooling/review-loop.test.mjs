@@ -206,7 +206,7 @@ test('executing and review roles default to ask behind explicit deny blocks; pla
     'command npm publish', 'command npm install', 'npm install', 'npm i lodash', 'npm ci', 'npm add lodash', 'npm rm x', 'command gh pr create', 'command gh auth switch', '/opt/homebrew/bin/gh release create v1',
     'command bd -C "/m" sql "select 1"', 'command bd -C "/m" compact', 'command bd -C "/m" delete bbk-1', 'command bd -C "/m" hooks install', 'command bd -C "/m" vc commit', 'command bd -C "/m" federation sync',
     'rm -rf /*', 'rm -fr /', 'rm -r -f ~', 'ls ~/.ssh', 'ls .beads', 'cat ".env"', 'cat ./.env.local', 'source .env'];
-  const reviewerOnly = ['git add -A', 'git -C /x add f', 'git apply x.patch', 'git diff --output=x', 'git fetch origin', 'git branch new', 'npm test', 'command npm test', 'npx vsce ls', 'node -e 1', './node_modules/.bin/mocha', 'python3 -c 1', 'patch -p1 -i x.patch', 'scripts/build-local-vsix.sh', './scripts/clean-test-data.sh', '/repo/scripts/visual-test-launch.sh', '/repo/assets/check-pipeline.py', 'sed -i s/a/b/ x', 'tee x', 'cp a b', 'mv a b', 'rm x', 'touch x', 'mkdir x', 'curl -s https://example.com', 'find . -name x -delete', 'xargs rm'];
+  const reviewerOnly = ['git add -A', 'git -C /x add f', 'git apply x.patch', 'git fetch origin', 'git branch new', 'npm test', 'command npm test', 'npx vsce ls', 'node -e 1', './node_modules/.bin/mocha', 'python3 -c 1', 'patch -p1 -i x.patch', 'scripts/build-local-vsix.sh', './scripts/clean-test-data.sh', '/repo/scripts/visual-test-launch.sh', '/repo/assets/check-pipeline.py', 'sed -i s/a/b/ x', 'tee x', 'cp a b', 'mv a b', 'rm x', 'touch x', 'mkdir x', 'curl -s https://example.com', 'find . -name x -delete', 'xargs rm'];
   const notCi = ["oc-commit -m 'feat: x'", 'cc-commit -m x', 'assets/agent-wt-merge ff --actor claude', '.opencode/bin/agent-wt-merge prepare-ci', '/repo/assets/agent-wt-merge inspect --json'];
   for (const name of flipped) {
     const bash = settings.agent[name].permission.bash;
@@ -224,6 +224,9 @@ test('executing and review roles default to ask behind explicit deny blocks; pla
     const bash = settings.agent[name].permission.bash;
     for (const command of everyRole) assert.equal(bashAction(bash, command), 'deny', `${name} ${command}`);
     for (const command of reviewerOnly) assert.equal(bashAction(bash, command) === 'deny', reviewers.includes(name), `${name} ${command}`);
+    for (const command of ['git diff --output=x', 'git diff --no-index /etc/hosts x', 'git --no-optional-locks -c core.fsmonitor=false diff --no-ext-diff --no-textconv --no-index a b']) {
+      assert.equal(bashAction(bash, command) === 'deny', [...reviewers, 'release-manager'].includes(name), `${name} ${command}`);
+    }
     for (const command of notCi) assert.equal(bashAction(bash, command) === 'deny', name !== 'ci-build-engineer', `${name} ${command}`);
     for (const command of ['ls -la', 'git -C /x status --porcelain', 'git -C /x log --oneline -5', 'git diff --no-ext-diff --no-textconv -- configs/pipeline-guard.json addons/x', 'rg TODO src', 'rg process.env src', 'rg beadsWatch src', 'wc -l package.json']) assert.equal(bashAction(bash, command), 'ask', `${name} ${command}`);
   }
@@ -235,19 +238,46 @@ test('executing and review roles default to ask behind explicit deny blocks; pla
   for (const command of ['command bd -C "/m" update bbk-1 --notes "run bd dolt push later"', 'command bd -C "/m" close bbk-1 --reason "deleted import"']) assert.equal(bashAction(bm, command), 'ask', command);
 });
 
-test('CI may dry-run a main push while real main and tag pushes are denied to every role', async () => {
+test('every role is denied git push, including the hook-running dry run', async () => {
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
   const bash = settings.agent['ci-build-engineer'].permission.bash;
-  assert.equal(bashAction(bash, 'git push --dry-run origin main'), 'allow');
-  for (const command of ['git push origin main', 'git push origin refs/tags/v2.2.3', 'git push --force origin main', 'git push -u origin fix/x', 'command git push origin main', 'git -C /x push origin main']) {
+  for (const command of ['git push --dry-run origin main', 'git push origin main', 'git push origin refs/tags/v2.2.3', 'git push --force origin main', 'git push -u origin fix/x', 'command git push origin main', 'git -C /x push origin main']) {
     assert.equal(bashAction(bash, command), 'deny', command);
   }
-  assert.deepEqual(Object.entries(bash).filter(([key, action]) => key.startsWith('git push') && action !== 'deny'), [['git push --dry-run origin main', 'allow']]);
   for (const [name, agent] of Object.entries(settings.agent)) {
-    if (name === 'ci-build-engineer') continue;
     const rules = agent.permission?.bash && typeof agent.permission.bash === 'object' ? agent.permission.bash : {};
     for (const [key, action] of Object.entries(rules)) assert.ok(!key.startsWith('git push') || action === 'deny', `${name} grants ${key}`);
   }
+});
+
+test('plan reads main through shared refs and release reads, never through a write or an outside path', async () => {
+  const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
+  const bash = settings.agent.plan.permission.bash;
+  assert.equal(bash['*'], 'deny');
+  for (const command of [
+    'git log --oneline --decorate --reverse main..HEAD',
+    'git diff --no-ext-diff --no-textconv --stat main...HEAD',
+    'git diff --no-ext-diff --no-textconv main...HEAD -- RELEASING.md',
+    'git show --no-ext-diff --no-textconv main:CHANGELOG.md',
+    'git --no-optional-locks -c core.fsmonitor=false show --no-ext-diff --no-textconv origin/main:package.json',
+    'gh release view v2.3.0 --repo balajidutt/better-beads-kanban --json assets,author,tagName',
+    'gh release view --repo balajidutt/better-beads-kanban --json tagName',
+    'gh release download v2.3.0 --repo balajidutt/better-beads-kanban --pattern SHA256SUMS --output -',
+    'command bd -C "/m" --readonly blocked --json'
+  ]) assert.equal(bashAction(bash, command), 'ask', command);
+  for (const command of ['git diff --no-ext-diff --no-textconv', 'git rev-parse HEAD', 'command bd --help']) assert.equal(bashAction(bash, command), 'allow', command);
+  for (const command of [
+    'git show --no-ext-diff --no-textconv --output=x main',
+    'git diff --no-ext-diff --no-textconv --no-index /etc/hosts x',
+    'git show --no-ext-diff --no-textconv main:.env',
+    'git show --no-ext-diff --no-textconv --ext-diff HEAD',
+    'git diff --no-ext-diff --no-textconv --textconv main...HEAD',
+    'git show --no-ext-diff --no-textconv refs/dolt/data',
+    'git log --oneline --decorate --reverse -- .beads/x',
+    'git push origin main', 'git commit -m x', 'git checkout main',
+    'gh release download v2.3.0 --repo balajidutt/better-beads-kanban --pattern SHA256SUMS --dir /tmp',
+    'gh release create v2.3.0', 'git -C /main log', 'cat ~/.ssh/id_ed25519', 'command bd -C "/m" update bbk-1 --notes x'
+  ]) assert.equal(bashAction(bash, command), 'deny', command);
 });
 
 test('build external directory access falls back to deny around the Plannotator plans grant', async () => {
@@ -455,8 +485,7 @@ test('only beads-manager may write or sync the backlog; other flipped roles keep
   assert.equal(manager.includes('not backlog grooming or release preparation'), false);
   const bm = settings.agent['beads-manager'].permission.bash;
   assert.equal(bashAction(bm, 'command bd -C "/m" update bbk-1 --notes y'), 'ask');
-  assert.equal(bashAction(bm, 'scripts/bd-sync.sh'), 'ask');
-  for (const name of ['typescript-specialist', 'release-manager', 'code-reviewer']) {
+  for (const name of ['beads-manager', 'typescript-specialist', 'release-manager', 'code-reviewer']) {
     for (const helper of ['scripts/bd-sync.sh', '/m/scripts/bd-sync.sh', './scripts/bd-sync.sh']) assert.equal(bashAction(settings.agent[name].permission.bash, helper), 'deny', `${name} ${helper}`);
   }
 });

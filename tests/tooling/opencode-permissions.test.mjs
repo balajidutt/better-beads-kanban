@@ -56,10 +56,12 @@ test('the spec rejects a duplicate rule instead of silently keeping the first po
   assert.throws(() => bashRules(role), /duplicate bash rule "git status"/);
 });
 
-test('git denies expand four ways, and the common block applies to exactly the ask-fallback roles', () => {
+test('git denies expand four ways, and the common block applies to every role with a rule map', () => {
   for (const spelling of ['git push *', 'git * push *', 'command git push *', 'command git * push *']) assert.ok(blocks.common.includes(spelling), spelling);
-  for (const role of Object.values(roles)) {
+  for (const [name, role] of Object.entries(roles)) {
     if (typeof role === 'string') continue;
-    assert.equal(role.denyBlocks.includes(blocks.common), role.fallback === 'ask');
+    assert.ok(role.denyBlocks.includes(blocks.common), name);
   }
+  for (const name of ['plan', 'release-manager']) assert.ok(roles[name].denyBlocks.includes(blocks.readOnlyGit), name);
+  for (const spelling of ['git * --output*', 'git * --no-index*']) assert.ok(blocks.readOnlyGit.includes(spelling) && blocks.review.includes(spelling), spelling);
 });

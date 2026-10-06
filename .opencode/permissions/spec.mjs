@@ -9,7 +9,9 @@ const git = (...verbs) => verbs.flatMap(verb => [`git ${verb}`, `git * ${verb}`,
 const withCommand = (tool, ...rest) => rest.flatMap(arg => [`${tool} ${arg}`, `command ${tool} ${arg}`]);
 const bd = (...subcommands) => subcommands.flatMap(sub => [`bd ${sub} *`, `bd * ${sub} *`, `command bd ${sub} *`, `command bd * ${sub} *`, `*/bd ${sub} *`, `*/bd * ${sub} *`]);
 const launched = (dir, name) => [`${name}*`, `${dir}/${name}*`, `./${dir}/${name}*`, `/*/${name}*`];
-const asPath = name => [`* ${name}*`, `*/${name}*`, `*"${name}*`, `*'${name}*`, `*=${name}*`];
+const asPath = name => [`* ${name}*`, `*/${name}*`, `*"${name}*`, `*'${name}*`, `*=${name}*`, `*:${name}*`];
+
+const readOnlyGit = git('* --output*', '* --no-index*', '* --ext-diff*', '* --textconv*');
 
 export const blocks = {
   common: [
@@ -25,7 +27,7 @@ export const blocks = {
       'purge', 'prune', 'gc', 'flatten', 'rename', 'rename-prefix', 'migrate-issues', 'migrate-personal', 'doctor', 'batch', 'edit', 'upgrade', 'setup',
       'worktree', 'repo', 'branch', 'mol', 'protomolecule', 'github', 'gitlab', 'jira', 'linear', 'notion', 'ado', 'mail', 'ship'),
     'sh', 'sh *', 'bash', 'bash *', 'zsh', 'zsh *', 'eval *', 'sudo *', 'command sudo *',
-    ...asPath('.env'), ...asPath('.ssh'), ...asPath('.beads'), '*auth.json*', '*.npmrc*',
+    ...asPath('.env'), ...asPath('.ssh'), ...asPath('.beads'), '*auth.json*', '*.npmrc*', '*refs/dolt*',
     'rm -rf /*', 'rm -fr /*', 'rm -r -f /*', 'rm -r -f ~*', 'rm -rf ~*', 'rm -fr ~*', 'rm -rf $HOME*', 'rm -fr $HOME*',
     'dd *', 'mkfs*', 'diskutil *', 'shutdown*', 'reboot*', 'chmod 777*', 'chmod -R 777*'
   ],
@@ -35,7 +37,7 @@ export const blocks = {
   ],
   install: withCommand('npm', 'install*', 'i *', 'ci*', 'update*', 'uninstall*', 'add *', 'rm *', 'remove *', 'un *', 'link*'),
   review: [
-    ...git('add *', 'mv *', 'rm *', 'apply *', 'am *', 'cherry-pick *', 'revert *', 'notes *', 'fetch *', 'branch *', '* --output*'),
+    ...git('add *', 'mv *', 'rm *', 'apply *', 'am *', 'cherry-pick *', 'revert *', 'notes *', 'fetch *', 'branch *'), ...readOnlyGit,
     ...withCommand('npm', '*'), ...withCommand('npx', '*'), ...withCommand('node', '*'),
     'node_modules/.bin/*', './node_modules/.bin/*', '/*/node_modules/.bin/*',
     'scripts/*', './scripts/*', '/*/scripts/*', 'assets/*', './assets/*', '/*/assets/*',
@@ -43,6 +45,7 @@ export const blocks = {
     'sed -i*', 'sed * -i*', 'tee *', 'cp *', 'mv *', 'rm *', 'touch *', 'mkdir *', 'ln *', 'chmod *', 'chown *', 'truncate *',
     'rsync *', 'xargs *', 'find * -delete*', 'find * -exec*', 'curl *', 'wget *'
   ],
+  readOnlyGit,
   backlog: ['bd', 'bd *', 'command bd', 'command bd *', '*/bd', '*/bd *', ...launched('scripts', 'bd-sync.sh')]
 };
 
@@ -50,13 +53,24 @@ export const roles = {
   "plan": {
     fallback: "deny",
     rules: [
+      ...guarded("git log --oneline --decorate --reverse *", "ask"),
+      ...guarded("git diff --no-ext-diff --no-textconv --stat *", "ask"),
+      ...guarded("git diff --no-ext-diff --no-textconv --name-status *", "ask"),
+      ...guarded("git diff --no-ext-diff --no-textconv *", "ask"),
+      ...guarded("git show --no-ext-diff --no-textconv *", "ask"),
       ...guarded("git rev-parse *", "allow"),
       ...guarded("git branch --show-current", "allow"),
       ["git --no-optional-locks -c core.fsmonitor=false status", "allow"],
       ["git --no-optional-locks -c core.fsmonitor=false status *", "allow"],
       ...guarded("git diff --no-ext-diff --no-textconv", "allow"),
       ...guarded("git diff --no-ext-diff --no-textconv --cached", "allow"),
-      ...guarded("git log --oneline -10", "allow"),
+      ...guarded("git log --oneline -10", "allow")
+    ],
+    denyBlocks: [blocks.common, blocks.readOnlyGit],
+    afterDeny: [
+      ["gh release view v* --repo balajidutt/better-beads-kanban --json assets,author,tagName", "ask"],
+      ["gh release view --repo balajidutt/better-beads-kanban --json tagName", "ask"],
+      ["gh release download v* --repo balajidutt/better-beads-kanban --pattern SHA256SUMS --output -", "ask"],
       ["command bd --help", "allow"],
       ["command bd show --help", "allow"],
       ["command bd ready --help", "allow"],
@@ -67,8 +81,6 @@ export const roles = {
       ["command bd -C * --readonly blocked *", "ask"],
       ["command bd -C * --readonly list *", "ask"]
     ],
-    denyBlocks: [],
-    afterDeny: [],
     afterRedirect: []
   },
   "build": "deny",
@@ -107,12 +119,10 @@ export const roles = {
       ["command bd -C * --readonly list *", "ask"],
       ["command bd -C * --readonly history *", "ask"],
       ["command bd -C * dep add *", "ask"],
-      ["command bd -C * dep remove *", "ask"],
-      ["scripts/bd-sync.sh", "ask"],
-      ["scripts/bd-sync.sh --pull", "ask"]
+      ["command bd -C * dep remove *", "ask"]
     ],
     denyBlocks: [blocks.common, blocks.notCi, blocks.install],
-    afterDeny: [],
+    afterDeny: launched('scripts', 'bd-sync.sh').map(rule => [rule, "deny"]),
     afterRedirect: [
       ["command bd -C * create *", "ask"],
       ["command bd -C * update *", "ask"],
@@ -222,8 +232,7 @@ export const roles = {
     ],
     denyBlocks: [blocks.common, blocks.install, blocks.backlog],
     afterDeny: [
-      ["npm ci --ignore-scripts", "ask"],
-      ["git push --dry-run origin main", "allow"]
+      ["npm ci --ignore-scripts", "ask"]
     ],
     afterRedirect: [
       ["oc-commit *", "ask"],
@@ -255,7 +264,7 @@ export const roles = {
       ["npm run compile", "ask"],
       ["scripts/build-local-vsix.sh", "ask"]
     ],
-    denyBlocks: [blocks.common, blocks.notCi, blocks.install, blocks.backlog],
+    denyBlocks: [blocks.common, blocks.notCi, blocks.install, blocks.backlog, blocks.readOnlyGit],
     afterDeny: [
       ["gh release view v* --repo balajidutt/better-beads-kanban --json assets,author,tagName", "ask"],
       ["gh release view --repo balajidutt/better-beads-kanban --json tagName", "ask"],
