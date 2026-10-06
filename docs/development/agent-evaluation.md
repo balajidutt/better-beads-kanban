@@ -348,8 +348,8 @@ remains separate; global attestation records do not fill that evidence gap.
 
 On 2026-09-25, the reviewer and strategist declarations select `anthropic/claude-opus-5-5`
 with variant `high` and no local temperature. The CI profile declares an exact
-`git push --dry-run origin main` permission while retaining approval for a real
-main push; it also names the npm configuration lock and installed VSCE tool.
+`git push --dry-run origin main` permission (later removed; pushes are class E) while
+retaining approval for a real main push; it also names the npm configuration lock and installed VSCE tool.
 The configuration-local manifest and lock pin `@opencode-ai/plugin` and
 `@opencode-ai/sdk` at 1.18.31. The earlier source comparison and configuration
 hashes above remain historical observations, not current digests. These

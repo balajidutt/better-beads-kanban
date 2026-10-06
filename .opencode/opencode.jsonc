@@ -4374,7 +4374,7 @@
           "**/.env*": "deny"
         },
         "task": "deny",
-        "skill": { "*": "deny", "worktree-merge": "allow", "unslop-commit": "allow" },
+        "skill": { "*": "deny", "worktree-merge": "allow" },
         "external_directory": { "*": "ask", "$HOME/.plannotator/plans/**": "allow" },
         "bash": {
           "*": "ask",

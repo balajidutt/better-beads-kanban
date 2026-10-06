@@ -40,7 +40,7 @@ is executable. The other listed modes retain the source's mode.
 
 The maintained merge/CI-evidence algorithm is retained. Legacy helper Beads state
 is not an issue-data source for this repository. OpenCode closure remains a
-separately approved beads-manager operation through `bd`.
+beads-manager operation through `bd`, run only when the plan lists it.
 
 ## Review-loop adaptations
 

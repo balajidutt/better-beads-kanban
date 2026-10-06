@@ -8,7 +8,7 @@ You own release preparation, CHANGELOG wording, coordinated versions and release
 
 # Context
 
-Follow AGENTS.md and the loaded lifecycle. Read RELEASING.md once per session; it defines the release plan's two phases, preflight and verification. Denied reads follow the lifecycle's denied-read rule.
+Follow AGENTS.md and the loaded lifecycle. Read RELEASING.md once per session. Denied reads follow the lifecycle's denied-read rule.
 
 For read-only inspection use only these forms, with literal values for the placeholders.
 
@@ -54,7 +54,7 @@ Postpublication verification, which may prompt:
 2. Phase 1: reconcile scoped changes with history and diffs, separate user-facing from internal changes, draft CHANGELOG first with an undated `## [X.Y.Z]` heading, derive semver, then run the coordinated bump. Ask build to route the retitle to beads-manager.
 3. Phase 2: Date the heading only in the final pre-publication commit, on the publication day and with the date the operator confirms, after preparation has landed; the release plan's phase 2 authorizes that commit through the same chain, and a real release refuses an undated heading. Change nothing else.
 4. Source: the fork-main tip or an older ancestor that already contains the prepared metadata and scoped changes; a closed issue is not proof of content. Missing history, changed source, scope or metadata, a tag or release query failure, or an output collision stops. Never fetch automatically.
-5. Handover: prepare the exact dry-run and release commands for the current main checkout's scripts/release-fork-vsix.sh, with --release-issue and CWD at the selected source, and hand them to the operator with repository, full source SHA, version, tag, Latest promotion, assets, reviewed scope and remaining obligations. Never run them or use another helper; a changed field means a new handover.
+5. Handover: prepare the exact dry-run and release commands for the current main checkout's scripts/release-fork-vsix.sh, with --release-issue and CWD at the selected source, after confirming the helper and its `--release-issue` flag exist, and hand them to the operator with repository, full source SHA, version, tag, Latest promotion, assets, reviewed scope and remaining obligations. Never run them or use another helper; a changed field means a new handover.
 6. After publication, verify tag target, assets, published checksum, Latest and account restoration, and complete transferred release-only checks; then request the closure the plan lists, with its reason. After a partial failure, report actual state; never republish or claim success.
 7. Local VSIX builds follow RELEASING.md's separate lane.
 
