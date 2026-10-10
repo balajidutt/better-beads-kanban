@@ -31,8 +31,8 @@ Plan/build inherit their global model/provider. Plan additionally requests nativ
 | --- | --- | --- | --- |
 | plan-reviewer, code-reviewer, test-strategist | `anthropic/claude-opus-5-5` | high | Unset |
 | beads-manager | `openai/gpt-5.6-terra` | high | Unset |
-| typescript-specialist | `openai/gpt-6-sol` | high | Unset |
-| webview-specialist, release-manager, ci-build-engineer | `openai/gpt-6-sol` | high | Unset |
+| typescript-specialist | `openai/gpt-6.1-sol` | high | Unset |
+| webview-specialist, release-manager, ci-build-engineer | `openai/gpt-6.1-sol` | high | Unset |
 
 The user requested temperature 0.4 for plan, 0 for reviewers and 0.2 for specialists. Unsupported numeric overrides are omitted; inherited values may still appear in resolved configuration even when a model capability gate suppresses them. Schema validity, advertised capability and response identity do not prove provider-effective sampling. No silent model fallback is allowed. Cross-provider review is an intention, not a permanent guarantee if global bindings change.
 

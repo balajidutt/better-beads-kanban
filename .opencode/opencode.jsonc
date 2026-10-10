@@ -2558,7 +2558,7 @@
       }
     },
     "typescript-specialist": {
-      "model": "openai/gpt-6-sol",
+      "model": "openai/gpt-6.1-sol",
       "variant": "high",
       "permission": {
         "*": "deny",
@@ -3121,7 +3121,7 @@
       }
     },
     "webview-specialist": {
-      "model": "openai/gpt-6-sol",
+      "model": "openai/gpt-6.1-sol",
       "variant": "high",
       "permission": {
         "*": "deny",
@@ -4339,7 +4339,7 @@
       }
     },
     "ci-build-engineer": {
-      "model": "openai/gpt-6-sol",
+      "model": "openai/gpt-6.1-sol",
       "variant": "high",
       "permission": {
         "*": "deny",
@@ -4944,7 +4944,7 @@
       }
     },
     "release-manager": {
-      "model": "openai/gpt-6-sol",
+      "model": "openai/gpt-6.1-sol",
       "variant": "high",
       "permission": {
         "*": "deny",

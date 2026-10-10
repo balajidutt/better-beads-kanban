@@ -37,7 +37,7 @@ async function fixture(t, options = {}) {
 test('the four explicit Sol bindings preserve high and temperature omission', async () => {
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
   for (const name of ['typescript-specialist', 'webview-specialist', 'release-manager', 'ci-build-engineer']) {
-    assert.equal(settings.agent[name].model, 'openai/gpt-6-sol');
+    assert.equal(settings.agent[name].model, 'openai/gpt-6.1-sol');
     assert.equal(settings.agent[name].variant, 'high');
     assert.equal(Object.hasOwn(settings.agent[name], 'temperature'), false);
   }
