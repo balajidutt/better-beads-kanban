@@ -16,6 +16,7 @@
             "script": "watch",
             "problemMatcher": {
                 "owner": "esbuild-watch",
+                "fileLocation": ["relative", "${workspaceFolder}"],
                 "pattern": {
                     "regexp": "^([^\\s].*):(\\d+):(\\d+): (warning|error): (.+)$",
                     "file": 1,
@@ -40,6 +41,7 @@
             "script": "watch:webview",
             "problemMatcher": {
                 "owner": "esbuild-watch-webview",
+                "fileLocation": ["relative", "${workspaceFolder}"],
                 "pattern": {
                     "regexp": "^([^\\s].*):(\\d+):(\\d+): (warning|error): (.+)$",
                     "file": 1,

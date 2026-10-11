@@ -1,6 +1,7 @@
 const esbuild = require('esbuild');
 const path = require('path');
 const fs = require('fs');
+const { problemLines } = require('./lib/esbuild-problem-lines');
 
 // Ensure output directory exists
 const outDir = path.join(__dirname, '../out');
@@ -36,7 +37,7 @@ const buildOptions = {
 
 if (isWatch) {
   // Watch mode for development
-  esbuild.context(buildOptions).then((ctx) => {
+  esbuild.context({ ...buildOptions, plugins: [problemLines()] }).then((ctx) => {
     ctx.watch();
     console.log('👀 Watching extension host code for changes...');
   }).catch((error) => {

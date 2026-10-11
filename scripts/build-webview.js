@@ -1,6 +1,7 @@
 const esbuild = require('esbuild');
 const path = require('path');
 const fs = require('fs');
+const { problemLines } = require('./lib/esbuild-problem-lines');
 
 // Ensure output directory exists
 const outDir = path.join(__dirname, '../out/webview');
@@ -54,7 +55,7 @@ const bundles = [
 
 if (isWatch) {
   // Watch mode for development; esbuild logs the "[watch] build ..." lines the F5 problem matcher waits on
-  Promise.all(bundles.map(options => esbuild.context(options)))
+  Promise.all(bundles.map(options => esbuild.context({ ...options, plugins: [problemLines()] })))
     .then(contexts => Promise.all(contexts.map(ctx => ctx.watch())))
     .then(() => {
       console.log('👀 Watching webview code for changes...');
