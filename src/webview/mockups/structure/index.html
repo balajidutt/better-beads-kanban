@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Structure — static design comparison</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<fieldset class="theme-picker">
+  <legend>Mockup theme (approximate, not VS Code)</legend>
+  <input type="radio" name="theme" id="light" checked><label for="light">Light</label>
+  <input type="radio" name="theme" id="dark"><label for="dark">Dark</label>
+  <input type="radio" name="theme" id="contrast"><label for="contrast">Simulated high contrast</label>
+  <div class="page">
+    <header><p class="eyebrow">Better Beads Kanban · design exploration</p><h1>Structure, with the work still visible</h1>
+      <p>Three issue-detail concepts evaluated: compact table, grouped lists and relationship accordions. Refined Option B is the selected design. Same synthetic fixtures; different information hierarchy.</p>
+      <p class="notice">Static local mockups only. Every issue ID, title, status and count is synthetic demo data. No live Beads connection, issue navigation, search, editing or persistence.</p>
+    </header>
+    <main>
+      <section aria-labelledby="compare"><h2 id="compare">Compare concepts</h2>
+        <div class="concept-grid">
+          <article class="card"><p class="eyebrow">A · scan</p><h3><a href="table.html">Compact table</a></h3><p>All relationships and historical rows visible. Status and direct-blocker columns align.</p><p class="note">Trade-off: the densest view; narrow screens require substantial wrapping.</p><a href="table.html#kids24">Jump to 24 children in A</a></article>
+          <article class="card"><p class="eyebrow">B · selected design</p><h3><a href="grouped.html">Not closed / Closed groups</a></h3><p>Not closed work first; closed history is a native disclosure within each relationship. Row-specific Unlink buttons open demo-only previews, never remove relationships.</p><p class="note">Trade-off: closed context requires expansion; native previews may appear centered away from the row.</p><a href="grouped.html#kids24">Jump to 24 children in B</a></article>
+          <article class="card"><p class="eyebrow">C · navigate</p><h3><a href="accordion.html">Relationship accordions</a></h3><p>Four summaries remain visible; native disclosures reveal compact rows.</p><p class="note">Trade-off: fewer rows at first glance, more disclosure navigation.</p><a href="accordion.html#kids24">Jump to 24 children in C</a></article>
+        </div>
+      </section>
+      <section aria-labelledby="read"><h2 id="read">How to read the snapshots</h2>
+        <p><strong>Stored Open</strong> means exactly <code>open</code>. <strong>Unfinished</strong> groups known nonclosed statuses: open, in progress, blocked and deferred. Unknown statuses are separate, not silently classified.</p>
+        <p><strong>Unresolved direct blockers</strong> is a per-related-issue value, not the number of relationship links. A positive value means dependency blockage in this fictional model. Zero does not establish readiness. Unknown is not zero. Not-ready is a separate <code>bd ready</code> outcome, without a guessed cause.</p>
+        <p>Totals belong to each relationship, not a deduplicated count across Structure. Closed blockers count as resolved here only as a synthetic assumption; future CLI tests must verify semantics.</p>
+        <p><a href="README.md">Fixture ledger, trade-offs and future evidence matrix</a></p>
+      </section>
+      <section aria-labelledby="edges"><h2 id="edges">Shared edge-case showcase</h2><p class="note">Additional synthetic snapshots; not part of rel33 or kids24 totals.</p>
+        <article class="card"><h3>Empty relationship · Children</h3><p class="totals">0 links · 0 unfinished · 0 closed · 0 unknown statuses</p><p>No children in this complete snapshot. Empty is not a loading or failure state.</p></article>
+        <article class="card"><h3>Missing / unrecognized status · Children</h3><p class="totals">2 links · 0 known unfinished · 0 closed · 2 unknown statuses</p>
+          <ul class="rows">
+            <li data-scn="edge-status" data-status="unknown" data-unresolved-blockers="unknown"><span class="identity"><code>demo-edge.missing</code><span class="title">Related issue without a stored status</span></span><span><span class="status">? Status missing</span><span class="dependency unknown">Direct blockers: unknown</span></span></li>
+            <li data-scn="edge-status" data-status="reviewing" data-unresolved-blockers="0"><span class="identity"><code>demo-edge.custom.1</code><span class="title">Related issue with an unrecognized stored value</span></span><span><span class="status">? Unrecognized: reviewing</span><span class="dependency">Direct blockers: 0 · readiness unknown</span></span></li>
+          </ul>
+        </article>
+        <article class="card"><h3>Unknown blockers · Blocked By</h3><p class="totals">1 link · 1 unfinished · 0 closed · Open 1</p><ul class="rows">
+          <li data-scn="edge-count" data-status="open" data-unresolved-blockers="unknown"><span class="identity"><code>demo-edge.count</code><span class="title">Open work with blocker data unavailable</span></span><span><span class="status">○ Open</span><span class="dependency unknown">Direct blockers: unknown · not counted as 0</span></span></li>
+        </ul></article>
+        <article class="card"><h3>Stored blocked, zero direct blockers · Blocks</h3><p class="totals">1 link · 1 unfinished · 0 closed · Blocked 1</p><ul class="rows">
+          <li data-scn="edge-blocked" data-status="blocked" data-unresolved-blockers="0"><span class="identity"><code>demo-edge.blocked</code><span class="title">Explicit blocked status is retained independently</span></span><span><span class="status">⊘ Blocked</span><span class="dependency">Direct blockers: 0 · readiness unknown</span></span></li>
+        </ul></article>
+        <article class="card"><h3>Not-ready without a made-up cause · Children</h3><p class="totals">1 link · 1 unfinished · 0 closed · Open 1</p><ul class="rows">
+          <li data-scn="edge-ready" data-status="open" data-unresolved-blockers="0"><span class="identity"><code>demo-edge.ready</code><span class="title">Open work not returned by bd ready in the fictional snapshot</span></span><span><span class="status">○ Open</span><span class="dependency">Direct blockers: 0</span><strong class="dependency">Not-ready · bd ready snapshot · cause not supplied</strong></span></li>
+        </ul></article>
+        <article class="card"><h3>Stale / partial snapshot · Blocked By</h3><p class="notice">Stale data. 1 loaded link; total links and final status breakdown unknown. A failed refresh does not make this an empty relationship.</p><ul class="rows">
+          <li data-scn="edge-stale" data-status="in_progress" data-unresolved-blockers="unknown"><span class="identity"><code>demo-edge.partial.1</code><span class="title">One retained related row from an incomplete older snapshot</span></span><span><span class="status">◐ In progress</span><span class="dependency unknown">Direct blockers: unknown · stale</span></span></li>
+        </ul><p class="note">Loaded subset: 1 unfinished, 0 closed. Final totals are not inferred.</p></article>
+      </section>
+      <section aria-labelledby="checks"><h2 id="checks">Reproducible browser checklist</h2><p>Record browser name/version. Check each concept at desktop width in light, dark and simulated high contrast, at 360 CSS px, and at desktop width with 200% zoom; expand all groups and check a B preview at narrow width.</p><p>Check full IDs/titles, no overflow/clipping, readable status, visible focus, themed previews and reachable Close. Use Tab / Shift-Tab, disclosure Enter / Space and radio arrows; Enter on one B Unlink and Space on another. Sample Parent, open Blocked By, unknown-count Child and closed Blocked By previews; verify exact relationship, Escape/Close dismissal, visible focus returned to the invoking button and unchanged rows/counts. Closed-row buttons should be reachable only after expansion. Check A/C keyboard controls, with informational rows skipped. See README for details. Record results separately; this checklist is not a test result.</p></section>
+    </main>
+    <footer><p>Refined Option B is the selected design; A and C remain comparison references. Local disclosures, theme radios and B's native Unlink/Close previews are interactive demonstrations only; no relationship is removed and neither issue is deleted. No extension enhancement is implemented.</p></footer>
+  </div>
+</fieldset>
+</body>
+</html>
