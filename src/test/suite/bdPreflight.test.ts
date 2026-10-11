@@ -290,7 +290,7 @@ suite('bd version pre-flight and first-open migration', () => {
     bdVersion = 'dev';
     later();
     const unknown = await adapter.getCapabilities();
-    assert.deepStrictEqual(unknown, { version: null, closePolicy: false, ifStatus: false, briefDeps: false, leases: false, eventsJournal: false });
+    assert.deepStrictEqual(unknown, { version: null, closePolicy: false, ifStatus: false, leases: false, eventsJournal: false });
     assert.ok(showWarning.notCalled);
   });
 

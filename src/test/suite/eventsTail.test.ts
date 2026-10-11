@@ -83,11 +83,10 @@ suite('Events journal feed process', () => {
         const tail = makeTail();
         tail.start();
         children[0].stdout.emit('data', 'x'.repeat(MAX_EVENT_LINE_CHARS + 1));
-        assert.strictEqual(tail.bufferedChars, 0);
+        children[0].stdout.emit('data', 'x');
         children[0].stdout.emit('data', `${line(4).trim()}\n${line(5)}`);
-        assert.ok(tail.bufferedChars <= MAX_EVENT_LINE_CHARS);
         assert.deepStrictEqual(events.map(e => e.seq), [5]);
-        assert.ok(logs.some(message => message.includes('dropped')));
+        assert.strictEqual(logs.filter(message => message.includes('dropped')).length, 1);
     });
 
     test('an exited child restarts from the last seq with growing backoff', () => {
@@ -212,7 +211,7 @@ suite('Events journal detection', () => {
 suite('Events journal feed restarts', () => {
     const changed = (...sections: string[]) => ({ affectsConfiguration: (section: string) => sections.includes(section) });
 
-    test('a change to the journal toggle or the bd path restarts the feed, other settings do not', () => {
+    test('affectsEventsFeed is true for the journal toggle and the bd path, false for other settings', () => {
         assert.strictEqual(affectsEventsFeed(changed('beadsKanban.useEventsJournal')), true);
         assert.strictEqual(affectsEventsFeed(changed('beadsKanban.bdPath')), true);
         assert.strictEqual(affectsEventsFeed(changed('beadsKanban.initialLoadLimit', 'beadsKanban.readOnly')), false);

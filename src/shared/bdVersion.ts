@@ -14,7 +14,6 @@ export interface BdCapabilities {
   version: string | null;
   closePolicy: boolean;
   ifStatus: boolean;
-  briefDeps: boolean;
   leases: boolean;
   eventsJournal: boolean;
 }
@@ -72,7 +71,7 @@ export function capabilitiesFor(version: BdVersion | undefined): BdCapabilities 
   const full = atLeast(version, FULL_SUPPORT_BD_VERSION);
   return {
     version: version?.raw ?? null,
-    closePolicy: full, ifStatus: full, briefDeps: full, leases: full, eventsJournal: full
+    closePolicy: full, ifStatus: full, leases: full, eventsJournal: full
   };
 }
 

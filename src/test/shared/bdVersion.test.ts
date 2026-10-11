@@ -43,8 +43,8 @@ suite('bd version parsing and capabilities', () => {
   });
 
   test('1.3-only capabilities start at the 1.3.0 release', () => {
-    const none = { closePolicy: false, ifStatus: false, briefDeps: false, leases: false, eventsJournal: false };
-    const all = { closePolicy: true, ifStatus: true, briefDeps: true, leases: true, eventsJournal: true };
+    const none = { closePolicy: false, ifStatus: false, leases: false, eventsJournal: false };
+    const all = { closePolicy: true, ifStatus: true, leases: true, eventsJournal: true };
     assert.deepStrictEqual(capabilitiesFor(v('1.2.2')), { version: '1.2.2', ...none });
     assert.deepStrictEqual(capabilitiesFor(v('1.3.0-rc.2')), { version: '1.3.0-rc.2', ...none });
     assert.deepStrictEqual(capabilitiesFor(v('1.3.0')), { version: '1.3.0', ...all });

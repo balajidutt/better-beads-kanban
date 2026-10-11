@@ -21,6 +21,7 @@ suite('Circuit Breaker Tests', () => {
     let adapter: DaemonBeadsAdapter;
     let output: vscode.OutputChannel;
     let execStub: sinon.SinonStub;
+    let showError: sinon.SinonStub;
 
     setup(function() {
         this.timeout(10000);
@@ -32,6 +33,8 @@ suite('Circuit Breaker Tests', () => {
 
         // Stub execBd to simulate failures/successes
         execStub = sinon.stub(adapter as any, 'execBd');
+        showError = sinon.stub(vscode.window, 'showErrorMessage').resolves(undefined);
+        sinon.stub(vscode.window, 'showWarningMessage').resolves(undefined);
     });
 
     teardown(function() {
@@ -65,6 +68,7 @@ suite('Circuit Breaker Tests', () => {
             assert.strictEqual(getPrivate(adapter, 'circuitBreakerState'), 'OPEN', 'Should transition to OPEN after threshold failures');
             assert.strictEqual(getPrivate(adapter, 'consecutiveFailures'), threshold);
             assert.ok(getPrivate(adapter, 'circuitOpenedAt') > 0, 'Should record when circuit opened');
+            assert.ok(showError.calledOnce, 'Opening the circuit tells the user once');
         });
 
         test('OPEN → HALF_OPEN after timeout', function(done) {

@@ -44,7 +44,6 @@ export class EventsTail {
   private backoffMs = INITIAL_BACKOFF_MS;
   private disposed = false;
   private since: number;
-  private pendingChars = 0;
 
   constructor(private readonly options: EventsTailOptions) {
     this.since = options.since;
@@ -52,11 +51,6 @@ export class EventsTail {
 
   get lastSeq(): number {
     return this.since;
-  }
-
-  /** Characters of an incomplete line currently held; never above MAX_EVENT_LINE_CHARS. */
-  get bufferedChars(): number {
-    return this.pendingChars;
   }
 
   start(): void {
@@ -106,7 +100,6 @@ export class EventsTail {
         pending = '';
         discarding = true;
       }
-      this.pendingChars = pending.length;
       if (batch.length > 0 && !this.disposed) { this.options.onEvents(batch); }
     };
 
@@ -129,7 +122,6 @@ export class EventsTail {
       if (!sawEvent && !sawTruncation && refusal.trim()) {
         this.handleLine(refusal.replace(/\s*\n\s*/g, ' '), []);
       }
-      this.pendingChars = 0;
       this.options.log(`events tail exited (code ${code})${stderr.trim() ? `: ${stderr.trim()}` : ''}`);
       this.scheduleRestart(startedAt);
     });
