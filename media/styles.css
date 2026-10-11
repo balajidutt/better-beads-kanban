@@ -594,6 +594,10 @@ body.vscode-light {
     display: none;
 }
 
+.toast.toast-info {
+    border-left: 4px solid var(--vscode-notificationsInfoIcon-foreground, var(--vscode-contrastBorder, #3794ff));
+}
+
 /* Drag-and-drop styles (Pragmatic Drag and Drop) */
 .sortable-ghost {
     opacity: 0.4;

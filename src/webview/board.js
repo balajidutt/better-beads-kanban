@@ -945,9 +945,10 @@ function toIsoFromLocalInput(value) {
     return date.toISOString();
 }
 
-function toast(msg, actionName, actionCb) {
+function toast(msg, actionName, actionCb, kind) {
     clearTimeout(toastHideTimer);
     toastEl.replaceChildren();
+    toastEl.classList.toggle("toast-info", kind === "info");
     const span = document.createElement("span");
     span.textContent = msg;
     toastEl.appendChild(span);
@@ -3032,6 +3033,12 @@ window.addEventListener("message", (event) => {
     if (msg.type === "mutation.error") {
         const pending = msg.requestId && pendingRequests.has(msg.requestId);
         const closeRefused = msg.code === "close_refused" && msg.payload && typeof msg.payload.id === "string";
+
+        // A refused compare-and-set drag is not a failure: the host has already re-sent the current board.
+        if (msg.code === "status_changed" && !pending) {
+            toast(msg.error || "The status of this issue changed since the board last loaded, so it was not moved.", null, null, "info");
+            return;
+        }
 
         // Only a refused drag offers its retry here; a refused edit-dialog save is
         // shown and retried inside the dialog.
