@@ -619,9 +619,14 @@ test('build runs the default chain and plan writes boundary-contract plans', asy
     '- Operator decisions recorded up front, such as a release\'s QA decision (smoke test done, waived or not required).',
     'closures with their close reasons',
     'stop-on-denial for a named mutating step',
-    'phase 2, on the publication day, the date asked once, the CHANGELOG dating commit through the same chain'
+    'phase 2, on the publication day, the date asked once, the CHANGELOG dating commit through the same chain',
+    'so a dispatch gives the plan text or path, the lifecycle\'s dispatch fields and the question, and does not restate those rules',
+    'plan-reviewer answers READY, REVISE or INCOMPLETE, and you submit only after READY',
+    'Present simple plans inline for approval, unless the operator asks for the plan-review tool'
   ]) assert.ok(plan.includes(text), text);
-  for (const gone of ['ordered steps, verification and approvals', 'Incorporate denial/annotations without mutation']) assert.equal(plan.includes(gone), false, gone);
+  for (const gone of ['ordered steps, verification and approvals', 'Incorporate denial/annotations without mutation', 'every dispatch to them follows']) assert.equal(plan.includes(gone), false, gone);
+  const planReviewer = (await readFile(new URL('../../.opencode/agents/plan-reviewer.md', import.meta.url), 'utf8')).replace(/\s+/g, ' ');
+  assert.ok(planReviewer.includes('Result: READY, REVISE or INCOMPLETE.'));
 });
 
 test('the runbooks describe the plan-boundary chain, the release plan and the maintainer environment', async () => {
