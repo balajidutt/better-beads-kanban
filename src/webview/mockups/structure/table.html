@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>A · Compact Structure table</title><link rel="stylesheet" href="styles.css"></head>
+<body>
+<fieldset class="theme-picker">
+  <legend>Mockup theme (approximate, not VS Code)</legend>
+  <input type="radio" name="theme" id="light" checked><label for="light">Light</label>
+  <input type="radio" name="theme" id="dark"><label for="dark">Dark</label>
+  <input type="radio" name="theme" id="contrast"><label for="contrast">Simulated high contrast</label>
+  <div class="page">
+    <header><p class="eyebrow">A · compact table</p><h1>Scan every link, without hiding history</h1><nav aria-label="Concepts"><a href="index.html">Comparison &amp; edge cases</a><a href="table.html" aria-current="page">A · Table</a><a href="grouped.html">B · Grouped</a><a href="accordion.html">C · Accordions</a></nav><nav aria-label="Scenarios"><a href="#rel33">33 blocking links</a><a href="#kids24">24 children</a></nav>
+      <p class="notice">All data is synthetic, including demo IDs and fictional blocker counts. Static issue-detail snapshots; rows are text, not issue-navigation links. No live search, mutations or persistence.</p>
+      <p class="note">Stored Open is not the same as unfinished. Direct counts belong to each related issue; unknown is not 0. Positive direct counts indicate dependency blockage, distinct from stored Blocked, Deferred or not-ready. Zero does not establish readiness. Totals are per relationship.</p>
+    </header>
+    <main>
+      <article class="issue" id="rel33" aria-labelledby="rel-title">
+        <p class="eyebrow">Issue detail · synthetic scenario rel33</p><div class="issue-heading"><code>demo-rel33</code><h2 id="rel-title">Prepare the release integration checklist</h2><span class="status">○ Open</span></div>
+        <div class="context"><p><strong>Description</strong> · Review prerequisites before scheduling integration.</p><p>Acceptance criteria · Design notes · Notes: static context, unchanged by this Structure exploration.</p></div>
+        <section class="structure" aria-labelledby="rel-structure"><h3 id="rel-structure">Structure</h3>
+          <section class="relationship"><h4>Parent</h4><p class="totals">1 link · 0 unfinished · 1 closed · 0 unknown statuses</p>
+            <table><caption>Parent · direct unresolved blocker counts are fictional</caption><thead><tr><th scope="col">Related issue</th><th scope="col">Stored status</th><th scope="col">Unresolved direct blockers</th></tr></thead><tbody>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.parent</code><span class="title">Release planning umbrella</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+            </tbody></table>
+          </section>
+          <section class="relationship"><h4>Blocked By</h4><p class="totals">33 links · 3 unfinished · 30 closed · 0 unknown statuses</p><p class="breakdown">Open 3 · In progress 0 · Blocked 0 · Deferred 0 · Closed 30</p><p class="note">Among 3 unfinished rows: 1 dependency-blocked (positive count), 1 with 0 direct blockers, 1 unknown count. The 33 links are not 33 unresolved blockers.</p>
+            <table><caption>Blocked By · all 33 links, including closed history</caption><thead><tr><th scope="col">Related issue</th><th scope="col">Stored status</th><th scope="col">Unresolved direct blockers</th></tr></thead><tbody>
+              <tr data-scn="rel33" data-status="open" data-unresolved-blockers="2"><td><code>demo-rel33.b01</code><span class="title">Validate integration prerequisites across the desktop, remote workspace and release packaging paths before the final handoff</span></td><td><span class="status">○ Open</span></td><td><span class="dependency positive">2 · dependency-blocked</span></td></tr>
+              <tr data-scn="rel33" data-status="open" data-unresolved-blockers="0"><td><code>demo-rel33.b02</code><span class="title">Review the rollout checklist</span></td><td><span class="status">○ Open</span></td><td>0 · readiness unknown</td></tr>
+              <tr data-scn="rel33" data-status="open" data-unresolved-blockers="unknown"><td><code>demo-rel33.b03</code><span class="title">Confirm external review coverage</span></td><td><span class="status">○ Open</span></td><td><span class="dependency unknown">Unknown</span></td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b04</code><span class="title">Completed prerequisite 04</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b05</code><span class="title">Completed prerequisite 05</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b06</code><span class="title">Completed prerequisite 06</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b07</code><span class="title">Completed prerequisite 07</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b08</code><span class="title">Completed prerequisite 08</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b09</code><span class="title">Completed prerequisite 09</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b10</code><span class="title">Completed prerequisite 10</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b11</code><span class="title">Completed prerequisite 11</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b12</code><span class="title">Completed prerequisite 12</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b13</code><span class="title">Completed prerequisite 13</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b14</code><span class="title">Completed prerequisite 14</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b15</code><span class="title">Completed prerequisite 15</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b16</code><span class="title">Completed prerequisite 16</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b17</code><span class="title">Completed prerequisite 17</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b18</code><span class="title">Completed prerequisite 18</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b19</code><span class="title">Completed prerequisite 19</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b20</code><span class="title">Completed prerequisite 20</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b21</code><span class="title">Completed prerequisite 21</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b22</code><span class="title">Completed prerequisite 22</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b23</code><span class="title">Completed prerequisite 23</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b24</code><span class="title">Completed prerequisite 24</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b25</code><span class="title">Completed prerequisite 25</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b26</code><span class="title">Completed prerequisite 26</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b27</code><span class="title">Completed prerequisite 27</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b28</code><span class="title">Completed prerequisite 28</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b29</code><span class="title">Completed prerequisite 29</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b30</code><span class="title">Completed prerequisite 30</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b31</code><span class="title">Completed prerequisite 31</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b32</code><span class="title">Completed prerequisite 32</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.b33</code><span class="title">Completed prerequisite 33</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+            </tbody></table>
+          </section>
+          <section class="relationship"><h4>Blocks</h4><p class="totals">2 links · 1 unfinished · 1 closed · 0 unknown statuses</p><p class="breakdown">Open 1 · Closed 1 · 1 dependency-blocked row · 0 unknown counts</p>
+            <table><caption>Blocks · downstream work</caption><thead><tr><th scope="col">Related issue</th><th scope="col">Stored status</th><th scope="col">Unresolved direct blockers</th></tr></thead><tbody>
+              <tr data-scn="rel33" data-status="open" data-unresolved-blockers="1"><td><code>demo-rel33.downstream.1</code><span class="title">Publish integration report</span></td><td><span class="status">○ Open</span></td><td><span class="dependency positive">1 · dependency-blocked</span></td></tr>
+              <tr data-scn="rel33" data-status="closed" data-unresolved-blockers="0"><td><code>demo-rel33.downstream.2</code><span class="title">Archive planning notes</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+            </tbody></table>
+          </section>
+          <section class="relationship"><h4>Children</h4><p class="totals">0 links · 0 unfinished · 0 closed · 0 unknown statuses</p><p class="note">No children in this complete synthetic snapshot.</p></section>
+        </section><p class="context">Comments · No comments in this synthetic snapshot.</p>
+      </article>
+      <article class="issue" id="kids24" aria-labelledby="kids-title">
+        <p class="eyebrow">Issue detail · synthetic scenario kids24</p><div class="issue-heading"><code>demo-kids24</code><h2 id="kids-title">Coordinate the workspace delivery program</h2><span class="status">◐ In progress</span></div>
+        <div class="context"><p><strong>Description</strong> · Keep unfinished child work visible beneath a closed planning parent.</p><p>Acceptance criteria · Design notes · Notes: static context, unchanged by this Structure exploration.</p></div>
+        <section class="structure" aria-labelledby="kids-structure"><h3 id="kids-structure">Structure</h3>
+          <section class="relationship"><h4>Parent</h4><p class="totals">1 link · 0 unfinished · 1 closed · 0 unknown statuses</p>
+            <table><caption>Parent · a closed parent does not hide unfinished children</caption><thead><tr><th scope="col">Related issue</th><th scope="col">Stored status</th><th scope="col">Unresolved direct blockers</th></tr></thead><tbody>
+              <tr data-scn="kids24" data-status="closed" data-unresolved-blockers="0"><td><code>demo-kids24.parent</code><span class="title">Workspace planning umbrella</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+            </tbody></table>
+          </section>
+          <section class="relationship"><h4>Blocked By</h4><p class="totals">0 links · 0 unfinished · 0 closed · 0 unknown statuses</p><p class="note">No blocking links in this complete synthetic snapshot. This is not proof of readiness.</p></section>
+          <section class="relationship"><h4>Blocks</h4><p class="totals">2 links · 1 unfinished · 1 closed · 0 unknown statuses</p><p class="breakdown">Open 1 · Closed 1 · 1 dependency-blocked row · 0 unknown counts</p>
+            <table><caption>Blocks · downstream work</caption><thead><tr><th scope="col">Related issue</th><th scope="col">Stored status</th><th scope="col">Unresolved direct blockers</th></tr></thead><tbody>
+              <tr data-scn="kids24" data-status="open" data-unresolved-blockers="1"><td><code>demo-kids24.downstream.1</code><span class="title">Publish delivery report</span></td><td><span class="status">○ Open</span></td><td><span class="dependency positive">1 · dependency-blocked</span></td></tr>
+              <tr data-scn="kids24" data-status="closed" data-unresolved-blockers="0"><td><code>demo-kids24.downstream.2</code><span class="title">Archive workspace notes</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+            </tbody></table>
+          </section>
+          <section class="relationship"><h4>Children</h4><p class="totals">24 links · 16 unfinished · 8 closed · 0 unknown statuses</p><p class="breakdown">Open 7 · In progress 4 · Blocked 3 · Deferred 2 · Closed 8</p><p class="note">Among 16 unfinished rows: 4 dependency-blocked (positive count), 9 with 0 direct blockers, 3 unknown counts. Stored Blocked with 0 and Deferred remain distinct.</p>
+            <table><caption>Children · full titles and opaque IDs, without truncation</caption><thead><tr><th scope="col">Related issue</th><th scope="col">Stored status</th><th scope="col">Unresolved direct blockers</th></tr></thead><tbody>
+              <tr data-scn="kids24" data-status="open" data-unresolved-blockers="2"><td><code>demo-custom.delivery.2026.phase-a.child.01</code><span class="title">Verify workspace switching preserves the selected issue, expanded relationships and unsaved detail edits across a long multi-stage delivery workflow</span></td><td><span class="status">○ Open</span></td><td><span class="dependency positive">2 · dependency-blocked</span></td></tr>
+              <tr data-scn="kids24" data-status="open" data-unresolved-blockers="0"><td><code>demo-kids24.c02</code><span class="title">Review keyboard order</span></td><td><span class="status">○ Open</span></td><td>0 · readiness unknown</td></tr>
+              <tr data-scn="kids24" data-status="open" data-unresolved-blockers="unknown"><td><code>demo-kids24.c03</code><span class="title">Confirm review ownership</span></td><td><span class="status">○ Open</span></td><td><span class="dependency unknown">Unknown</span></td></tr>
+              <tr data-scn="kids24" data-status="open" data-unresolved-blockers="0"><td><code>demo-kids24.c04</code><span class="title">Draft release notes</span></td><td><span class="status">○ Open</span></td><td>0 · readiness unknown</td></tr>
+              <tr data-scn="kids24" data-status="open" data-unresolved-blockers="1"><td><code>demo-kids24.c05</code><span class="title">Validate remote workspace</span></td><td><span class="status">○ Open</span></td><td><span class="dependency positive">1 · dependency-blocked</span></td></tr>
+              <tr data-scn="kids24" data-status="open" data-unresolved-blockers="0"><td><code>demo-kids24.c06</code><span class="title">Review documentation</span></td><td><span class="status">○ Open</span></td><td>0 · readiness unknown</td></tr>
+              <tr data-scn="kids24" data-status="open" data-unresolved-blockers="0"><td><code>demo-kids24.c07</code><span class="title">Prepare demo session</span></td><td><span class="status">○ Open</span></td><td>0 · readiness unknown</td></tr>
+              <tr data-scn="kids24" data-status="in_progress" data-unresolved-blockers="1"><td><code>demo-kids24.c08</code><span class="title">Implement fixture review</span></td><td><span class="status">◐ In progress</span></td><td><span class="dependency positive">1 · dependency-blocked</span></td></tr>
+              <tr data-scn="kids24" data-status="in_progress" data-unresolved-blockers="0"><td><code>demo-kids24.c09</code><span class="title">Audit focus styles</span></td><td><span class="status">◐ In progress</span></td><td>0</td></tr>
+              <tr data-scn="kids24" data-status="in_progress" data-unresolved-blockers="unknown"><td><code>demo-kids24.c10</code><span class="title">Check platform coverage</span></td><td><span class="status">◐ In progress</span></td><td><span class="dependency unknown">Unknown</span></td></tr>
+              <tr data-scn="kids24" data-status="in_progress" data-unresolved-blockers="0"><td><code>demo-kids24.c11</code><span class="title">Review package assets</span></td><td><span class="status">◐ In progress</span></td><td>0</td></tr>
+              <tr data-scn="kids24" data-status="blocked" data-unresolved-blockers="0"><td><code>demo-kids24.c12</code><span class="title">Await product decision</span></td><td><span class="status">⊘ Blocked</span></td><td>0 · stored Blocked retained</td></tr>
+              <tr data-scn="kids24" data-status="blocked" data-unresolved-blockers="2"><td><code>demo-kids24.c13</code><span class="title">Complete integration review</span></td><td><span class="status">⊘ Blocked</span></td><td><span class="dependency positive">2 · dependency-blocked</span></td></tr>
+              <tr data-scn="kids24" data-status="blocked" data-unresolved-blockers="unknown"><td><code>demo-kids24.c14</code><span class="title">Confirm partner response</span></td><td><span class="status">⊘ Blocked</span></td><td><span class="dependency unknown">Unknown</span></td></tr>
+              <tr data-scn="kids24" data-status="deferred" data-unresolved-blockers="0"><td><code>demo-kids24.c15</code><span class="title">Schedule follow-up study</span></td><td><span class="status">◌ Deferred</span></td><td>0 · deferred, not dependency-blocked</td></tr>
+              <tr data-scn="kids24" data-status="deferred" data-unresolved-blockers="0"><td><code>demo-kids24.c16</code><span class="title">Plan later rollout</span></td><td><span class="status">◌ Deferred</span></td><td>0 · deferred, not dependency-blocked</td></tr>
+              <tr data-scn="kids24" data-status="closed" data-unresolved-blockers="0"><td><code>demo-kids24.c17</code><span class="title">Completed child 17</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="kids24" data-status="closed" data-unresolved-blockers="0"><td><code>demo-kids24.c18</code><span class="title">Completed child 18</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="kids24" data-status="closed" data-unresolved-blockers="0"><td><code>demo-kids24.c19</code><span class="title">Completed child 19</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="kids24" data-status="closed" data-unresolved-blockers="0"><td><code>demo-kids24.c20</code><span class="title">Completed child 20</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="kids24" data-status="closed" data-unresolved-blockers="0"><td><code>demo-kids24.c21</code><span class="title">Completed child 21</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="kids24" data-status="closed" data-unresolved-blockers="0"><td><code>demo-kids24.c22</code><span class="title">Completed child 22</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="kids24" data-status="closed" data-unresolved-blockers="0"><td><code>demo-kids24.c23</code><span class="title">Completed child 23</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+              <tr data-scn="kids24" data-status="closed" data-unresolved-blockers="0"><td><code>demo-kids24.c24</code><span class="title">Completed child 24</span></td><td><span class="status">● Closed</span></td><td>0</td></tr>
+            </tbody></table>
+          </section>
+        </section><p class="context">Comments · No comments in this synthetic snapshot.</p>
+      </article>
+      <section class="card" aria-labelledby="static-actions"><h2 id="static-actions">Issue actions · static context</h2><p id="action-help">Search, add/unlink, save and related-issue navigation are not implemented. Disabled controls are illustrative and do not send messages.</p><label for="search">Find related issue (unavailable)</label><input id="search" type="search" disabled aria-describedby="action-help"><div class="actions"><button disabled aria-describedby="action-help">Add relationship</button><button disabled aria-describedby="action-help">Unlink</button><button disabled aria-describedby="action-help">Save issue</button></div></section>
+    </main><footer><p>Table trade-off: full context and aligned columns, with extensive wrapping at narrow widths. Themes and native controls require operator browser checks. <a href="index.html#edges">Shared unknown / not-ready / partial examples</a>.</p></footer>
+  </div>
+</fieldset>
+</body>
+</html>
