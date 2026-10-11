@@ -1437,7 +1437,9 @@ export class DaemonBeadsAdapter {
   }
 
   /**
-   * Update issue fields using bd CLI
+   * Update issue fields using bd CLI. When the update sets a status, `ifStatus`
+   * makes it a compare-and-set on bd 1.3: bd refuses the whole update (exit 13)
+   * if the stored status is no longer `ifStatus`.
    */
   public async updateIssue(id: string, updates: {
     title?: string;
@@ -1456,8 +1458,9 @@ export class DaemonBeadsAdapter {
     pinned?: boolean;
     is_template?: boolean;
     ephemeral?: boolean;
-  }, options: { force?: boolean } = {}): Promise<void> {
+  }, options: { force?: boolean; ifStatus?: string } = {}): Promise<void> {
     this.validateIssueId(id);
+    if (options.ifStatus !== undefined) { this.validateFlagValue(options.ifStatus, 'ifStatus'); }
 
     // Validate all string fields to prevent flag injection
     this.validateFlagValue(updates.title, 'title');
@@ -1526,6 +1529,7 @@ export class DaemonBeadsAdapter {
       try {
         const capabilities = await this.ensureStoreReady();
         if (options.force && updates.status === 'closed' && capabilities.closePolicy) { args.push('--force'); }
+        if (options.ifStatus && updates.status !== undefined && capabilities.ifStatus) { args.push('--if-status', options.ifStatus); }
         await this.execBd(args);
 
         // Track mutation and invalidate cache

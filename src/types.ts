@@ -165,6 +165,9 @@ const BoardColumnKeySchema = z.enum(['ready', 'open', 'in_progress', 'blocked', 
 // a clean validation error for a spawn-time E2BIG.
 const LONG_TEXT_MAX = 65536;
 
+/** A stored bd status, including custom ones; it is passed to bd as a flag value. */
+export const StatusTokenSchema = z.string().max(64).regex(/^[a-z0-9][a-z0-9_-]*$/i);
+
 export const IssueUpdateSchema = z.object({
   id: IssueIdSchema,
   updates: z.object({
@@ -187,9 +190,12 @@ export const IssueUpdateSchema = z.object({
     is_template: z.boolean().optional(),
     ephemeral: z.boolean().optional()
   }),
-  force: z.boolean().optional()
+  force: z.boolean().optional(),
+  fromStatus: StatusTokenSchema.optional()
 }).refine(value => !value.force || value.updates.status === 'closed', {
   message: 'force only applies to closing an issue', path: ['force']
+}).refine(value => value.fromStatus === undefined || value.updates.status !== undefined, {
+  message: 'fromStatus only applies to a status change', path: ['fromStatus']
 });
 
 export const IssueCreateSchema = z.object({
@@ -214,9 +220,6 @@ export const IssueCreateSchema = z.object({
   blocked_by_ids: z.array(IssueIdSchema).optional(),
   children_ids: z.array(IssueIdSchema).optional()
 });
-
-/** A stored bd status, including custom ones; it is passed to bd as a flag value. */
-export const StatusTokenSchema = z.string().max(64).regex(/^[a-z0-9][a-z0-9_-]*$/i);
 
 export const SetStatusSchema = z.object({
   id: IssueIdSchema,

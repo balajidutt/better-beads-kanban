@@ -57,7 +57,7 @@ suite('Compare-and-set moves: bd arguments', () => {
 suite('Compare-and-set moves: webview and schema agree', () => {
     test('the webview filters fromStatus with the same pattern and limit the host validates', () => {
         const read = (...parts: string[]) => fs.readFileSync(path.resolve(__dirname, '..', '..', '..', 'src', ...parts), 'utf8');
-        const webview = /function storedStatusOf\(id\) \{([\s\S]*?)\n\}/.exec(read('webview', 'board.js'))?.[1] ?? '';
+        const webview = /function statusToken\(status\) \{([\s\S]*?)\n\}/.exec(read('webview', 'board.js'))?.[1] ?? '';
         const schema = /export const StatusTokenSchema = (.*);/.exec(read('types.ts'))?.[1] ?? '';
         const webviewPattern = /(\/\^\[[^/]+\$\/i)\.test/.exec(webview)?.[1];
         const schemaPattern = /\.regex\((\/\^\[[^/]+\$\/i)\)/.exec(schema)?.[1];

@@ -56,7 +56,7 @@ type WebMsg =
   | { type: "issue.getFull"; requestId: string; payload: { id: string } }
   | { type: "issue.addToChat"; requestId: string; payload: { text: string } }
   | { type: "issue.copyToClipboard"; requestId: string; payload: { text: string } }
-  | { type: "issue.update"; requestId: string; payload: { id: string; updates: unknown; force?: boolean } }
+  | { type: "issue.update"; requestId: string; payload: { id: string; updates: unknown; force?: boolean; fromStatus?: string } }
   | { type: "issue.addComment"; requestId: string; payload: { id: string; text: string; author?: string } }
   | { type: "issue.claim" | "issue.unclaim" | "issue.heartbeat"; requestId: string; payload: { id: string } }
   | { type: "issue.addLabel"; requestId: string; payload: { id: string; label: string } }
@@ -931,8 +931,19 @@ export function activate(context: vscode.ExtensionContext) {
           }
           
           try {
-            await adapter.updateIssue(validation.data.id, validation.data.updates, { force: validation.data.force });
+            await adapter.updateIssue(validation.data.id, validation.data.updates, {
+              force: validation.data.force, ifStatus: validation.data.fromStatus
+            });
           } catch (e) {
+            if (validation.data.fromStatus && isGuardMismatch(e)) {
+              // The refusal goes first: a board sent with this requestId would resolve the dialog's pending save as a success.
+              post({
+                type: "mutation.error", requestId: msg.requestId, code: "status_changed", payload: { id: validation.data.id },
+                error: "The status of this issue changed elsewhere, so nothing was saved."
+              });
+              await sendBoard(msg.requestId);
+              return;
+            }
             if (!isClosePolicyRefusal(e)) { throw e; }
             post({ type: "mutation.error", requestId: msg.requestId, error: sanitizeError(e), code: "close_refused", payload: { id: validation.data.id } });
             return;

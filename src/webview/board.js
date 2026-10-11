@@ -978,10 +978,14 @@ function toast(msg, actionName, actionCb, kind) {
     toastHideTimer = setTimeout(hideToast, 5000);
 }
 
-/** The card's stored status for a compare-and-set move, omitted when it is not a plain status token. */
-function storedStatusOf(id) {
-    const status = cardCache.get(id)?.status;
+/** A status usable as a compare-and-set value, or undefined when it is not a plain status token. */
+function statusToken(status) {
     return typeof status === "string" && /^[a-z0-9][a-z0-9_-]*$/i.test(status) && status.length <= 64 ? status : undefined;
+}
+
+/** The card's stored status for a compare-and-set move. */
+function storedStatusOf(id) {
+    return statusToken(cardCache.get(id)?.status);
 }
 
 /** Lease countdowns change with time alone, so their badges are rewritten in place. */
@@ -3033,6 +3037,7 @@ window.addEventListener("message", (event) => {
     if (msg.type === "mutation.error") {
         const pending = msg.requestId && pendingRequests.has(msg.requestId);
         const closeRefused = msg.code === "close_refused" && msg.payload && typeof msg.payload.id === "string";
+        const statusChanged = msg.code === "status_changed";
 
         // A refused compare-and-set drag is not a failure: the host has already re-sent the current board.
         if (msg.code === "status_changed" && !pending) {
@@ -3049,7 +3054,8 @@ window.addEventListener("message", (event) => {
             });
             return;
         }
-        if (!(closeRefused && pending)) {
+        // A refused edit-dialog save is explained inside the dialog.
+        if (!((closeRefused || statusChanged) && pending)) {
             toast(msg.error || "Operation failed.");
         }
 
@@ -3063,6 +3069,7 @@ window.addEventListener("message", (event) => {
             pendingRequests.delete(msg.requestId);
             const error = new Error(msg.error || "Operation failed");
             if (closeRefused) { error.code = "close_refused"; }
+            if (statusChanged) { error.code = "status_changed"; }
             reject?.(error);
         }
         return;
@@ -3551,9 +3558,34 @@ async function openDetail(card) {
         if (closeRefusal) { closeRefusal.classList.add("hidden"); }
     };
     hideCloseRefusal();
+    const statusChangedNotice = form.querySelector("#statusChanged");
+    const hideStatusChanged = () => {
+        if (statusChangedNotice) { statusChangedNotice.classList.add("hidden"); }
+    };
+    hideStatusChanged();
+    // bd 1.3 refuses a save that changes the status once the stored status is no longer this one.
+    let expectedStatus = isCreateMode ? undefined : statusToken(card.status);
 
     // A slow save can finish after the user has moved on to another issue's dialog.
     const isCurrentDialog = () => thisGeneration === openDetailGeneration && detDialog.open;
+    const showStatusChanged = async () => {
+        let text;
+        try {
+            cardStateLevel.delete(card.id);
+            const fresh = await loadFullIssue(card.id);
+            if (!isCurrentDialog()) { return; }
+            expectedStatus = statusToken(fresh.status);
+            // The baseline must hold the stored status, or choosing it again would drop out of the diff.
+            const statusOptions = [...form.querySelector("#editStatus").options].map(option => option.value);
+            editBaselineValues.status = statusOptions.includes(fresh.status) ? fresh.status : "";
+            text = `The status changed elsewhere to ${fresh.status || "an unknown status"}. Your edits are kept; save again to apply them.`;
+        } catch {
+            if (!isCurrentDialog()) { return; }
+            text = "The status changed elsewhere, so nothing was saved. Reopen the issue to see its current status.";
+        }
+        statusChangedNotice.textContent = text;
+        statusChangedNotice.classList.remove("hidden");
+    };
     // The dialog is modal, so the close-policy retry lives inside it rather than
     // on the toast, which the modal makes unreachable.
     const saveDetail = async (force) => {
@@ -3561,6 +3593,7 @@ async function openDetail(card) {
         btnSave.disabled = true;
         if (force) { btnSave.focus(); }
         hideCloseRefusal();
+        hideStatusChanged();
         try {
         const current = readEditFormValues(form);
 
@@ -3628,6 +3661,7 @@ async function openDetail(card) {
                     // Update existing issue
                     const updatePayload = { id: card.id, updates: data };
                     if (force && data.status === "closed") { updatePayload.force = true; }
+                    if (data.status !== undefined && expectedStatus) { updatePayload.fromStatus = expectedStatus; }
                     await postAsync("issue.update", updatePayload, updatePayload.force ? "Closing issue..." : "Saving changes...");
                     toast("Changes saved successfully");
                 }
@@ -3636,7 +3670,9 @@ async function openDetail(card) {
                     detDialog.close();
                 }
             } catch (err) {
-                if (!isCreateMode && err.code === "close_refused" && closeRefusal && closeRefusalText && isCurrentDialog()) {
+                if (!isCreateMode && err.code === "status_changed" && statusChangedNotice && isCurrentDialog()) {
+                    await showStatusChanged();
+                } else if (!isCreateMode && err.code === "close_refused" && closeRefusal && closeRefusalText && isCurrentDialog()) {
                     closeRefusalText.textContent = err.message;
                     closeRefusal.classList.remove("hidden");
                 } else {

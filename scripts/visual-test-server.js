@@ -1297,6 +1297,7 @@ function generateHtml() {
 '          <span id="closeRefusalText" class="close-refusal-text"></span>\n' +
 '          <button type="button" id="btnCloseAnyway" class="btn">Close anyway</button>\n' +
 '        </div>\n' +
+'        <div id="statusChanged" class="status-changed hidden" role="alert"></div>\n' +
 '        <div class="dialogActions form-actions">\n' +
 '          <div class="actions-left">\n' +
 '            <button type="button" id="btnSave" class="btn primary">Save Changes</button>\n' +
@@ -1549,6 +1550,18 @@ function generateHtml() {
 '                  error: "The status of this issue changed since the board last loaded, so it was not moved." };\n' +
 '                _mockMessageLog.push({ direction: "in", msg: changed, timestamp: Date.now() });\n' +
 '                window.dispatchEvent(new MessageEvent("message", { data: changed }));\n' +
+'              }, 50);\n' +
+'              return;\n' +
+'            }\n' +
+'            var updatedCard = msg.type === "issue.update" ? _mockFind((msg.payload || {}).id) : null;\n' +
+'            if (updatedCard && msg.payload.fromStatus && updatedCard.status !== msg.payload.fromStatus) {\n' +
+'              setTimeout(function() {\n' +
+'                var refusedSave = { type: "mutation.error", requestId: msg.requestId || "mock-req-mut", code: "status_changed",\n' +
+'                  payload: { id: msg.payload.id },\n' +
+'                  error: "The status of this issue changed elsewhere, so nothing was saved." };\n' +
+'                _mockMessageLog.push({ direction: "in", msg: refusedSave, timestamp: Date.now() });\n' +
+'                window.dispatchEvent(new MessageEvent("message", { data: refusedSave }));\n' +
+'                _mockSendBoard(msg.requestId);\n' +
 '              }, 50);\n' +
 '              return;\n' +
 '            }\n' +

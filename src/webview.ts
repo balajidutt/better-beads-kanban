@@ -432,6 +432,7 @@ export function getWebviewHtml(webview: vscode.Webview, extensionUri: vscode.Uri
           <span id="closeRefusalText" class="close-refusal-text"></span>
           <button type="button" id="btnCloseAnyway" class="btn">Close anyway</button>
         </div>
+        <div id="statusChanged" class="status-changed hidden" role="alert"></div>
 
         <!-- Action Buttons -->
         <div class="dialogActions form-actions">

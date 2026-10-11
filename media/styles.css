@@ -529,7 +529,8 @@ body.vscode-light {
     gap: 8px;
 }
 
-.close-refusal {
+.close-refusal,
+.status-changed {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -541,7 +542,8 @@ body.vscode-light {
     color: var(--vscode-inputValidation-warningForeground, var(--vscode-editor-foreground));
 }
 
-.close-refusal.hidden {
+.close-refusal.hidden,
+.status-changed.hidden {
     display: none;
 }
 
