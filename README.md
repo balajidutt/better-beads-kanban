@@ -197,10 +197,9 @@ npx @vscode/vsce package
 
 ### Development Workflow
 
-1. Press `F5` to launch the Extension Development Host
+1. Press `F5` to launch the Extension Development Host. It first starts `npm run watch` and `npm run watch:webview`, which rebuild the extension host and the webview on every save
 2. Make changes to source files
 3. Press `Ctrl+Shift+F5` to reload the extension
-4. Use `npm run watch` for automatic compilation
 
 ## Testing
 

@@ -406,6 +406,13 @@ Four things that are easy to lose an hour to:
 
 ## The Extension Development Host
 
+F5 builds both bundles before it launches. The **Run Extension** configuration's
+pre-launch task, `watch`, runs `npm run watch` (`out/extension.js`) and
+`npm run watch:webview` (`out/webview/*.js`) side by side and leaves them running, so
+an edit to either side is picked up by reloading the development host. **Extension
+Tests** runs `npm run pretest` instead, which compiles the tests and builds the webview
+once.
+
 Workspace resolution, the file watchers and the webview are only reachable by
 pressing F5 and driving the development host by hand — no automated suite
 activates the extension. Three traps, each of which has already cost a debugging

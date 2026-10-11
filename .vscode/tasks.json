@@ -2,6 +2,16 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "watch",
+            "dependsOn": ["npm: watch", "npm: watch:webview"],
+            "dependsOrder": "parallel",
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
             "type": "npm",
             "script": "watch",
             "problemMatcher": {
@@ -23,10 +33,38 @@
             "isBackground": true,
             "presentation": {
                 "reveal": "never"
+            }
+        },
+        {
+            "type": "npm",
+            "script": "watch:webview",
+            "problemMatcher": {
+                "owner": "esbuild-watch-webview",
+                "pattern": {
+                    "regexp": "^([^\\s].*):(\\d+):(\\d+): (warning|error): (.+)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": "\\[watch\\] build started",
+                    "endsPattern": "\\[watch\\] build finished"
+                }
             },
-            "group": {
-                "kind": "build",
-                "isDefault": true
+            "isBackground": true,
+            "presentation": {
+                "reveal": "never"
+            }
+        },
+        {
+            "type": "npm",
+            "script": "pretest",
+            "problemMatcher": "$tsc",
+            "presentation": {
+                "reveal": "silent"
             }
         }
     ]

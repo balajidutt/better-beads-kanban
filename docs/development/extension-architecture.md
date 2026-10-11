@@ -10,7 +10,8 @@ This is the technical reference for the TypeScript extension host and the vanill
 | `npm run build-extension` | Extension-host bundle only |
 | `npm run build-webview` | Browser bundles only |
 | `npm run copy-deps` | Copy DOMPurify into `media/` |
-| `npm run watch` | Watch the extension-host bundle only; rebuild webview code separately |
+| `npm run watch` | Watch the extension-host bundle |
+| `npm run watch:webview` | Copy dependency assets, then watch the webview bundles; F5 runs both watches |
 | `npm run lint` | ESLint on TypeScript under `src/` |
 | `npm test` | Mocha TDD suites through the VS Code test CLI; `pretest` emits TypeScript, copies dependencies, and builds the webview |
 | `npm run verify` | Typecheck without emit, lint, and `npm test`; not the production extension-host bundle |

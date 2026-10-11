@@ -32,13 +32,15 @@ npm ci --ignore-scripts
 ```bash
 npm run compile
 npm run watch
+npm run watch:webview
 ```
 
-Compile builds the extension host and webview and copies dependency assets. Watch
-rebuilds only the extension-host bundle; rebuild webview changes separately.
+Compile builds the extension host and webview and copies dependency assets. `watch`
+rebuilds the extension-host bundle and `watch:webview` the webview bundles.
 
 Press `F5` in VS Code to launch the Extension Development Host, then run
-**Beads: Open Kanban Board**.
+**Beads: Open Kanban Board**. F5 starts both watches first, so an edit to either side
+is picked up by reloading the development host.
 
 Read the seeding/cleanup scripts before using them and target an approved isolated
 test database, never the repository's real backlog. See [TESTING.md](TESTING.md).

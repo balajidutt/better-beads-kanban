@@ -124,6 +124,7 @@
     "copy-deps": "node scripts/copy-deps.js",
     "build-icon": "node scripts/build-icon.js",
     "watch": "node scripts/build-extension.js --watch",
+    "watch:webview": "npm run copy-deps && node scripts/build-webview.js --watch",
     "lint": "eslint src --ext ts",
     "pretest": "tsc -p . && npm run copy-deps && npm run build-webview",
     "test": "vscode-test",

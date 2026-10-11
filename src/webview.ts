@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import * as crypto from "crypto";
+import * as fs from "fs";
 import {
   buildPriorityFilterRows,
   buildTypeFilterRows,
@@ -9,15 +10,22 @@ import {
 } from "./filterMarkup";
 
 export function getWebviewHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
-  // Use package version for cache-busting (production-friendly, changes only on updates)
+  // Package version; scripts/bump-version.js rewrites this line and release-preflight checks it.
   const version = "2.2.3";
-  const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "out", "webview", "board.js")) + `?v=${version}`;
-  const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "media", "styles.css")) + `?v=${version}`;
-  const graphStyleUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "media", "graph-styles.css")) + `?v=${version}`;
-  const graphLayoutUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "out", "webview", "graph-layout.js")) + `?v=${version}`;
-  const graphViewUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "out", "webview", "graph-view.js")) + `?v=${version}`;
-  const dompurifyUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "media", "purify.min.js")) + `?v=${version}`;
-  const markedUri = webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, "media", "marked.min.js")) + `?v=${version}`;
+  // A restored panel reuses cached assets for an unchanged URL, so a rebuilt file must get a new one.
+  const assetUri = (...segments: string[]) => {
+    const file = vscode.Uri.joinPath(extensionUri, ...segments);
+    let stamp = "";
+    try { stamp = `.${Math.trunc(fs.statSync(file.fsPath).mtimeMs)}`; } catch { /* a missing file keeps the version alone */ }
+    return webview.asWebviewUri(file) + `?v=${version}${stamp}`;
+  };
+  const scriptUri = assetUri("out", "webview", "board.js");
+  const styleUri = assetUri("media", "styles.css");
+  const graphStyleUri = assetUri("media", "graph-styles.css");
+  const graphLayoutUri = assetUri("out", "webview", "graph-layout.js");
+  const graphViewUri = assetUri("out", "webview", "graph-view.js");
+  const dompurifyUri = assetUri("media", "purify.min.js");
+  const markedUri = assetUri("media", "marked.min.js");
 
   // Generate cryptographically secure nonce
   const nonce = crypto.randomBytes(16).toString('hex');
