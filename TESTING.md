@@ -430,13 +430,18 @@ restarts it.** The output channel is the tell — a restart prints a second
 extension reacts to the workspace changing: if the host restarted, you tested
 activation instead, and activation resolves correctly on its own.
 
-**A board tab outlives a host restart, and the survivor is inert.** The tab stays
-and keeps rendering its last cards, but nothing re-adopts it — there is no
-`registerWebviewPanelSerializer`. Clicking Refresh logs nothing whatsoever,
-because the message handler belonged to the host that went away. So before
-concluding a change did nothing, check the log for a second banner and for a
-matching `=== Opening Beads Kanban Board ===`; if that second line is missing you
-are looking at a dead panel, not a bug. Tracked in the backlog.
+**Board tabs belong to a folder's window state, and a new host restores them.**
+`File > Open Folder` reloads the window with the other folder's tabs, so the board
+closes with the folder it came from. Reopening the first folder brings the board
+back: the panel serializer (`registerWebviewPanelSerializer` in `src/extension.ts`)
+attaches it to the new host and re-renders it, and the log shows
+`=== Restoring Beads Kanban Board ===` rather than `=== Opening Beads Kanban Board ===`.
+If the folder no longer resolves to a Beads repository, the restored tab closes and the
+log shows `Closing restored board: no Beads repository to attach it to`. **Developer:
+Reload Window** takes the same restore path. If a host restart leaves board tabs and no
+live board, the new host closes them about 1.5 seconds after activation, logs
+`Replacing stale board: N board tab(s) with no live panel`, and opens a fresh board
+when the folder resolves to a Beads repository.
 
 ## Release QA Checklist
 
