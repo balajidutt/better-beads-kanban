@@ -153,10 +153,10 @@ export class DaemonBeadsAdapter {
   }
 
   /**
-   * Resolve the bd CLI executable path from workspace/user settings, falling back to PATH
+   * Resolve the bd CLI executable path from folder/workspace/user settings, falling back to PATH
    */
   private getBdCommand(): string {
-    const config = vscode.workspace.getConfiguration('beadsKanban');
+    const config = vscode.workspace.getConfiguration('beadsKanban', vscode.Uri.file(this.workspaceRoot));
     const bdPath = config.get<string>('bdPath', '');
     return bdPath || 'bd';
   }
