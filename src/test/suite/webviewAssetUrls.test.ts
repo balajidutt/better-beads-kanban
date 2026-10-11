@@ -6,6 +6,7 @@ import * as vscode from 'vscode';
 import { getWebviewHtml } from '../../webview';
 
 suite('Webview asset URLs change when the file is rebuilt', () => {
+    const version: string = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', '..', '..', 'package.json'), 'utf8')).version;
     let root: string;
     let panel: vscode.WebviewPanel;
     let webview: vscode.Webview;
@@ -33,7 +34,7 @@ suite('Webview asset URLs change when the file is rebuilt', () => {
     test('the board script URL keeps the release version and gains the file time', () => {
         const board = path.join(root, 'out', 'webview', 'board.js');
         fs.utimesSync(board, new Date(1_700_000_000_000), new Date(1_700_000_000_000));
-        assert.match(boardSrc(), /board\.js\?v=\d+\.\d+\.\d+\.1700000000000$/);
+        assert.ok(boardSrc().endsWith(`board.js?v=${version}.1700000000000`), boardSrc());
     });
 
     test('a rebuilt board script gets a different URL', () => {
@@ -46,6 +47,6 @@ suite('Webview asset URLs change when the file is rebuilt', () => {
 
     test('a missing asset still gets the release version alone', () => {
         const html = getWebviewHtml(webview, vscode.Uri.file(root));
-        assert.match(html, /graph-view\.js\?v=\d+\.\d+\.\d+"/);
+        assert.ok(html.includes(`graph-view.js?v=${version}"`));
     });
 });

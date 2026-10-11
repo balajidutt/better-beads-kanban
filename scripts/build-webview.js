@@ -8,7 +8,6 @@ if (!fs.existsSync(outDir)) {
   fs.mkdirSync(outDir, { recursive: true });
 }
 
-// Check if watch mode is enabled
 const isWatch = process.argv.includes('--watch');
 
 const bundles = [
