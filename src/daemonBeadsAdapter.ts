@@ -23,6 +23,9 @@ import {
 /** bd migrates a store on its first open after an upgrade; 1.2.2 to 1.3 can take minutes. */
 export const STORE_MIGRATION_TIMEOUT_MS = 10 * 60 * 1000;
 
+/** How long a `bd version` result is reused for the same executable and repository. */
+export const BD_VERSION_CACHE_MS = 5000;
+
 /**
  * BeadsAdapter that shells out to the bd CLI for all issue operations.
  */
@@ -54,6 +57,7 @@ export class DaemonBeadsAdapter {
   private readyFailureWarnedFor: string | undefined;
   private lastCapabilities: BdCapabilities | undefined;
   private storeOpenedKey: string | undefined;
+  private versionCache: { key: string; at: number; version: BdVersion | undefined } | undefined;
   private belowMinimumWarnedFor: string | undefined;
 
   constructor(workspaceRoot: string, output: vscode.OutputChannel) {
@@ -63,7 +67,8 @@ export class DaemonBeadsAdapter {
 
   /**
    * Checks the installed bd before every board load and mutation, since bd can be
-   * upgraded while the board stays open. `bd version --json` opens no store; when
+   * upgraded while the board stays open; a version read in the last
+   * BD_VERSION_CACHE_MS is reused. `bd version --json` opens no store; when
    * bd may migrate the store, the first open gets a long timeout so the migration
    * is not killed by the 30s default. Concurrent callers share one check.
    */
@@ -105,7 +110,7 @@ export class DaemonBeadsAdapter {
 
   private async checkStore(): Promise<BdCapabilities> {
     const root = this.workspaceRoot;
-    const version = parseBdVersion(await this.execBd(['version', '--json']));
+    const version = await this.readBdVersion(root);
     const capabilities = capabilitiesFor(version);
     if (this.workspaceRoot !== root) { return this.ensureStoreReady(); }
     this.lastCapabilities = capabilities;
@@ -130,6 +135,16 @@ export class DaemonBeadsAdapter {
     if (this.workspaceRoot !== root) { return this.ensureStoreReady(); }
     this.storeOpenedKey = `${root}\n${version?.raw ?? ''}\n${this.readLocalVersion(root) ?? ''}`;
     return capabilities;
+  }
+
+  private async readBdVersion(root: string): Promise<BdVersion | undefined> {
+    const key = `${this.getBdCommand()}\n${root}`;
+    const cached = this.versionCache;
+    const age = cached ? Date.now() - cached.at : -1;
+    if (cached && cached.key === key && age >= 0 && age < BD_VERSION_CACHE_MS) { return cached.version; }
+    const version = parseBdVersion(await this.execBd(['version', '--json']));
+    this.versionCache = { key, at: Date.now(), version };
+    return version;
   }
 
   private warnIfBelowMinimum(version: BdVersion | undefined, root: string): void {
@@ -1731,6 +1746,7 @@ export class DaemonBeadsAdapter {
       this.lastCapabilities = undefined;
       this.storeOpenedKey = undefined;
       this.storeCheckInFlight = undefined;
+      this.versionCache = undefined;
     }
     this.output.appendLine(`[DaemonBeadsAdapter] Workspace root changed to: ${newWorkspaceRoot}`);
     // Reset circuit breaker state for new repository

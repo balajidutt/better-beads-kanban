@@ -4,7 +4,7 @@ import * as os from 'os';
 import * as path from 'path';
 import * as sinon from 'sinon';
 import * as vscode from 'vscode';
-import { DaemonBeadsAdapter, STORE_MIGRATION_TIMEOUT_MS } from '../../daemonBeadsAdapter';
+import { BD_VERSION_CACHE_MS, DaemonBeadsAdapter, STORE_MIGRATION_TIMEOUT_MS } from '../../daemonBeadsAdapter';
 import { BdCommandError, findBdCommandError } from '../../shared/node';
 
 interface Call { args: string[]; timeoutMs: number | undefined; cwd: string }
@@ -19,6 +19,7 @@ suite('bd version pre-flight and first-open migration', () => {
   let statsGate: Promise<void> | undefined;
   let withProgress: sinon.SinonStub;
   let showWarning: sinon.SinonStub;
+  let clock: sinon.SinonFakeTimers;
 
   function makeRoot(localVersion: string | null): string {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'bbk-preflight-'));
@@ -52,8 +53,10 @@ suite('bd version pre-flight and first-open migration', () => {
   // Board loads also run `bd ready`; these tests are about the pre-flight around it.
   const preflightCalls = () => calls.filter(call => call.args[0] !== 'ready');
   const commands = () => preflightCalls().map(call => call.args[0]);
+  const later = () => clock.tick(BD_VERSION_CACHE_MS);
 
   setup(() => {
+    clock = sinon.useFakeTimers({ toFake: ['Date'] });
     roots = [];
     calls = [];
     bdVersion = '1.3.1';
@@ -68,6 +71,7 @@ suite('bd version pre-flight and first-open migration', () => {
 
   teardown(() => {
     sinon.restore();
+    clock.restore();
     for (const root of roots) { fs.rmSync(root, { recursive: true, force: true }); }
   });
 
@@ -94,10 +98,12 @@ suite('bd version pre-flight and first-open migration', () => {
     await adapter.getBoardMinimal();
     assert.deepStrictEqual(commands(), ['version', 'list']);
     bdVersion = '1.3.1';
+    later();
     await adapter.getBoardMinimal();
     assert.deepStrictEqual(commands(), ['version', 'list', 'version', 'stats', 'list']);
     assert.strictEqual(preflightCalls()[3].timeoutMs, STORE_MIGRATION_TIMEOUT_MS);
     assert.ok(withProgress.calledOnce);
+    later();
     await adapter.getBoardMinimal();
     assert.deepStrictEqual(commands().slice(5), ['version', 'list']);
   });
@@ -107,6 +113,7 @@ suite('bd version pre-flight and first-open migration', () => {
     const adapter = makeAdapter(makeRoot('1.2.2'));
     await adapter.getBoardMinimal();
     bdVersion = '1.3.1';
+    later();
     await adapter.setIssueStatus('fx-a1', 'in_progress');
     assert.deepStrictEqual(commands().slice(2), ['version', 'stats', 'update']);
     assert.strictEqual(preflightCalls()[3].timeoutMs, STORE_MIGRATION_TIMEOUT_MS);
@@ -115,6 +122,7 @@ suite('bd version pre-flight and first-open migration', () => {
   test('a store with no .local_version is opened once with the long timeout and no notification', async () => {
     const adapter = makeAdapter(makeRoot(null));
     await adapter.getBoardMinimal();
+    later();
     await adapter.getBoardMinimal();
     assert.deepStrictEqual(commands(), ['version', 'stats', 'list', 'version', 'list']);
     assert.strictEqual(preflightCalls()[1].timeoutMs, STORE_MIGRATION_TIMEOUT_MS);
@@ -217,6 +225,7 @@ suite('bd version pre-flight and first-open migration', () => {
       const adapter = makeAdapter(makeRoot('1.2.2'));
       await adapter.getBoardMinimal();
       bdVersion = '1.3.1';
+      later();
       await run(adapter).catch(() => undefined);
       const after = preflightCalls().slice(2);
       assert.deepStrictEqual(after.slice(0, 2).map(c => c.args[0]), ['version', 'stats']);
@@ -252,7 +261,8 @@ suite('bd version pre-flight and first-open migration', () => {
     assert.ok(!commands().includes('list'));
     statsFailure = undefined;
     await adapter.getBoardMinimal();
-    assert.deepStrictEqual(commands(), ['version', 'stats', 'version', 'stats', 'list']);
+    assert.deepStrictEqual(commands(), ['version', 'stats', 'stats', 'list']);
+    assert.strictEqual(preflightCalls()[2].timeoutMs, STORE_MIGRATION_TIMEOUT_MS);
   });
 
   test('a failed bd version fails the load and is retried next time', async () => {
@@ -278,8 +288,48 @@ suite('bd version pre-flight and first-open migration', () => {
     const adapter = makeAdapter(makeRoot('1.3.1'));
     assert.strictEqual((await adapter.getCapabilities()).ifStatus, true);
     bdVersion = 'dev';
+    later();
     const unknown = await adapter.getCapabilities();
     assert.deepStrictEqual(unknown, { version: null, closePolicy: false, ifStatus: false, briefDeps: false, leases: false, eventsJournal: false });
     assert.ok(showWarning.notCalled);
+  });
+
+  test('operations inside the cache window share one bd version and the next one after it checks again', async () => {
+    const adapter = makeAdapter(makeRoot('1.3.1'));
+    await adapter.getBoardMinimal();
+    clock.tick(BD_VERSION_CACHE_MS - 1);
+    await adapter.getBoardMinimal();
+    clock.tick(1);
+    await adapter.getBoardMinimal();
+    assert.deepStrictEqual(commands(), ['version', 'list', 'list', 'version', 'list']);
+  });
+
+  test('changing beadsKanban.bdPath checks bd again inside the cache window', async () => {
+    const adapter = makeAdapter(makeRoot('1.3.1'));
+    let bdPath = '/usr/local/bin/bd';
+    sinon.stub(vscode.workspace, 'getConfiguration').callsFake(() =>
+      ({ get: (key: string, fallback?: unknown) => key === 'bdPath' ? bdPath : fallback }) as unknown as vscode.WorkspaceConfiguration);
+    await adapter.getBoardMinimal();
+    bdPath = '/opt/bd/bin/bd';
+    await adapter.getBoardMinimal();
+    assert.deepStrictEqual(commands(), ['version', 'list', 'version', 'list']);
+  });
+
+  test('a clock set back inside the cache window checks bd again', async () => {
+    const adapter = makeAdapter(makeRoot('1.3.1'));
+    await adapter.getBoardMinimal();
+    clock.setSystemTime(Date.now() - 60_000);
+    await adapter.getBoardMinimal();
+    assert.deepStrictEqual(commands(), ['version', 'list', 'version', 'list']);
+  });
+
+  test('a store reopened by another bd inside the cache window still gets the long first open', async () => {
+    const root = makeRoot('1.3.1');
+    const adapter = makeAdapter(root);
+    await adapter.getBoardMinimal();
+    fs.writeFileSync(path.join(root, '.beads', '.local_version'), '1.2.2\n');
+    await adapter.getBoardMinimal();
+    assert.deepStrictEqual(commands(), ['version', 'list', 'stats', 'list']);
+    assert.strictEqual(preflightCalls()[2].timeoutMs, STORE_MIGRATION_TIMEOUT_MS);
   });
 });
