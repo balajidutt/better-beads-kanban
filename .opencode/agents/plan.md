@@ -26,9 +26,9 @@ A medium/high plan states:
 - Scope: files (globs) with the owning role for each, Beads issues, worktrees.
 - Operations and targets: the default chain from AGENTS.md through landing, with its targets (worktree branch, `origin`, the reviewed SHA); helpers and skills named by reference.
 - Exclusions: any default step the plan does not authorize, and forbidden effects inside an authorized class.
-- Escalation triggers beyond the standard eight, including stop-on-denial for a named mutating step if wanted.
+- Escalation triggers beyond the standard eight, including stop-on-denial for a named mutating step if wanted. A drift trigger names in-scope files; main moving after the plan was written is not drift, since the merge helper handles it.
 - Budgets: attempts per gate (3 unless stated).
-- Acceptance evidence: each item with the role and tool that produces it, and any item marked must-observe.
+- Acceptance evidence: each item with the role and tool that produces it, and any item marked must-observe. Agent-produced items come from the chain's own steps; do not add a preflight of an executor's prerequisites, which its step checks itself.
 - Operator decisions recorded up front, such as a release's QA decision (smoke test done, waived or not required).
 - Backlog writes: issue IDs, or new issues' title, type, priority, description and links; release enrollment or exclusion; closures with their close reasons.
 - For a release plan: phase 1, preparation through landing and exact-SHA CI on main; phase 2, on the publication day, the date asked once, the CHANGELOG dating commit through the same chain, then the class E commands handed to the operator.

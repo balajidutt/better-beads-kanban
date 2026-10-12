@@ -614,10 +614,14 @@ test('the OpenCode lifecycle states its accepted channels, plan approval forms a
     'After compaction, a plan that existed only as session text is void until the operator supplies it again.',
     'the primary asks with the question tool for class C or D, using the exact operation and target as the option label',
     'an approval quoted only in an earlier dispatch of a continued task session is void',
+    'A dispatch quotes only the approvals the dispatched step itself relies on',
+    'cites the plan for its recorded decisions',
+    'The budget covers a gate\'s first run and its reruns after a timeout or inconclusive result; an operator-approved remediation starts a new count.',
+    'where the plan, the operator or a higher-priority rule requires one, the commit-message approval',
     'returns a command\'s stdout and stderr to the model but never its exit code.',
     'Agents hand the operator the exact command in every case.'
   ]) assert.ok(lifecycle.includes(text), text);
-  for (const gone of ['Separate approval is required for commits', 'At CI\'s permission prompt the human chooses Once', 'deny every class E command']) assert.equal(lifecycle.includes(gone), false, gone);
+  for (const gone of ['Separate approval is required for commits', 'At CI\'s permission prompt the human chooses Once', 'deny every class E command', 'in every dispatch that relies on it']) assert.equal(lifecycle.includes(gone), false, gone);
   const handoff = await readFile(new URL('../../.opencode/instructions/beads-plan-handoff.md', import.meta.url), 'utf8');
   assert.ok(handoff.includes('Backlog writes require an approved plan that names the issue IDs'));
   assert.ok(handoff.includes('Backlog sync is class E: the operator runs scripts/bd-sync.sh'));
@@ -644,9 +648,16 @@ test('build runs the default chain and plan writes boundary-contract plans', asy
     'Hand the operator the exact class E commands',
     'Only beads-manager closes issues, and only those the plan lists with their close reasons',
     'run the publication-day phase when the operator says they are publishing: ask the date once at the start of phase 2',
-    'Approvals relied on, quoted with their channels'
+    'Approvals relied on, quoted with their channels',
+    'Write dispatches in plain prose with normal spacing.',
+    'Where the plan already states a dispatch field, decision or stop rule, say it is covered by the plan instead of restating it',
+    'Dependency preparation is part of chain step 1, not a preflight',
+    'Run the plan\'s steps in the default chain\'s order, without a separate preflight dispatch',
+    'Main moving after the plan was written is not drift; the merge helper handles it.',
+    'each executor checks its own prerequisites in its step, and a failure there is trigger 8',
+    'rerun a timed-out or inconclusive gate within the budget'
   ]) assert.ok(build.includes(text), text);
-  for (const gone of ['propose the commit message without committing', 'Route each separately approved lifecycle operation', 'explicit closure approval']) assert.equal(build.includes(gone), false, gone);
+  for (const gone of ['propose the commit message without committing', 'Route each separately approved lifecycle operation', 'explicit closure approval', 'Every dispatch follows the lifecycle\'s denied-read rule']) assert.equal(build.includes(gone), false, gone);
   const plan = (await readFile(new URL('../../.opencode/agents/plan.md', import.meta.url), 'utf8')).replace(/\s+/g, ' ');
   for (const text of [
     'Write evidence-backed plans that state intent and boundaries, not scripts',
@@ -664,7 +675,9 @@ test('build runs the default chain and plan writes boundary-contract plans', asy
     'phase 2, on the publication day, the date asked once, the CHANGELOG dating commit through the same chain',
     'so a dispatch gives the plan text or path, the lifecycle\'s dispatch fields and the question, and does not restate those rules',
     'plan-reviewer answers READY, REVISE or INCOMPLETE, and you submit only after READY',
-    'Present simple plans inline for approval, unless the operator asks for the plan-review tool'
+    'Present simple plans inline for approval, unless the operator asks for the plan-review tool',
+    'Agent-produced items come from the chain\'s own steps; do not add a preflight of an executor\'s prerequisites, which its step checks itself',
+    'A drift trigger names in-scope files; main moving after the plan was written is not drift'
   ]) assert.ok(plan.includes(text), text);
   for (const gone of ['ordered steps, verification and approvals', 'Incorporate denial/annotations without mutation', 'every dispatch to them follows']) assert.equal(plan.includes(gone), false, gone);
   const planReviewer = (await readFile(new URL('../../.opencode/agents/plan-reviewer.md', import.meta.url), 'utf8')).replace(/\s+/g, ' ');
