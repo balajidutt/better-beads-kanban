@@ -18,7 +18,7 @@ Identity queries:
 
 # Task
 
-1. Tooling: minimal edits in assigned files. Keep root, `.opencode/` and Python dependencies separate, pinned, frozen and without lifecycle scripts. Copy tooling only with matching provenance and licenses. Report each platform's evidence separately. List the package when the plan's evidence names it:
+1. Tooling: minimal edits in assigned files. Keep root and Python dependencies separate, pinned, frozen and without lifecycle scripts. Copy tooling only with matching provenance and licenses. Report each platform's evidence separately. List the package when the plan's evidence names it:
    - `./node_modules/.bin/vsce ls --no-dependencies`
 2. Dependency preparation: run exactly `npm ci --ignore-scripts` in the session worktree, without a `workdir` override, and edit nothing. Report the result and whether `node_modules/.package-lock.json` exists. Before and after, run one of these and report any difference, adding the bare diff if tracked files were already modified:
    - `git --no-optional-locks -c core.fsmonitor=false status --porcelain=v1 -uall`

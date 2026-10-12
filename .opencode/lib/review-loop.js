@@ -1,13 +1,37 @@
 import { lstat, readFile, realpath, open, rename, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { parse } from 'jsonc-parser';
-import picomatch from 'picomatch';
 
 const queues = new Map();
 const MAX_BYTES = 256 * 1024;
 export const sessionID = value => typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,255}$/.test(value) ? value : null;
 const basename = value => typeof value === 'string' && /^\.[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/.test(value);
+
+export function exemptPattern(value) {
+  if (typeof value !== 'string' || value.length > 1024) return false;
+  const body = value.startsWith('!') ? value.slice(1) : value;
+  if (!/^[^{}[\]()\\!|]+$/.test(body)) return false;
+  const segments = body.split('/');
+  return segments.every((segment, index) => segment && segment !== '.' && segment !== '..'
+    && (segment === '**' || !segment.includes('**'))
+    && (segment !== '**' || index === 0 || !/[*?]/.test(segments[index - 1])));
+}
+
+export function globMatcher(patterns) {
+  const segment = value => value.replace(/[.+^$|]/g, '\\$&').replace(/\*+/g, '[^/]*').replace(/\?/g, '[^/]');
+  const expressions = patterns.map(pattern => {
+    const segments = pattern.split('/');
+    const last = segments.length - 1;
+    const source = segments.map((value, index) => {
+      if (value !== '**') return (index > 0 && segments[index - 1] !== '**' ? '/' : '') + segment(value);
+      if (last === 0) return '.*';
+      if (index === 0) return '(?:.*/)?';
+      return index === last ? '(?:/.*)?' : '(?:/.*)?/';
+    }).join('');
+    return new RegExp(`^${source}$`);
+  });
+  return value => expressions.some(expression => expression.test(value));
+}
 
 export function inside(base, target) {
   const relative = path.relative(base, target);
@@ -91,26 +115,24 @@ export async function createRuntime(context) {
     base = await realpath(declaredBase);
     const directory = await lstat(path.join(base, '.opencode'));
     if (!directory.isDirectory() || directory.isSymbolicLink()) throw new Error('REVIEW_DIRECTORY_INVALID');
-    const file = path.join(base, '.opencode/opencode-tooling.config.jsonc');
+    const file = path.join(base, '.opencode/opencode-tooling.config.json');
     const info = await lstat(file);
     if (!info.isFile() || info.isSymbolicLink() || info.size > 65536) throw new Error('REVIEW_CONFIG_INVALID');
-    const errors = [];
-    config = parse(await readFile(file, 'utf8'), errors, { allowTrailingComma: true });
-    if (errors.length || !config || typeof config !== 'object' || Array.isArray(config)
+    config = JSON.parse(await readFile(file, 'utf8'));
+    if (!config || typeof config !== 'object' || Array.isArray(config)
       || !/^[a-z][a-z0-9-]{0,63}$/.test(config.reviewerAgent ?? '')
       || !/^[A-Z][A-Z0-9_]{0,79}$/.test(config.resultMarkerPrefix ?? '')
       || !basename(config.sentinelBase) || !basename(config.enforcerStateBase) || config.sentinelBase === config.enforcerStateBase
       || typeof config.reviewLabel !== 'string' || !config.reviewLabel || config.reviewLabel.length > 80 || /[\r\n]/.test(config.reviewLabel)
-      || !Array.isArray(config.exemptPaths) || config.exemptPaths.length > 64 || config.exemptPaths.some(value => typeof value !== 'string' || value.length > 1024)
+      || !Array.isArray(config.exemptPaths) || config.exemptPaths.length > 64 || !config.exemptPaths.every(exemptPattern)
       || !Array.isArray(config.watchEvents) || config.watchEvents.some(value => !['file.edited', 'file.watcher.updated'].includes(value))
       || !Number.isInteger(config.debounceMs) || config.debounceMs < 1 || config.debounceMs > 5000) throw new Error('REVIEW_CONFIG_INVALID');
   } catch {
     await warn('review-configuration-unavailable; independent review remains required');
     return null;
   }
-  const match = picomatch(config.exemptPaths.filter(value => !value.startsWith('!')), { dot: true });
-  const negations = config.exemptPaths.filter(value => value.startsWith('!')).map(value => value.slice(1));
-  const unmatch = negations.length ? picomatch(negations, { dot: true }) : () => false;
+  const match = globMatcher(config.exemptPaths.filter(value => !value.startsWith('!')));
+  const unmatch = globMatcher(config.exemptPaths.filter(value => value.startsWith('!')).map(value => value.slice(1)));
   const relativeFile = value => {
     if (typeof value !== 'string' || !value || /[\0\r\n]/.test(value) || Buffer.byteLength(value) > 1024) return null;
     const declared = path.resolve(declaredBase, value);

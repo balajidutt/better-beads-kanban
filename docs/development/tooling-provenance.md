@@ -49,14 +49,17 @@ worktree alias normalization, SDK call handling and marker parsing are shared in
 `.opencode/lib/review-loop.js`. The derived plugins use the repository's reviewer
 and marker contract, specific task/session correlation, a captured revision at
 review start, and no broad legacy sentinel clearing. Confirmed request rejection
-retains retry eligibility; uncertain delivery is not replayed automatically.
+retains retry eligibility; uncertain delivery is not replayed automatically. The
+shared module imports only Node built-ins: its configuration is strict JSON, and
+exempt paths use a local matcher instead of npm parser and glob packages. The
+[OpenCode workflow](opencode-workflow.md) lists the glob syntax it accepts.
 
 | Source / destination | Source blob | Destination SHA-256 |
 | --- | --- | --- |
 | `.opencode/plugins/review-loop-marker.js` | `8bf5b3fab5751380769b60e5ad662021f15a5cf5` | `cbefb2913996a0ee0bf3c7204c57a1586199b4bbe83a5a43a5dc3e66bf5d8d58` |
 | `.opencode/plugins/review-loop-enforcer.js` | `52cb9da627577c9f88c7a625ad49b8f3ef875bdc` | `5ab1289623d2bffcb5f8fa6a0a0e49d5c6ffe17d8052e2a75ccfa5a60fac034d` |
 | `.opencode/plugins/review-loop-gate.js` | `d379ec390ca11082ea4c4a71ac96f3dd071524c9` | `d5ca38d80fba9b0b602aba7399adef20b57d78825074fc8e45cf848cbf165cd1` |
-| Shared portions of those three sources → `.opencode/lib/review-loop.js` | The three preceding source blobs | `5520b2340a2271549572ebed82d5c3a96366050ac53fe0d45fd4a4177d5d672c` |
+| Shared portions of those three sources → `.opencode/lib/review-loop.js` | The three preceding source blobs | `ba3c7118b88eada7ff5d3abb2d5041e4da94f7c2800dabc3c40dd08a8b59e159` |
 
 The plugins are reminders, not authenticated or digest-bound commit approval.
 No global attestation producer, private source distribution, host installer or

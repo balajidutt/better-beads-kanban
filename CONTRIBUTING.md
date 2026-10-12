@@ -136,11 +136,11 @@ maintainer repository identity can reject fork-main pushes. Read the
 [hook-impact notes](docs/development/github-worktree-merge.md#contributor-and-hook-impact)
 before opting into this workflow; do not rewrite your fork's remote to bypass it.
 
-OpenCode plugin dependencies are separate from the application. When working on
-that integration, run `npm ci --ignore-scripts` from `.opencode/`, retaining its
-own npm lockfile. OpenCode and global attestation tooling are not prerequisites
-for an ordinary PR. Attestation is self-asserted participation/provenance, not
-independent approval of the current diff.
+The OpenCode plugin code uses only Node built-ins. OpenCode writes the ignored
+`.opencode/package.json` and lock itself at startup; do not commit them. OpenCode
+and global attestation tooling are not prerequisites for an ordinary PR.
+Attestation is self-asserted participation/provenance, not independent approval
+of the current diff.
 
 ### Before you open a PR
 

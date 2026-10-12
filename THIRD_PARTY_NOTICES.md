@@ -14,10 +14,9 @@ The three review-loop plugins and their shared utilities are adaptations. The
 merge runtime, hook source, schema and selected test support retain their
 source provenance; the manifest records local adaptations and modes.
 
-Configuration-local `picomatch` and `jsonc-parser`, and the packaging tool
-`@vscode/vsce`, retain their own package licenses and notices in the locked
-dependency distributions. No third-party dependency implementation is vendored
-from a separate checkout. These development tools and the selected dotfiles
-sources are excluded from the VSIX. Their notices may be excluded from that
+The packaging tool `@vscode/vsce` retains its own package license and notices in
+the locked dependency distribution. No third-party dependency implementation is
+vendored from a separate checkout. That tool and the selected dotfiles sources
+are excluded from the VSIX. Their notices may be excluded from that
 artifact only while its actual listing contains none of the corresponding code.
 The extension's own LICENSE and required runtime assets/notices remain included.

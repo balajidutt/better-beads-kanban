@@ -295,9 +295,9 @@ npm run test:coverage
 
 ## Workflow Tooling
 
-Use Node 22+ and Python 3.10+. Install the root and `.opencode/` dependencies from
-their respective npm locks with `npm ci --ignore-scripts`. The tooling suites are
-separate from the extension's Mocha suite:
+Use Node 22+ and Python 3.10+. Install the root dependencies with
+`npm ci --ignore-scripts`; the OpenCode plugin code needs no `.opencode/` install.
+The tooling suites are separate from the extension's Mocha suite:
 
 ```bash
 npm run lint
@@ -314,7 +314,7 @@ substitute an implicit `npx` download. `tests/tooling/packaging.test.mjs` checks
 pin/integrity and the actual file listing, including workflow exclusions and
 required extension assets/license. A filename count alone is not package proof.
 
-Node tests use real plugin modules and JSONC/picomatch dependencies with a fake
+Node tests use the real plugin modules, which import only Node built-ins, with a fake
 OpenCode client, fake CLI queries, owned temporary worktrees, and fake release
 commands. They cover reminder revision/delivery correlation, bounded subprocesses,
 shared-main priming, release readiness/metadata/ancestry snapshots, output collision

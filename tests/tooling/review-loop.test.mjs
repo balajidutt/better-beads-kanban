@@ -1,14 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { scratch, eventually } from './support/fixtures.mjs';
-import { createRuntime, reviewDecision, reviewRequest } from '../../.opencode/lib/review-loop.js';
+import { createRuntime, exemptPattern, globMatcher, reviewDecision, reviewRequest } from '../../.opencode/lib/review-loop.js';
 import Marker from '../../.opencode/plugins/review-loop-marker.js';
 import Enforcer from '../../.opencode/plugins/review-loop-enforcer.js';
 import Gate from '../../.opencode/plugins/review-loop-gate.js';
 
-const sourceConfig = JSON.parse(await readFile(new URL('../../.opencode/opencode-tooling.config.jsonc', import.meta.url), 'utf8'));
+const sourceConfig = JSON.parse(await readFile(new URL('../../.opencode/opencode-tooling.config.json', import.meta.url), 'utf8'));
 const config = { ...sourceConfig, debounceMs: 1 };
 const prefix = config.resultMarkerPrefix;
 const idle = sid => ({ event: { type: 'session.idle', properties: { sessionID: sid } } });
@@ -17,7 +19,7 @@ const user = (sid, agent = 'build') => ({ event: { type: 'message.updated', prop
 async function fixture(t, options = {}) {
   const root = await scratch(t);
   await mkdir(path.join(root, '.opencode'));
-  await writeFile(path.join(root, '.opencode/opencode-tooling.config.jsonc'), JSON.stringify(config));
+  await writeFile(path.join(root, '.opencode/opencode-tooling.config.json'), JSON.stringify(config));
   const calls = [];
   const context = {
     directory: root, worktree: path.dirname(root),
@@ -55,13 +57,53 @@ test('only one terminal unquoted configured marker is accepted', () => {
   assert.equal(reviewDecision(`<task id="ses_review" state="completed">\n<task_result>\n${prefix}=PASS\n</task_result>\n</task>`, prefix), 'PASS');
 });
 
-test('JSONC parsing handles comments and trailing commas without corrupting strings', async t => {
+test('configuration is strict JSON: a comment or trailing comma disables reminders', async t => {
+  const { root, context, calls } = await fixture(t);
+  for (const text of [JSON.stringify(config).replace(/}$/, ',}'), JSON.stringify(config).replace(/}$/, '\n// comment\n}')]) {
+    await writeFile(path.join(root, '.opencode/opencode-tooling.config.json'), text);
+    assert.equal(await createRuntime(context), null, text.slice(-20));
+  }
+  assert.equal(calls.filter(([name, message]) => name === 'log' && message.startsWith('review-configuration-unavailable')).length, 2);
+});
+
+test('exempt paths support literal names, *, ?, whole-segment ** and dot files', () => {
+  const cases = [
+    ['.git/**', ['.git', '.git/HEAD', '.git/objects/ab/cd'], ['x/.git/HEAD', '.github/workflows/test.yml']],
+    ['node_modules/**', ['node_modules', 'node_modules/a/b.js'], ['src/node_modules/a.js']],
+    ['.opencode/.bbk-review-required*', ['.opencode/.bbk-review-required', '.opencode/.bbk-review-required.ses_1.json'], ['.opencode/.bbk-review-x']],
+    ['out/**', ['out', 'out/extension.js'], ['outer/x', 'src/out/x']],
+    ['**/__pycache__/**', ['__pycache__', '__pycache__/a.pyc', 'a/b/__pycache__/c/d.pyc'], ['x__pycache__/a']],
+    ['*.vsix', ['x.vsix', '.vsix'], ['dir/x.vsix']],
+    ['SHA256SUMS', ['SHA256SUMS'], ['dir/SHA256SUMS', 'SHA256SUMS.txt']],
+    ['a/**/b', ['a/b', 'a/x/b', 'a/x/y/b'], ['b', 'a/bc']],
+    ['a?c', ['abc'], ['ac', 'a/c']],
+    ['a+b.$x', ['a+b.$x'], ['aab.$x', 'a+bx$x']]
+  ];
+  for (const [pattern, matched, unmatched] of cases) {
+    assert.ok(exemptPattern(pattern), pattern);
+    const match = globMatcher([pattern]);
+    for (const value of matched) assert.equal(match(value), true, `${pattern} ${value}`);
+    for (const value of unmatched) assert.equal(match(value), false, `${pattern} ${value}`);
+  }
+  assert.equal(globMatcher([])('anything'), false);
+  for (const pattern of config.exemptPaths) assert.ok(exemptPattern(pattern), pattern);
+  assert.ok(exemptPattern('!docs/**'));
+  for (const pattern of ['{a,b}', 'a[bc]', '@(a)', '!(a)', 'a\\b', '!!a', 'a//b', 'a/', './a', 'a/../b', '', 1, 'a/**/**/b', '**/**/a', '**/**', '**.js', 'dist**', 'a/*/**', 'out*/**', '**/*/**', 'a?/**', 'x/a|b']) assert.equal(exemptPattern(pattern), false, String(pattern));
+});
+
+test('a negated exempt path keeps a file under review', async t => {
   const { root, context } = await fixture(t);
-  const text = JSON.stringify({ ...config, reviewLabel: 'Review ,}' }).replace(/}$/, ',\n// comment\n}');
-  await writeFile(path.join(root, '.opencode/opencode-tooling.config.jsonc'), text);
+  await writeFile(path.join(root, '.opencode/opencode-tooling.config.json'), JSON.stringify({ ...config, exemptPaths: ['out/**', '!out/keep.js'] }));
   const runtime = await createRuntime(context);
-  assert.equal(runtime.config.reviewLabel, 'Review ,}');
+  assert.equal(runtime.relativeFile('out/extension.js'), null);
+  assert.equal(runtime.relativeFile('out/keep.js'), 'out/keep.js');
   await runtime.dispose();
+});
+
+test('unsupported exempt-path syntax disables reminders', async t => {
+  const { root, context } = await fixture(t);
+  await writeFile(path.join(root, '.opencode/opencode-tooling.config.json'), JSON.stringify({ ...config, exemptPaths: ['out/{a,b}/**'] }));
+  assert.equal(await createRuntime(context), null);
 });
 
 test('unfinished Markdown fences and indented markers cannot clear review', () => {
@@ -72,13 +114,13 @@ test('unfinished Markdown fences and indented markers cannot clear review', () =
 
 test('malformed configuration disables reminders with no reflected exception detail', async t => {
   const { root, context, calls } = await fixture(t);
-  await writeFile(path.join(root, '.opencode/opencode-tooling.config.jsonc'), '{"SYNTHETIC_PRIVATE":');
+  await writeFile(path.join(root, '.opencode/opencode-tooling.config.json'), '{"SYNTHETIC_PRIVATE":');
   assert.equal(await createRuntime(context), null);
   assert.ok(calls.some(([name]) => name === 'log'));
   assert.equal(JSON.stringify(calls).includes('SYNTHETIC_PRIVATE'), false);
 });
 
-test('actual picomatch exemptions retain docs and workflow source and reject path escape', async t => {
+test('actual configured exemptions retain docs and workflow source and reject path escape', async t => {
   const { root, runtime } = await fixture(t);
   assert.equal(runtime.relativeFile('docs/development/opencode-workflow.md'), 'docs/development/opencode-workflow.md');
   assert.equal(runtime.relativeFile('.github/workflows/test.yml'), '.github/workflows/test.yml');
@@ -979,9 +1021,8 @@ test('dependency preparation is named in the routing contracts and the project c
 test('CI tooling permission uses npm lock and installed VSCE instead of Bun and npx', async () => {
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
   const ci = settings.agent['ci-build-engineer'].permission;
-  assert.equal(ci.edit['.opencode/package-lock.json'], 'allow');
-  assert.equal(ci.edit['.opencode/package.json'], 'allow');
-  assert.equal(Object.hasOwn(ci.edit, '.opencode/bun.lock'), false);
+  for (const key of ['.opencode/package-lock.json', '.opencode/package.json', '.opencode/bun.lock']) assert.equal(Object.hasOwn(ci.edit, key), false, key);
+  assert.equal(ci.edit['.opencode/opencode-tooling.config.json'], 'allow');
   assert.equal(Object.hasOwn(ci.bash, 'bun install --frozen-lockfile --ignore-scripts'), false);
   assert.equal(Object.hasOwn(ci.bash, 'npx --no-install vsce ls --no-dependencies'), false);
   assert.equal(ci.bash['./node_modules/.bin/vsce ls --no-dependencies'], 'ask');
@@ -993,21 +1034,19 @@ test('CI tooling permission uses npm lock and installed VSCE instead of Bun and 
   for (const key of ['.opencode/opencode.jsonc', '.opencode/permissions/**', '.opencode/agents/**', '.opencode/instructions/**', 'AGENTS.md', 'CLAUDE.md', 'docs/development/opencode-workflow.md', 'docs/development/agent-evaluation.md']) assert.equal(Object.hasOwn(ci.edit, key), false, key);
 });
 
-test('OpenCode tooling manifest and lock pin plugin and sdk 1.18.31 with exact integrity', async () => {
-  const manifest = JSON.parse(await readFile(new URL('../../.opencode/package.json', import.meta.url), 'utf8'));
-  const lock = JSON.parse(await readFile(new URL('../../.opencode/package-lock.json', import.meta.url), 'utf8'));
-  assert.deepEqual(manifest.dependencies, {
-    '@opencode-ai/plugin': '1.18.31',
-    'jsonc-parser': '3.3.1',
-    'picomatch': '4.0.4'
-  });
-  assert.equal(lock.lockfileVersion, 3);
-  assert.deepEqual(lock.packages[''].dependencies, manifest.dependencies);
-  assert.equal(lock.packages['node_modules/@opencode-ai/plugin'].version, '1.18.31');
-  assert.equal(lock.packages['node_modules/@opencode-ai/sdk'].version, '1.18.31');
-  assert.equal(lock.packages['node_modules/@opencode-ai/plugin'].integrity, 'sha512-Rdc1bPK06PByaGyGd0kf7JUZ4pTkexz2OOUNlqZWLpHOiMEZ+/rFGjt46ypZ3QwA697gNdWwwwQbHbKG5NMwGA==');
-  assert.equal(lock.packages['node_modules/@opencode-ai/sdk'].integrity, 'sha512-Raouthf8Lhe9edjvYeeSK7SgvdoU6bBjH9qV3f70dHoa6h+z0X2TMz/e22/wKp/StlFUZ4kIRpYYxFnY8/k01w==');
-  assert.equal(lock.packages['node_modules/@opencode-ai/plugin'].dependencies['@opencode-ai/sdk'], '1.18.31');
-  assert.equal(lock.packages['node_modules/jsonc-parser'].version, '3.3.1');
-  assert.equal(lock.packages['node_modules/picomatch'].version, '4.0.4');
+test('OpenCode owns the ignored .opencode package files and the review loop needs no npm package', async () => {
+  const root = fileURLToPath(new URL('../..', import.meta.url));
+  const files = ['.opencode/package.json', '.opencode/package-lock.json', '.opencode/bun.lock'];
+  assert.equal(execFileSync('git', ['ls-files', '--', ...files], { cwd: root, encoding: 'utf8' }), '');
+  assert.deepEqual(execFileSync('git', ['check-ignore', '--no-index', '--', ...files], { cwd: root, encoding: 'utf8' }).trim().split('\n'), files);
+  for (const dir of ['lib', 'plugins']) {
+    assert.deepEqual(JSON.parse(await readFile(new URL(`../../.opencode/${dir}/package.json`, import.meta.url), 'utf8')), { type: 'module' }, dir);
+  }
+  for (const file of ['lib/review-loop.js', 'plugins/review-loop-marker.js', 'plugins/review-loop-enforcer.js', 'plugins/review-loop-gate.js']) {
+    const text = await readFile(new URL(`../../.opencode/${file}`, import.meta.url), 'utf8');
+    const specifiers = [...text.matchAll(/^(?:import\b[^'"]*|export\b[^'"]*\bfrom\s*)['"]([^'"]+)['"]/gm)].map(match => match[1]);
+    assert.ok(specifiers.length > 0, file);
+    assert.doesNotMatch(text, /\bimport\s*\(|\brequire\s*\(|createRequire/, file);
+    for (const specifier of specifiers) assert.ok(specifier.startsWith('node:') || specifier === '../lib/review-loop.js', `${file}: ${specifier}`);
+  }
 });
