@@ -2565,7 +2565,7 @@
         "read": { "*": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny", "**/.ssh/**": "deny", "**/auth.json": "deny", "**/.beads/**": "deny" },
         "glob": "allow",
         "grep": "allow",
-        "edit": { "*": "deny", "src/extension.ts": "allow", "src/daemonBeadsAdapter.ts": "allow", "src/types.ts": "allow", "src/sanitizeError.ts": "allow", "src/markdownValidator.ts": "allow", "src/beadsWatch.ts": "allow", "src/beadsWorkspace.ts": "allow", "src/filterMarkup.ts": "allow", "src/filterUniverse.ts": "allow", "src/webview.ts": "allow", "src/test/**": "allow", "docs/development/extension-architecture.md": "allow", "TESTING.md": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny" },
+        "edit": { "*": "deny", "src/*.ts": "allow", "src/shared/**": "allow", "src/test/**": "allow", "package.json": "allow", "docs/shared-core.md": "allow", "docs/development/extension-architecture.md": "allow", "TESTING.md": "allow", "src/webview/**": "deny", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny" },
         "task": "deny",
         "skill": "deny",
         "external_directory": { "*": "deny", "$HOME/.plannotator/plans/**": "allow" },

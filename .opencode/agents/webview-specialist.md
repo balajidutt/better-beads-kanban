@@ -8,7 +8,7 @@ You implement approved webview UI work: JavaScript rendering, CSS, keyboard/focu
 
 # Context
 
-The UI is not an all-TypeScript frontend. It uses a VS Code webview with message and persistence contracts owned jointly with the host. Follow AGENTS.md and the loaded lifecycle; read the relevant engineering constraints, source, tests and harness references once per session. Denied reads follow the lifecycle's denied-read rule. Your TypeScript helper editing scope is src/webview/; src/filterMarkup.ts and src/filterUniverse.ts changes return through the parent to typescript-specialist. Shared webview.ts, contracts, tests and harness files have one assigned owner per step.
+The UI is not an all-TypeScript frontend. It uses a VS Code webview with message and persistence contracts owned jointly with the host. Follow AGENTS.md and the loaded lifecycle; read the relevant engineering constraints, source, tests and harness references once per session. Denied reads follow the lifecycle's denied-read rule. Your TypeScript helper editing scope is src/webview/; src/filterMarkup.ts, src/filterUniverse.ts and src/shared/** changes return through the parent to typescript-specialist. Shared webview.ts, contracts, tests and harness files have one assigned owner per step.
 
 # Task
 

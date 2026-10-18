@@ -13,8 +13,8 @@ The maintained runtime definitions live directly under `.opencode/`; there is no
 | `plan-reviewer` | Challenge scope, authority, dependencies and evidence before approval | Read-only leaf |
 | `beads-manager` | Exact preserving backlog operations and readback | Sole real-backlog writer in OpenCode; no source edits |
 | `code-reviewer` | Independent review of the complete intended change and actual evidence | Read-only leaf; no self-fixing or sentinel-as-authorization |
-| `typescript-specialist` | Extension host, CLI adapter, schemas, root filter helpers and associated tests/docs | Bounded editor; not the backlog manager |
-| `webview-specialist` | Vanilla JS/CSS, helpers under `src/webview/`, rendering/state evidence | Bounded editor; root filter helpers route through the parent to TypeScript |
+| `typescript-specialist` | Extension host, CLI adapter, schemas, shared core (`src/shared/`), root filter helpers, `package.json` contributions (dependency, script and engine fields stay with ci-build-engineer) and associated tests/docs | Bounded editor; not the backlog manager |
+| `webview-specialist` | Vanilla JS/CSS, helpers under `src/webview/`, rendering/state evidence | Bounded editor; root filter helpers and shared core route through the parent to TypeScript |
 | `test-strategist` | Falsifiable test/evidence design before behavior edits | Read-only; does not write or execute tests |
 | `ci-build-engineer` | Operational build/CI/development tooling, dependency preparation, and the plan's commits, exact-SHA CI and landing | Not an agent-authority editor or backlog writer |
 | `release-manager` | CHANGELOG/version preparation, the publication-day dating edit and postpublication verification reads | Not a backlog writer; dry runs and publication are operator-run; local VSIX and stable release are different lanes |

@@ -662,7 +662,8 @@ test('build runs the default chain and plan writes boundary-contract plans', asy
   for (const text of [
     'Write evidence-backed plans that state intent and boundaries, not scripts',
     'a plan authorizes a helper by reference and never restates, reorders or forbids its steps',
-    'every acceptance item names a role and tool in scope that can produce it, and no open question concerns required evidence',
+    'every acceptance item names a role and tool in scope that can produce it, no open question concerns required evidence, and every file in scope falls within its owner\'s edit permission in `.opencode/opencode.jsonc`',
+    'a file no role may edit is an agent-authority question for agent-engineer',
     'one plan per turn, and state that no earlier approval carries over to a revised plan',
     'On a denial or annotations, revise from the feedback and submit again',
     '- Budgets: attempts per gate (3 unless stated).',
@@ -682,6 +683,7 @@ test('build runs the default chain and plan writes boundary-contract plans', asy
   for (const gone of ['ordered steps, verification and approvals', 'Incorporate denial/annotations without mutation', 'every dispatch to them follows']) assert.equal(plan.includes(gone), false, gone);
   const planReviewer = (await readFile(new URL('../../.opencode/agents/plan-reviewer.md', import.meta.url), 'utf8')).replace(/\s+/g, ' ');
   assert.ok(planReviewer.includes('Result: READY, REVISE or INCOMPLETE.'));
+  assert.ok(planReviewer.includes('scope with an owner per file, within that owner\'s edit permission (`.opencode/opencode.jsonc`)'));
 });
 
 test('the runbooks describe the plan-boundary chain, the release plan and the maintainer environment', async () => {
@@ -1029,6 +1031,26 @@ test('dependency preparation is named in the routing contracts and the project c
     const action = typeof bash === 'string' ? bash : bashAction(bash, install);
     assert.equal(action, name === 'ci-build-engineer' ? 'ask' : 'deny', name);
   }
+});
+
+test('typescript-specialist edits host modules, the shared core and package.json but not the webview', async () => {
+  const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
+  const edit = name => settings.agent[name].permission.edit;
+  const ts = edit('typescript-specialist');
+  for (const file of ['src/newIssueShortcut.ts', 'src/extension.ts', 'src/webview.ts', 'src/shared/issueMapping.ts', 'src/shared/README.md', 'src/test/suite/newIssueShortcut.test.ts', 'package.json', 'docs/shared-core.md']) {
+    assert.equal(bashAction(ts, file), 'allow', file);
+  }
+  for (const file of ['src/webview/board.js', 'src/webview/treeBuilder.ts', 'src/webview/mockups/structure/index.html', 'media/styles.css', 'package-lock.json', '.env', 'src/.env.local']) {
+    assert.equal(bashAction(ts, file), 'deny', file);
+  }
+  const keys = Object.keys(ts);
+  assert.equal(ts['src/shared/**'], 'allow');
+  assert.ok(keys.indexOf('src/shared/**') < keys.indexOf('src/webview/**'));
+  for (const file of ['src/shared/model.ts', 'package.json']) assert.equal(bashAction(edit('webview-specialist'), file), 'deny', file);
+  assert.equal(bashAction(edit('webview-specialist'), 'src/webview/board.js'), 'allow');
+  assert.equal(bashAction(edit('ci-build-engineer'), 'package.json'), 'allow');
+  const card = await readFile(new URL('../../.opencode/agents/webview-specialist.md', import.meta.url), 'utf8');
+  assert.ok(card.includes('src/filterMarkup.ts, src/filterUniverse.ts and src/shared/** changes return through the parent to typescript-specialist.'));
 });
 
 test('CI tooling permission uses npm lock and installed VSCE instead of Bun and npx', async () => {
