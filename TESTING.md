@@ -443,6 +443,93 @@ live board, the new host closes them about 1.5 seconds after activation, logs
 `Replacing stale board: N board tab(s) with no live panel`, and opens a fresh board
 when the folder resolves to a Beads repository.
 
+### Ctrl/Cmd+N tracked-focus acceptance
+
+The shortcut uses `activeWebviewPanelId == beadsKanban.board &&
+beadsKanban.boardFocus && !editorFocus && !terminalFocus && !panelFocus &&
+!sideBarFocus && !auxiliaryBarFocus`. Verify actual context values and the matched
+command on the current runtime; minimum-version source inspection is not runtime
+acceptance. The internal `beadsKanban.newIssue` command is hidden from the Command
+Palette. Do not replay VS Code's New File command to compensate for focus lag.
+
+**Operator runs the F5 check against a scratch bd init workspace; results are
+supplied evidence.** Use physical keyboard input against the latest post-gates
+candidate manifest (HEAD and changed-file hashes), recording OS, VS Code version
+and keyboard layout.
+
+The operator alone creates and prepares a fresh scratch directory outside the
+implementation worktree, shared main checkout and real Git/Beads checkouts. Use
+supported `bd init` behavior with a unique non-`bbk` prefix, skipping agent/hook
+setup. Before seeding or UI writes, verify scratch-local maintainer routing and
+CLI context containment, then create one scratch issue for dirty-edit checks.
+Never parse storage or test against a real backlog.
+
+F5 must load the implementation worktree's development source against only that
+scratch workspace. The existing launch configuration does not select the scratch
+folder and may restore a prior window. The operator ensures the actual development
+host opens only the fresh scratch, not unrelated real Beads folders. Supply the
+configured bd version/executable, scratch absolute path/prefix, effective root and
+context, and matching scratch issue identity in that actual host, without secrets.
+CLI-only containment does not establish the host environment or fully private
+isolation. A containment mismatch or unexpected routing/store effect stops
+acceptance and blocks review/commit; possible real-backlog effects require
+escalation, not agent repair. A new scratch target needs fresh containment facts.
+
+1. Enable **Developer: Toggle Keyboard Shortcuts Troubleshooting**. Capture its
+   timestamped chord/matched-command decisions alongside the Beads Output channel's
+   `[Shortcut <ISO timestamp>]` diagnostics. These contain wanted/publication
+   revisions, in-flight/success/error/current status and opaque panel eligibility,
+   not issue content. Do not dump focus payloads or issue data into evidence.
+2. Classify each settled attempt retrospectively: a current-generation
+   `panel=N eligible=true ... sync=reported` (or the appropriate invalidation for
+   non-board focus), then the latest wanted value's successful publication or
+   `status=current` confirmation must precede the chord decision, with no newer
+   pending revision, unknown/error state or required resync, and the focus target
+   unchanged through the chord. A success for an older revision with a newer
+   pending value is not convergence. Inspect Context Keys supports predicate
+   inspection but changes focus; refocus and collect fresh chronological evidence
+   before testing. No fixed sleep or latency threshold proves settlement.
+3. At settled board-content focus, Ctrl+N / macOS Cmd+N opens exactly one existing
+   create dialog, with normal title focus and no untitled editor. Repeat the chord:
+   no duplicate/reset. Dirty create and dirty edit drafts survive; Escape and host
+   discard confirmation behave normally. INPUT, TEXTAREA, contenteditable, open
+   modal, read-only and pre-permission-initialization states consume without action,
+   reset or toast. Exercise search typing as well as detail fields.
+4. At settled Explorer, terminal, split text editor and unrelated focus, preserve
+   native defaults. With two boards, only the focused eligible board acts; a late
+   blur from the other board must not change that target. Confirm R/F/Escape remain
+   unchanged.
+5. Check Reload Window, Restart Extension Host, close/background, window blur and
+   reactivation separately. Confirm first false publication, fresh resynchronization
+   and no persistent stale true, wrong-board action, queued create or draft loss.
+   A dead/hung host cannot guarantee shutdown false delivery; the next functioning
+   activation's unconditional false is recovery, not proof shutdown delivery worked.
+6. Record rapid board entry/exit chords separately from settled checks. Focus
+   tracking is asynchronous: immediate entry can open an untitled editor before
+   true arrives, and immediate exit can briefly consume before false arrives.
+   Workbench exclusions narrow exits, not eliminate all gaps. Do not claim zero-gap
+   routing. Persistent nonconvergence, a publication error during acceptance,
+   wrong-board action or draft loss fails acceptance.
+7. Supply pass/fail/inconclusive results through an operator message or primary
+   question answer. Close only the operator-owned F5 host/watches before test
+   reruns; do not stop unrelated Code/AoE processes. Scratch lifetime and optional
+   deletion belong solely to the operator. Deletion is not a review or closure
+   condition; no runner, PID receipt or agent-private HOME/XDG harness is required.
+
+Actual-host supplied evidence is required; mocks do not replace it. No unrelated
+theme/workspace-retarget sweep or fresh pre-fix manual run is required. Agents do
+not create, start, seed, manage or delete the manual workspace, change launch/profile
+or global settings/keybindings, or repair temporary-directory access.
+
+Focused helper/contract tests can be selected with the installed runner's supported
+`npm test -- --grep "New Issue shortcut|Read-only mode and the detail dialog"`
+after checking `./node_modules/.bin/vscode-test --help`. They test actual browser
+builders against actual host schemas and fake-input guard/report/listener behavior;
+source wiring assertions are supplementary. They open no boards and call no bd.
+Neither these tests nor a standalone Chrome mock establishes actual keyboard routing,
+Electron panel restoration or real bd integration. Full lint/tests and production
+compile remain separate required gates.
+
 ## Release QA Checklist
 
 The automated suites do not touch the webview. Each feature's own tests, including

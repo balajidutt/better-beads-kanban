@@ -50,8 +50,28 @@
       {
         "command": "beadsKanban.reclaimStaleClaims",
         "title": "Beads: Reclaim Stale Claims"
+      },
+      {
+        "command": "beadsKanban.newIssue",
+        "title": "Beads: New Issue"
       }
     ],
+    "keybindings": [
+      {
+        "command": "beadsKanban.newIssue",
+        "key": "ctrl+n",
+        "mac": "cmd+n",
+        "when": "activeWebviewPanelId == beadsKanban.board && beadsKanban.boardFocus && !editorFocus && !terminalFocus && !panelFocus && !sideBarFocus && !auxiliaryBarFocus"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "beadsKanban.newIssue",
+          "when": "false"
+        }
+      ]
+    },
     "configuration": {
       "title": "Better Beads Kanban",
       "properties": {

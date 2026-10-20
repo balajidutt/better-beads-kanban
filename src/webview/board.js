@@ -5,6 +5,7 @@ import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import { GraphView } from './graph-view.js';
 import { buildRelationshipBadges } from './cardRelationships';
 import { assigneeBadge, leaseActionVisibility } from './leaseStatus';
+import { installNewIssueShortcut } from './newIssueShortcut';
 import {
     nextFilterSelection,
     computeFilterLabel,
@@ -329,6 +330,7 @@ let columnState = {
 // Legacy boardData for backward compatibility
 let boardData = null;
 let readOnly = false; // Read-only mode flag from extension
+let creationPermissionsInitialized = false;
 let bdCapabilities = { leases: false };
 let detailDirty = false;
 let toastHideTimer = null;
@@ -2766,15 +2768,6 @@ document.addEventListener("keydown", (e) => {
         return;
     }
     
-    // Ctrl/Cmd+N: New issue
-    if (modKey && e.key.toLowerCase() === 'n') {
-        e.preventDefault();
-        if (!readOnly) {
-            newBtn.click();
-        }
-        return;
-    }
-    
     // Ctrl/Cmd+F: Focus search
     if (modKey && e.key.toLowerCase() === 'f') {
         e.preventDefault();
@@ -2885,6 +2878,7 @@ window.addEventListener("message", (event) => {
         // Maintain backward compatibility
         boardData = msg.payload;
         readOnly = msg.payload.readOnly || false; // Extract read-only flag
+        creationPermissionsInitialized = typeof msg.payload.readOnly === 'boolean';
 
         // Apply persisted UI state (sort, filters, view mode, etc.) before rendering
         // so the first paint reflects the user's saved preferences.
@@ -2959,6 +2953,7 @@ window.addEventListener("message", (event) => {
             cards: cards
         };
         readOnly = msg.payload.readOnly || false;
+        creationPermissionsInitialized = typeof msg.payload.readOnly === 'boolean';
 
         // Apply persisted UI state before first paint so saved sort / filters /
         // view mode are reflected immediately on fast-loading boot.
@@ -4246,5 +4241,23 @@ ${card.design || 'None'}
     }
 }
 
+
+installNewIssueShortcut({
+    window,
+    document,
+    state: () => ({
+        focused: document.hasFocus(),
+        visible: document.visibilityState === 'visible',
+        initialized: creationPermissionsInitialized,
+        readOnly,
+        typing: document.activeElement?.tagName === 'INPUT' ||
+            document.activeElement?.tagName === 'TEXTAREA' ||
+            document.activeElement?.isContentEditable === true,
+        modalOpen: !!document.querySelector('dialog[open], [aria-modal="true"]')
+    }),
+    requestId,
+    send: message => vscode.postMessage(message),
+    newIssue: () => newBtn.click()
+});
 
 post("board.loadMinimal");

@@ -2,6 +2,8 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { randomUUID } from "crypto";
+import { NewIssueShortcutController, ShortcutHostMessage } from "./newIssueShortcut";
 import { DaemonBeadsAdapter } from "./daemonBeadsAdapter";
 import { getWebviewHtml } from "./webview";
 import { sanitizeErrorWithContext as sanitizeError } from "./sanitizeError";
@@ -67,6 +69,7 @@ type WebMsg =
   | { type: "ui.confirmDiscard"; requestId: string };
 
 type ExtMsg =
+  | ShortcutHostMessage
   | { type: "board.data"; requestId: string; payload: BoardData }
   | { type: "board.minimal"; requestId: string; payload: { cards: MinimalCard[]; readOnly: boolean; uiState?: UIState; capabilities: { leases: boolean } } }
   | { type: "board.columnData"; requestId: string; payload: { column: BoardColumnKey; cards: BoardCard[]; offset: number; totalCount: number; hasMore: boolean } }
@@ -310,10 +313,30 @@ export function activate(context: vscode.ExtensionContext) {
   };
 
   const livePanels = new Set<vscode.WebviewPanel>();
+  const shortcut = new NewIssueShortcutController({
+    livePanels,
+    windowFocused: vscode.window.state.focused,
+    generation: randomUUID,
+    publishContext: focused => vscode.commands.executeCommand('setContext', 'beadsKanban.boardFocus', focused),
+    log: message => output.appendLine(message),
+    sanitizeError,
+    now: () => new Date().toISOString()
+  });
+  context.subscriptions.push(
+    shortcut,
+    vscode.window.onDidChangeWindowState(state => shortcut.windowChanged(state.focused)),
+    vscode.commands.registerCommand('beadsKanban.newIssue', () => shortcut.newIssue())
+  );
 
   const wireBoardPanel = (panel: vscode.WebviewPanel, resolution: BeadsResolution, adapter: DaemonBeadsAdapter): void => {
     livePanels.add(panel);
     panel.onDidDispose(() => livePanels.delete(panel));
+    shortcut.attach(panel);
+    const shortcutViewListener = panel.onDidChangeViewState(() => shortcut.panelChanged(panel));
+    panel.onDidDispose(() => {
+      shortcut.detach(panel);
+      shortcutViewListener.dispose();
+    });
     panel.webview.options = { enableScripts: true };
 
     const readOnly = vscode.workspace.getConfiguration().get<boolean>("beadsKanban.readOnly", false);
@@ -666,6 +689,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Set up message handler BEFORE setting HTML to avoid race condition
     panel.webview.onDidReceiveMessage(async (msg: WebMsg) => {
+      if (shortcut.handleMessage(panel, msg)) { return; }
       output.appendLine(`[Extension] Received message: ${msg?.type} (requestId: ${msg?.requestId})`);
       if (!msg?.type || !msg.requestId) {return;}
 

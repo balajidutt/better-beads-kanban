@@ -35,7 +35,7 @@ suite('Read-only mode and the detail dialog', () => {
         assert.match(boardJs, /function confirmDiscard\(\)[\s\S]{0,600}?reject: \(\) => resolve\(false\)/);
     });
 
-    test('the new-issue shortcut respects read-only mode', () => {
-        assert.match(boardJs, /e\.key\.toLowerCase\(\) === 'n'[\s\S]{0,120}?if \(!readOnly\) \{\s*newBtn\.click\(\);/);
+    test('the host-routed new-issue shortcut shares the current read-only state', () => {
+        assert.match(boardJs, /installNewIssueShortcut\(\{[\s\S]*?initialized: creationPermissionsInitialized,\s*readOnly,/);
     });
 });
