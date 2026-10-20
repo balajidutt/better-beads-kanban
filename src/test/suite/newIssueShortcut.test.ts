@@ -53,6 +53,26 @@ function harness(publish?: (value: boolean) => PromiseLike<unknown>) {
   return { controller, live, contexts, logs, attach, report, qualify };
 }
 
+function assertHostWiring(source: string): void {
+  const extension = source.replace(/\r\n/g, '\n');
+  assert.ok(extension.includes("registerCommand('beadsKanban.newIssue', () => shortcut.newIssue())"), 'shortcut command registration');
+  assert.ok(extension.includes('livePanels,\n    windowFocused: vscode.window.state.focused'), 'shared registry and current window focus');
+  assert.ok(extension.includes('onDidChangeWindowState(state => shortcut.windowChanged(state.focused))'), 'window focus listener');
+  assert.ok(extension.includes('panel.onDidChangeViewState(() => shortcut.panelChanged(panel))'), 'panel view listener');
+  assert.ok(extension.includes('shortcut.detach(panel);'), 'panel shortcut detachment');
+  const start = extension.indexOf('panel.webview.onDidReceiveMessage');
+  const focus = extension.indexOf('if (shortcut.handleMessage(panel, msg)) { return; }', start);
+  const logging = extension.indexOf('output.appendLine', start);
+  const gate = extension.indexOf('if (readOnly)', start);
+  assert.ok(start >= 0 && focus > start && focus < logging && focus < gate, 'focus handling before logging and read-only gate');
+  assert.ok(extension.includes('| ShortcutHostMessage'), 'unsolicited host message union');
+  assert.ok(extension.includes("executeCommand('setContext', 'beadsKanban.boardFocus', focused)"), 'board focus context publication');
+}
+
+function hostSourceWithLineEnding(ending: string): string {
+  return fs.readFileSync(path.join(root, 'src/extension.ts'), 'utf8').replace(/\r\n/g, '\n').replace(/\n/g, ending);
+}
+
 suite('New Issue shortcut', () => {
   test('manifest scopes and hides the Ctrl/Cmd+N routing command', () => {
     const manifest = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
@@ -427,18 +447,33 @@ suite('New Issue shortcut', () => {
   });
 
   test('host wiring registers routing and lifecycle and handles focus before logging or read-only replies', () => {
-    const extension = fs.readFileSync(path.join(root, 'src/extension.ts'), 'utf8');
-    assert.ok(extension.includes("registerCommand('beadsKanban.newIssue', () => shortcut.newIssue())"));
-    assert.ok(extension.includes('livePanels,\n    windowFocused: vscode.window.state.focused'));
-    assert.ok(extension.includes('onDidChangeWindowState(state => shortcut.windowChanged(state.focused))'));
-    assert.ok(extension.includes('panel.onDidChangeViewState(() => shortcut.panelChanged(panel))'));
-    assert.ok(extension.includes('shortcut.detach(panel);'));
-    const start = extension.indexOf('panel.webview.onDidReceiveMessage');
-    const focus = extension.indexOf('if (shortcut.handleMessage(panel, msg)) { return; }', start);
-    const logging = extension.indexOf('output.appendLine', start);
-    const gate = extension.indexOf('if (readOnly)', start);
-    assert.ok(start >= 0 && focus > start && focus < logging && focus < gate);
-    assert.ok(extension.includes('| ShortcutHostMessage'));
-    assert.ok(extension.includes("executeCommand('setContext', 'beadsKanban.boardFocus', focused)"));
+    assertHostWiring(fs.readFileSync(path.join(root, 'src/extension.ts'), 'utf8'));
   });
+
+  for (const [name, ending] of [['LF', '\n'], ['CRLF', '\r\n']]) {
+    test(`host wiring accepts ${name} source`, () => {
+      assertHostWiring(hostSourceWithLineEnding(ending));
+    });
+
+    test(`host wiring rejects missing requirements in ${name} source`, () => {
+      const source = hostSourceWithLineEnding(ending);
+      assertHostWiring(source);
+      const requirements = [
+        ["registerCommand('beadsKanban.newIssue', () => shortcut.newIssue())", 'shortcut command registration'],
+        ['livePanels,', 'shared registry and current window focus'],
+        ['windowFocused: vscode.window.state.focused', 'shared registry and current window focus'],
+        ['onDidChangeWindowState(state => shortcut.windowChanged(state.focused))', 'window focus listener'],
+        ['panel.onDidChangeViewState(() => shortcut.panelChanged(panel))', 'panel view listener'],
+        ['shortcut.detach(panel);', 'panel shortcut detachment'],
+        ['if (shortcut.handleMessage(panel, msg)) { return; }', 'focus handling before logging and read-only gate'],
+        ['| ShortcutHostMessage', 'unsolicited host message union'],
+        ["executeCommand('setContext', 'beadsKanban.boardFocus', focused)", 'board focus context publication']
+      ];
+      for (const [required, message] of requirements) {
+        const missing = source.replace(required, '');
+        assert.notStrictEqual(missing, source, `required wiring is present: ${required}`);
+        assert.throws(() => assertHostWiring(missing), { name: 'AssertionError', message });
+      }
+    });
+  }
 });
