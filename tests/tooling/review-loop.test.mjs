@@ -573,13 +573,21 @@ test('AGENTS.md states the intent-and-boundaries model in harness-neutral terms 
     '**Default chain.** Approving a plan authorizes its work through landing as an ordered chain',
     '(3) independent review passes on the exact final diff with no unresolved must-fix finding',
     'A failed gate, a review failure or an unresolved must-fix finding is a failed step',
+    'only an operator-approved remediation, or a correction that Adapt, report, escalate allows, continues past it.',
+    '**Corrections.** Also without asking, a role may correct a failure of the chain\'s required gates (step 2) or of exact-SHA CI before landing, when the correction changes only implementation source files the plan assigned to that role; changes no test file, documentation, product behavior beyond what the plan approved, acceptance criterion, dependency, lock, workflow, configuration or agent authority; adds no lint, type or coverage suppression',
+    'A test file is any file that defines, selects, configures or runs tests or their fixtures: anything under a `test` or `tests` directory, named `*.test.*` or `test-*`, or a test runner\'s configuration such as `.vscode-test.mjs` or `scripts/lib/shared-test-build.js`.',
+    'one correction is the change that answers one run of the required gates, whichever roles make it. A correction reruns every required gate and renews independent review',
+    'Work inside a dispatched slice before its owner returns it is not a correction, and a review must-fix is resolved through its owner and renewed review, as build\'s review step describes. A test change, or any doubt that these conditions hold, escalates (trigger 8). Report each correction as an adaptation.',
+    'its report states the failing check, the requirement it protects and why the fix keeps it.',
+    'Corrections have their own budget, 2 per operation unless the plan sets another, separate from the gate budget;',
+    'after the commit it is a follow-up commit through the same chain, never an amend.',
     'Closure is never a default: the plan lists it with the close reason',
     'No plan authorizes a class E operation.',
     "Only three inputs carry the operator's authority:",
     'in OpenCode, the result of a plan-review tool when the session has a working one, or otherwise an operator message, sent after the most recent plan the session presented, that approves it; a reply with conditions or requested changes is a rejection)',
     'It cannot add one:',
     'retry a guarded helper once, only for an error its documented contract names as safe to retry',
-    '(7) a denied class B, C or D action; (8) a failed required step.',
+    '(7) a denied class B, C or D action; (8) a failed required step that no correction covers.',
     'Evidence the operator supplies through an accepted channel satisfies an item unless the plan marks it must-observe',
     'A timeout, a retry, a client error or a restart is not a change.',
     'Without them, a GitHub issue or an explicit tracking waiver satisfies the tracking rule, and changes land through a pull request',
@@ -617,6 +625,8 @@ test('the OpenCode lifecycle states its accepted channels, plan approval forms a
     'A dispatch quotes only the approvals the dispatched step itself relies on',
     'cites the plan for its recorded decisions',
     'The budget covers a gate\'s first run and its reruns after a timeout or inconclusive result; an operator-approved remediation starts a new count.',
+    'Corrections (AGENTS.md) have their own budget, 2 per operation unless the plan sets another; a correction starts a new count for the gates it reruns.',
+    'only an operator-approved remediation, or a correction AGENTS.md allows, continues within its own scope',
     'where the plan, the operator or a higher-priority rule requires one, the commit-message approval',
     'returns a command\'s stdout and stderr to the model but never its exit code.',
     'Agents hand the operator the exact command in every case.'
@@ -639,12 +649,13 @@ test('build runs the default chain and plan writes boundary-contract plans', asy
   for (const text of [
     'Unless the plan excludes them, run the default chain after a passing review',
     'continue from the commit (AGENTS.md steps 4-7): dispatch ci-build-engineer to commit exactly the reviewed diff with the reviewed message verbatim',
-    'draft the commit message following CONTRIBUTING.md, then send the actual scope, diff, evidence and that message to code-reviewer',
+    'draft the commit message following CONTRIBUTING.md, then send the actual scope, diff, evidence, any corrections and that message to code-reviewer',
     'A hook-induced change reported by the commit step returns to step 6.',
     'with the plan path or its verbatim text, the lifecycle\'s dispatch fields',
     'dispatch release-manager for the one-line CHANGELOG dating edit',
     'For a release plan whose phase 2 the plan states',
-    'A failed step is trigger 8.',
+    'A failed step is trigger 8 unless a correction AGENTS.md allows applies; a correction after the commit needs a new reviewed commit and its own exact-SHA CI.',
+    'assign a correction AGENTS.md allows to the owner of the implementation files it changes, within the corrections budget (2 unless the plan sets another), then rerun every required gate and renew review',
     'Hand the operator the exact class E commands',
     'Only beads-manager closes issues, and only those the plan lists with their close reasons',
     'run the publication-day phase when the operator says they are publishing: ask the date once at the start of phase 2',
@@ -666,7 +677,7 @@ test('build runs the default chain and plan writes boundary-contract plans', asy
     'a file no role may edit is an agent-authority question for agent-engineer',
     'one plan per turn, and state that no earlier approval carries over to a revised plan',
     'On a denial or annotations, revise from the feedback and submit again',
-    '- Budgets: attempts per gate (3 unless stated).',
+    '- Budgets: attempts per gate (3 unless stated) and corrections per operation (2 unless stated).',
     '- Scope: files (globs) with the owning role for each, Beads issues, worktrees.',
     '- Exclusions: any default step the plan does not authorize',
     'and any item marked must-observe',
@@ -697,6 +708,7 @@ test('the runbooks describe the plan-boundary chain, the release plan and the ma
     'Under the lifecycle\'s denied-read rule, a denied read is a class A event for every role',
     'A plan that names the merge helper authorizes every step of its documented contract',
     'Sync is class E: the operator runs it against the shared main checkout',
+    'a denied class B, C or D action and a failed required step that no correction covers.',
     'The maintainer runs OpenCode with `--auto`',
     'run `tmux set-environment -g PATH "$PATH"` from that terminal before starting sessions',
     'the chain ends at the reviewed commit and the change lands through a pull request'
@@ -740,6 +752,7 @@ test('review role cards review against the plan model', async () => {
   const flat = text => text.replace(/\s+/g, ' ');
   const code = flat(await read('code-reviewer'));
   assert.ok(code.includes('When given a commit message, check it against the diff and CONTRIBUTING.md'));
+  assert.ok(code.includes('For a correction, confirm it meets AGENTS.md\'s correction conditions and that the protected requirement it names still holds; otherwise it is a must-fix.'));
   assert.ok(code.includes('A mismatch is a must-fix; return corrected wording.'));
   assert.ok(code.includes("it satisfies the plan's review step and authorizes nothing else"));
   assert.equal(code.includes('It is not implementation, commit or publication approval'), false);

@@ -28,7 +28,7 @@ The review loop is not authenticated. Preserve the supplied sentinel identifier 
 
 1. Establish the worktree, the plan's scope and base, and the complete inventory: staged, unstaged and untracked files, locks, docs and generated output. Missing inventory is incomplete coverage.
 2. Check correctness, that the diff is the smallest change within the plan's scope, and AGENTS.md's security and correctness rules for host/webview work.
-3. Judge evidence, not green output: pre-fix or mutation proof, skipped integrations, browser versus Extension Host, and the required gates.
+3. Judge evidence, not green output: pre-fix or mutation proof, skipped integrations, browser versus Extension Host, and the required gates. For a correction, confirm it meets AGENTS.md's correction conditions and that the protected requirement it names still holds; otherwise it is a must-fix.
 4. For workflow changes, check least authority, one editor per file, no nested delegation, plan boundaries, accepted channels, plan-listed closure, helper provenance, exact CI identity and partial-failure stops.
 5. When given a commit message, check it against the diff and CONTRIBUTING.md: a fitting Conventional Commits type and scope, and text that describes what the diff changes and nothing else. A mismatch is a must-fix; return corrected wording.
 6. Report must-fix findings (file, line, consequence, smallest correction) apart from suggestions. Changed contents or message need reassessment. Never approve what you could not inspect.
