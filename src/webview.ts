@@ -11,7 +11,7 @@ import {
 
 export function getWebviewHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
   // Package version; scripts/bump-version.js rewrites this line and release-preflight checks it.
-  const version = "2.2.3";
+  const version = "2.3.0";
   // A restored panel reuses cached assets for an unchanged URL, so a rebuilt file must get a new one.
   const assetUri = (...segments: string[]) => {
     const file = vscode.Uri.joinPath(extensionUri, ...segments);

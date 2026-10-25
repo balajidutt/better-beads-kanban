@@ -5,6 +5,44 @@ All notable changes to the Beads Kanban extension will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0]
+
+A minor GitHub VSIX release adding bd 1.3 claim actions, optional journal-driven refresh and a board-focused new-issue shortcut. bd 1.2.2 remains supported; bd 1.3.1 is recommended. The separate terminal browser is not part of this VSIX, and there is no Marketplace publication.
+
+**Coordinate bd upgrades across machines sharing a database.** Opening a bd 1.2.2 store with bd 1.3 can migrate it, after which bd 1.2.2 clients refuse that store. Installing this extension does not upgrade the bd executable.
+
+### ✨ Added
+
+- **Claim, release and extend issue leases from the detail dialog on bd 1.3+.** Kanban assignee badges show remaining lease time or expiry. The **Beads: Reclaim Stale Claims** command offers an age window and explicit confirmation; bd enforces claim ownership, and read-only mode blocks these actions. (`bbk-cjh.10`)
+- **Optionally refresh from bd's events journal as well as file watching.** Enable `beadsKanban.useEventsJournal` and the database's `events-journal` setting on bd 1.3+. The feed resumes from a per-repository checkpoint, recovers from journal pruning and restarts when `bdPath` changes; it is off by default. (`bbk-cjh.11`)
+- **Ctrl/Cmd+N opens the existing create dialog when board-content focus has settled.** VS Code routes the shortcut to the focused live board, preserving read-only, typing, modal and unsaved-draft guards. Focus tracking is asynchronous: rapid entry can still open an untitled editor, and rapid exit can briefly consume the chord. (`bbk-2p9`)
+
+### 🐛 Bug Fixes
+
+- **bd 1.3 close-policy refusals explain why an issue cannot close and offer an explicit “Close anyway”.** Refused drags refresh the board; edit-dialog retries stay inside the modal. Closing is never forced silently. (`bbk-cjh.3`)
+- **Status changes avoid overwriting a status changed elsewhere on bd 1.3.** Drags and edit-dialog status saves use `--if-status`. A refused drag shows informational feedback; a refused save keeps the dialog and edits, reports the current status and allows a deliberate re-save. (`bbk-cjh.8`, `bbk-eip`, `bbk-3cs`)
+- **The Ready column uses `bd ready` rather than assuming list output contains blocker counts.** The board also reads readiness before the issue list so expired deferrals can appear as open. If the readiness query fails, a warning identifies the less reliable list-data fallback. (`bbk-cjh.9`)
+- **Deferred status saves pass validation, list cards retain due/defer dates, and comment IDs remain strings.** Creator and assignee stay distinct; the creator is not substituted for an unclaimed issue's assignee. (`bbk-cjh.6`)
+- **Folder-level `beadsKanban.bdPath` overrides apply to the selected repository**, including its events feed in a multi-root workspace. (`bbk-kkf`)
+- **CLI errors explain bd 1.3 refusals, pending migrations, query limits and missing events tables without obsolete daemon advice.** Inherited `BD_JSON_ENVELOPE` no longer changes the JSON shape the extension receives, and missing-issue detection recognises bd 1.3 wording. (`bbk-cjh.2`, `bbk-cjh.7`)
+
+### ✨ Changed
+
+- **The adapter checks bd capabilities before store access and allows up to ten minutes for a possible first-open migration.** It warns below bd 1.2.2 and reuses version checks for five seconds per executable and repository while continuing to check the store's version marker. (`bbk-cjh.4`, `bbk-7ir`)
+
+### 🔧 Internal
+
+- **Recorded bd 1.2.2/1.3.1 fixtures cover mapper compatibility, and watcher tests pin the observed embedded and proxied-server write signals.** No polling fallback was added. Unused capability/test-only state and test-window error popups were removed. (`bbk-cjh.1`, `bbk-cjh.5`, `bbk-9va`)
+- **VSIX packaging includes only the four runtime bundles under `out/`.** The release bump also updates both lockfile root versions; preparation stays undated until the publication-day commit, and a claimed release task uses `bd blocked` for readiness. (`bbk-50t.3`, `bbk-kuo`, `bbk-9t2`, `bbk-ug1`)
+- **F5 rebuilds both extension and webview bundles, and watch errors reach the Problems panel.** Rebuilt webview assets receive updated cache-busting URLs, including after a window reload. (`bbk-wgz`, `bbk-ogj`)
+- **Repository-only OpenCode maintenance updates plan-boundary execution, dispatch/review guidance, specialist edit grants, command-deny coverage and model selections.** Plannotator reads `PLANNOTATOR_PIN_VERSION`; OpenCode owns its ignored plugin package files and the review loop uses Node built-ins. These workflow changes and the recorded rollout measurement do not determine the extension version. (`bbk-50t.1`, `bbk-50t.2`, `bbk-50t.4`, `bbk-l3c`, `bbk-2ru`, `bbk-3i1`, `bbk-b1p`, `bbk-pfj`, `bbk-ynf`, `bbk-c49`, `bbk-gyh`)
+
+### 📚 Documentation
+
+- **Documented bd 1.3 compatibility and mixed-version migration risks, and corrected the board-tab restoration guidance.** The restoration behavior itself shipped in 2.2.3. (`bbk-cjh.7`, `bbk-ihj`)
+
+The scoped shell-redirection guard (`bbk-n8x`) was already present in 2.2.3; it is not a new extension fix here. Structure-view mockups in repository history are design material, not a shipped view. Journal refresh retains a short self-mutation suppression window, so an external write inside it can wait for the next change or a manual refresh.
+
 ## [2.2.3] - 2026-10-02
 
 This GitHub VSIX release collects board and detail-view fixes worth a manual reinstall. No new extension capability, breaking interface or Marketplace publication is included; the separate read-only terminal browser remains a repository PoC, not part of the VSIX.
