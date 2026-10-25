@@ -569,7 +569,7 @@ test('AGENTS.md states the intent-and-boundaries model in harness-neutral terms 
     '| E | Pushes of main, tags, or anything else outside the merge helper\'s own publication, backlog sync, release dry runs and publication, account changes, and hook installation, modification, or validation | the operator runs it; agents hand over the exact command |',
     'An operation is one approved plan, from its approval to its final report; the operator is the human directing the session',
     'The targets of the default steps are the plan\'s worktree branch, the `origin` remote and the reviewed commit\'s SHA.',
-    '`npm ci --ignore-scripts` when dependency entries change or `node_modules/.package-lock.json` is missing',
+    '`npm ci --ignore-scripts` (or `npm --prefix terminal ci --ignore-scripts` for the terminal) when dependency entries change or the matching `node_modules/.package-lock.json` is missing',
     '**Default chain.** Approving a plan authorizes its work through landing as an ordered chain',
     '(3) independent review passes on the exact final diff with no unresolved must-fix finding',
     'A failed gate, a review failure or an unresolved must-fix finding is a failed step',
@@ -738,11 +738,11 @@ test('the runbooks describe the plan-boundary chain, the release plan and the ma
 
 const leaves = ['plan-reviewer', 'code-reviewer', 'test-strategist', 'typescript-specialist', 'webview-specialist', 'beads-manager', 'ci-build-engineer', 'release-manager'];
 
-test('leaf role cards keep their prose under 500 words, excluding exact command-form list items', async () => {
+test('leaf role cards keep their prose under 650 words, excluding exact command-form list items', async () => {
   for (const name of leaves) {
     const text = await readFile(new URL(`../../.opencode/agents/${name}.md`, import.meta.url), 'utf8');
     const prose = text.split('\n').filter(line => !/^\s*- `/.test(line)).join(' ');
-    assert.ok(prose.split(/\s+/).filter(Boolean).length < 500, name);
+    assert.ok(prose.split(/\s+/).filter(Boolean).length < 650, name);
     assert.ok(text.includes("Denied reads follow the lifecycle's denied-read rule."), name);
   }
 });
@@ -1043,6 +1043,11 @@ test('dependency preparation is named in the routing contracts and the project c
     if (typeof bash !== 'string') assert.equal(Object.keys(bash)[0], '*', name);
     const action = typeof bash === 'string' ? bash : bashAction(bash, install);
     assert.equal(action, name === 'ci-build-engineer' ? 'ask' : 'deny', name);
+    if (typeof bash === 'string') continue;
+    for (const command of ['npm --prefix terminal install left-pad', 'npm --prefix terminal i left-pad', 'npm -g install left-pad', 'command npm --prefix . ci', 'npm --prefix=terminal update']) {
+      assert.equal(bashAction(bash, command), 'deny', `${name}: ${command}`);
+    }
+    assert.equal(bashAction(bash, 'npm --prefix terminal ci --ignore-scripts'), name === 'ci-build-engineer' ? 'ask' : 'deny', name);
   }
 });
 
@@ -1064,6 +1069,40 @@ test('typescript-specialist edits host modules, the shared core and package.json
   assert.equal(bashAction(edit('ci-build-engineer'), 'package.json'), 'allow');
   const card = await readFile(new URL('../../.opencode/agents/webview-specialist.md', import.meta.url), 'utf8');
   assert.ok(card.includes('src/filterMarkup.ts, src/filterUniverse.ts and src/shared/** changes return through the parent to typescript-specialist.'));
+});
+
+test('typescript-specialist owns terminal source and tests, CI owns its dependencies and tooling, and no role edits terminal/AGENTS.md', async () => {
+  const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
+  const edit = name => settings.agent[name].permission.edit;
+  const ts = edit('typescript-specialist');
+  const ci = edit('ci-build-engineer');
+  for (const file of ['terminal/src/app.tsx', 'terminal/src/shared/x.ts', 'terminal/test/app.test.tsx', 'terminal/package.json', 'terminal/README.md']) assert.equal(bashAction(ts, file), 'allow', file);
+  for (const file of ['terminal/package-lock.json', 'terminal/scripts/build.mjs', 'terminal/tsconfig.json', 'terminal/.eslintrc.cjs', 'terminal/AGENTS.md', 'terminal/.env']) assert.equal(bashAction(ts, file), 'deny', file);
+  for (const file of ['terminal/package.json', 'terminal/package-lock.json', 'terminal/scripts/test.mjs', 'terminal/tsconfig.json', 'terminal/.eslintrc.cjs']) assert.equal(bashAction(ci, file), 'allow', file);
+  for (const file of ['terminal/src/app.tsx', 'terminal/test/app.test.tsx', 'terminal/README.md']) assert.equal(bashAction(ci, file), 'deny', file);
+  for (const name of ['webview-specialist', 'release-manager']) assert.equal(bashAction(edit(name), 'terminal/src/app.tsx'), 'deny', name);
+  for (const [name, agent] of Object.entries(settings.agent)) {
+    const map = agent.permission?.edit ?? settings.permission.edit;
+    assert.equal(typeof map === 'string' ? map : bashAction(map, 'terminal/AGENTS.md'), 'deny', name);
+  }
+  const gates = ['npm --prefix terminal run typecheck', 'npm --prefix terminal run lint', 'npm --prefix terminal test', 'npm --prefix terminal run build'];
+  for (const gate of gates) {
+    for (const name of ['typescript-specialist', 'ci-build-engineer']) assert.equal(bashAction(settings.agent[name].permission.bash, gate), 'ask', `${name}: ${gate}`);
+    for (const [name, agent] of Object.entries(settings.agent)) {
+      if (['typescript-specialist', 'ci-build-engineer'].includes(name)) continue;
+      const bash = agent.permission?.bash ?? settings.permission.bash;
+      assert.equal(typeof bash === 'string' ? bash : bashAction(bash, gate), 'deny', `${name}: ${gate}`);
+    }
+  }
+  assert.equal(bashAction(settings.agent['typescript-specialist'].permission.bash, 'npm --prefix terminal run test:pty'), 'deny');
+  const card = await readFile(new URL('../../.opencode/agents/typescript-specialist.md', import.meta.url), 'utf8');
+  for (const text of ['the private terminal browser in `terminal/`', "In `terminal/`, follow terminal/AGENTS.md's code and boundary rules, but run only the terminal gates in Format and leave its install to ci-build-engineer through the parent.", 'package-lock.json, scripts/ directory, tsconfig.json and .eslintrc.cjs stay with ci-build-engineer', "the terminal's node:test suites in `terminal/test/`", ...gates.map(gate => `\`${gate}\``)]) assert.ok(card.includes(text), text);
+  const ciCard = await readFile(new URL('../../.opencode/agents/ci-build-engineer.md', import.meta.url), 'utf8');
+  assert.ok(ciCard.includes('or for the terminal exactly `npm --prefix terminal ci --ignore-scripts`'));
+  assert.ok(ciCard.includes('Keep root, terminal and Python dependencies separate'));
+  for (const file of ['AGENTS.md', '.opencode/instructions/development-lifecycle.md', '.opencode/agents/build.md', 'docs/development/opencode-workflow.md']) {
+    assert.ok((await readFile(new URL(`../../${file}`, import.meta.url), 'utf8')).includes('`npm --prefix terminal ci --ignore-scripts`'), file);
+  }
 });
 
 test('CI tooling permission uses npm lock and installed VSCE instead of Bun and npx', async () => {

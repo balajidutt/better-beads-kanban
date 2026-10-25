@@ -35,7 +35,7 @@ export const blocks = {
     'oc-commit*', 'command oc-commit*', '/*/oc-commit*', 'cc-commit*', 'command cc-commit*', '/*/cc-commit*',
     'agent-wt-merge*', 'assets/agent-wt-merge*', './assets/agent-wt-merge*', '.opencode/bin/agent-wt-merge*', './.opencode/bin/agent-wt-merge*', '/*/agent-wt-merge*'
   ],
-  install: withCommand('npm', 'install*', 'i *', 'ci*', 'update*', 'uninstall*', 'add *', 'rm *', 'remove *', 'un *', 'link*'),
+  install: withCommand('npm', '-*', 'install*', 'i *', 'ci*', 'update*', 'uninstall*', 'add *', 'rm *', 'remove *', 'un *', 'link*'),
   review: [
     ...git('add *', 'mv *', 'rm *', 'apply *', 'am *', 'cherry-pick *', 'revert *', 'notes *', 'fetch *', 'branch *'), ...readOnlyGit,
     ...withCommand('npm', '*'), ...withCommand('npx', '*'), ...withCommand('node', '*'),
@@ -172,7 +172,12 @@ export const roles = {
       ...guarded("git diff --no-ext-diff --no-textconv", "allow")
     ],
     denyBlocks: [blocks.common, blocks.notCi, blocks.install, blocks.backlog],
-    afterDeny: [],
+    afterDeny: [
+      ["npm --prefix terminal run typecheck", "ask"],
+      ["npm --prefix terminal run lint", "ask"],
+      ["npm --prefix terminal test", "ask"],
+      ["npm --prefix terminal run build", "ask"]
+    ],
     afterRedirect: []
   },
   "webview-specialist": {
@@ -232,7 +237,12 @@ export const roles = {
     ],
     denyBlocks: [blocks.common, blocks.install, blocks.backlog],
     afterDeny: [
-      ["npm ci --ignore-scripts", "ask"]
+      ["npm ci --ignore-scripts", "ask"],
+      ["npm --prefix terminal ci --ignore-scripts", "ask"],
+      ["npm --prefix terminal run typecheck", "ask"],
+      ["npm --prefix terminal run lint", "ask"],
+      ["npm --prefix terminal test", "ask"],
+      ["npm --prefix terminal run build", "ask"]
     ],
     afterRedirect: [
       ["oc-commit *", "ask"],
