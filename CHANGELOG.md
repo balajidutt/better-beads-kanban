@@ -5,7 +5,7 @@ All notable changes to the Beads Kanban extension will be documented in this fil
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.3.0]
+## [2.3.0] - 2026-10-25
 
 A minor GitHub VSIX release adding bd 1.3 claim actions, optional journal-driven refresh and a board-focused new-issue shortcut. bd 1.2.2 remains supported; bd 1.3.1 is recommended. The separate terminal browser is not part of this VSIX, and there is no Marketplace publication.
 
