@@ -7,6 +7,8 @@ const guarded = (rule, action) => {
 };
 const git = (...verbs) => verbs.flatMap(verb => [`git ${verb}`, `git * ${verb}`, `command git ${verb}`, `command git * ${verb}`]);
 const withCommand = (tool, ...rest) => rest.flatMap(arg => [`${tool} ${arg}`, `command ${tool} ${arg}`]);
+const npmForms = (...rest) => rest.flatMap(arg => [`npm ${arg}`, `command npm ${arg}`, `*/npm ${arg}`]);
+const anyForm = tool => [tool, `${tool} *`, `command ${tool} *`, `*/${tool}`, `*/${tool} *`];
 const bd = (...subcommands) => subcommands.flatMap(sub => [`bd ${sub} *`, `bd * ${sub} *`, `command bd ${sub} *`, `command bd * ${sub} *`, `*/bd ${sub} *`, `*/bd * ${sub} *`]);
 const launched = (dir, name) => [`${name}*`, `${dir}/${name}*`, `./${dir}/${name}*`, `/*/${name}*`];
 const asPath = name => [`* ${name}*`, `*/${name}*`, `*"${name}*`, `*'${name}*`, `*=${name}*`, `*:${name}*`];
@@ -35,10 +37,17 @@ export const blocks = {
     'oc-commit*', 'command oc-commit*', '/*/oc-commit*', 'cc-commit*', 'command cc-commit*', '/*/cc-commit*',
     'agent-wt-merge*', 'assets/agent-wt-merge*', './assets/agent-wt-merge*', '.opencode/bin/agent-wt-merge*', './.opencode/bin/agent-wt-merge*', '/*/agent-wt-merge*'
   ],
-  install: withCommand('npm', '-*', 'install*', 'i *', 'ci*', 'update*', 'uninstall*', 'add *', 'rm *', 'remove *', 'un *', 'link*'),
+  install: [
+    ...npmForms('-*', 'i *', 'in*', 'is*', 'add *', 'ci*', 'ic *', 'cl*', 'it *', 'si*',
+      'u *', 'up*', 'ud*', 'un*', 'r *', 'rm *', 'rem*', 'ln *', 'lin*',
+      'exe*', 'x *', 'explo*', 'cr*', 'reb*', 'rb *', 'ded*', 'dd*', 'pru*', 'audit *fix*',
+      'ed*', 'ca*', 'pa*', 'di*'),
+    ...withCommand('npx', '*'), 'npx', '*/npx', '*/npx *',
+    ...['bun', 'bunx', 'pnpm', 'pnpx', 'yarn', 'yarnpkg', 'corepack'].flatMap(anyForm)
+  ],
   review: [
     ...git('add *', 'mv *', 'rm *', 'apply *', 'am *', 'cherry-pick *', 'revert *', 'notes *', 'fetch *', 'branch *'), ...readOnlyGit,
-    ...withCommand('npm', '*'), ...withCommand('npx', '*'), ...withCommand('node', '*'),
+    ...withCommand('npm', '*'), ...withCommand('node', '*'),
     'node_modules/.bin/*', './node_modules/.bin/*', '/*/node_modules/.bin/*',
     'scripts/*', './scripts/*', '/*/scripts/*', 'assets/*', './assets/*', '/*/assets/*',
     'python*', 'command python*', 'perl *', 'ruby *', 'patch *',

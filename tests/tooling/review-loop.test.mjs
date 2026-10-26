@@ -242,13 +242,13 @@ test('executing and review roles default to ask behind explicit deny blocks; pla
       if (action !== 'deny') assert.equal(bashAction(bash, key.replaceAll('*', 'x')), action, `${name}: a later deny shadows ${key}`);
     }
   }
-  const everyRole = ['git commit -m x', 'git -c user.name=Claude commit -m x', 'git push origin fix/x', 'git --no-optional-locks -c core.fsmonitor=false push origin main', 'git reset --hard HEAD', 'git clean -fdx', 'git restore src/x.ts', 'git checkout -- src/x.ts', 'git stash push -u', 'git rebase main', 'git merge main', 'git branch -D x', 'git tag v9', 'git config user.name x', 'git worktree remove ../x', 'gh release create v9', 'gh auth switch', 'gh pr create', 'npm publish', 'npm run release:package', 'scripts/release-fork-vsix.sh --release-issue bbk-ek0 --dry-run', 'command bd -C "/m" init', 'bd dolt push', 'sh -c "git push origin main"', 'bash scripts/x.sh', 'eval x', 'sudo ls', 'cat .env', 'rm -rf /', 'rm -rf ~/x', 'dd if=/dev/zero of=x',
+  const everyRole = ['npx vsce ls', 'git commit -m x', 'git -c user.name=Claude commit -m x', 'git push origin fix/x', 'git --no-optional-locks -c core.fsmonitor=false push origin main', 'git reset --hard HEAD', 'git clean -fdx', 'git restore src/x.ts', 'git checkout -- src/x.ts', 'git stash push -u', 'git rebase main', 'git merge main', 'git branch -D x', 'git tag v9', 'git config user.name x', 'git worktree remove ../x', 'gh release create v9', 'gh auth switch', 'gh pr create', 'npm publish', 'npm run release:package', 'scripts/release-fork-vsix.sh --release-issue bbk-ek0 --dry-run', 'command bd -C "/m" init', 'bd dolt push', 'sh -c "git push origin main"', 'bash scripts/x.sh', 'eval x', 'sudo ls', 'cat .env', 'rm -rf /', 'rm -rf ~/x', 'dd if=/dev/zero of=x',
     'git -C /main merge fix/x', 'git --no-optional-locks -c core.fsmonitor=false merge x', 'git -C /x restore f', 'git -C /x tag v9', 'git -C /x branch -D x', 'git -C /x worktree remove ../x', 'git -C /x worktree prune', 'git -C /x config user.name x', 'git -C /x update-ref -d refs/heads/main', 'command git -C /x push origin main', 'command git -C /x commit -m x',
     'git pull upstream main', 'git -C /x pull --rebase origin main', 'git checkout main', 'git checkout .', 'git checkout -f main', 'git switch --discard-changes main', 'git reset HEAD~1', 'git reset --soft HEAD~1', 'git branch -f main HEAD~5', 'git branch -M main', 'git branch --delete --force x',
     'command npm publish', 'command npm install', 'npm install', 'npm i lodash', 'npm ci', 'npm add lodash', 'npm rm x', 'command gh pr create', 'command gh auth switch', '/opt/homebrew/bin/gh release create v1',
     'command bd -C "/m" sql "select 1"', 'command bd -C "/m" compact', 'command bd -C "/m" delete bbk-1', 'command bd -C "/m" hooks install', 'command bd -C "/m" vc commit', 'command bd -C "/m" federation sync',
     'rm -rf /*', 'rm -fr /', 'rm -r -f ~', 'ls ~/.ssh', 'ls .beads', 'cat ".env"', 'cat ./.env.local', 'source .env'];
-  const reviewerOnly = ['git add -A', 'git -C /x add f', 'git apply x.patch', 'git fetch origin', 'git branch new', 'npm test', 'command npm test', 'npx vsce ls', 'node -e 1', './node_modules/.bin/mocha', 'python3 -c 1', 'patch -p1 -i x.patch', 'scripts/build-local-vsix.sh', './scripts/clean-test-data.sh', '/repo/scripts/visual-test-launch.sh', '/repo/assets/check-pipeline.py', 'sed -i s/a/b/ x', 'tee x', 'cp a b', 'mv a b', 'rm x', 'touch x', 'mkdir x', 'curl -s https://example.com', 'find . -name x -delete', 'xargs rm'];
+  const reviewerOnly = ['git add -A', 'git -C /x add f', 'git apply x.patch', 'git fetch origin', 'git branch new', 'npm test', 'command npm test', 'node -e 1', './node_modules/.bin/mocha', 'python3 -c 1', 'patch -p1 -i x.patch', 'scripts/build-local-vsix.sh', './scripts/clean-test-data.sh', '/repo/scripts/visual-test-launch.sh', '/repo/assets/check-pipeline.py', 'sed -i s/a/b/ x', 'tee x', 'cp a b', 'mv a b', 'rm x', 'touch x', 'mkdir x', 'curl -s https://example.com', 'find . -name x -delete', 'xargs rm'];
   const notCi = ["oc-commit -m 'feat: x'", 'cc-commit -m x', 'assets/agent-wt-merge ff --actor claude', '.opencode/bin/agent-wt-merge prepare-ci', '/repo/assets/agent-wt-merge inspect --json'];
   for (const name of flipped) {
     const bash = settings.agent[name].permission.bash;
@@ -1044,7 +1044,15 @@ test('dependency preparation is named in the routing contracts and the project c
     const action = typeof bash === 'string' ? bash : bashAction(bash, install);
     assert.equal(action, name === 'ci-build-engineer' ? 'ask' : 'deny', name);
     if (typeof bash === 'string') continue;
-    for (const command of ['npm --prefix terminal install left-pad', 'npm --prefix terminal i left-pad', 'npm -g install left-pad', 'command npm --prefix . ci', 'npm --prefix=terminal update']) {
+    for (const command of ['npm --prefix terminal install left-pad', 'npm --prefix terminal i left-pad', 'npm -g install left-pad', 'command npm --prefix . ci', 'npm --prefix=terminal update',
+      'npm in left-pad', 'npm isntall left-pad', 'npm instal left-pad', 'npm install-test', 'npm clean-install', 'npm install-clean', 'npm ic', 'npm it', 'npm cit', 'npm sit',
+      'npm u', 'npm up left-pad', 'npm upgrade', 'npm udpate', 'npm r left-pad', 'npm unlink left-pad', 'npm ln ../pkg',
+      'npm exec cowsay', 'npm x cowsay', 'npm init vite', 'npm init', 'npm create vite', 'npm innit', 'npm explore left-pad -- ls',
+      'npm rebuild', 'npm rb', 'npm dedupe', 'npm ddp', 'npm prune', 'npm audit fix', 'npm audit --omit dev fix',
+      'npm upd', 'npm uni left-pad', 'npm exe cowsay', 'npm cleanInstall', 'npm installTest', 'npm si', 'npm reb', 'npm ded', 'npm pru', 'npm lin ../pkg', 'npm ini',
+      'npm edit left-pad', 'npm cache add left-pad', 'npm pack left-pad', 'npm diff', 'yarnpkg add left-pad',
+      'npx cowsay', 'npx', 'command npx cowsay', './node_modules/.bin/npx cowsay', '/opt/homebrew/bin/npm install left-pad', 'command npm in left-pad',
+      'bun add left-pad', 'bun', 'bunx cowsay', 'pnpm i', 'pnpx cowsay', 'yarn add left-pad', 'yarn', 'corepack enable', '/usr/local/bin/yarn add left-pad', 'command pnpm add left-pad']) {
       assert.equal(bashAction(bash, command), 'deny', `${name}: ${command}`);
     }
     assert.equal(bashAction(bash, 'npm --prefix terminal ci --ignore-scripts'), name === 'ci-build-engineer' ? 'ask' : 'deny', name);
@@ -1069,6 +1077,24 @@ test('typescript-specialist edits host modules, the shared core and package.json
   assert.equal(bashAction(edit('ci-build-engineer'), 'package.json'), 'allow');
   const card = await readFile(new URL('../../.opencode/agents/webview-specialist.md', import.meta.url), 'utf8');
   assert.ok(card.includes('src/filterMarkup.ts, src/filterUniverse.ts and src/shared/** changes return through the parent to typescript-specialist.'));
+});
+
+test('the install denies leave the npm forms each role runs reachable', async () => {
+  const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
+  const bash = name => settings.agent[name].permission.bash;
+  const gateRoles = ['typescript-specialist', 'webview-specialist', 'ci-build-engineer', 'release-manager'];
+  for (const name of gateRoles) {
+    for (const command of ['npm run lint', 'npm test', 'npm run compile', 'npm audit', 'npm t', 'npm run-script lint', 'npm ls', 'npm view left-pad', 'npm outdated', 'npm explain left-pad', 'npm why left-pad']) assert.notEqual(bashAction(bash(name), command), 'deny', `${name}: ${command}`);
+  }
+  for (const name of ['typescript-specialist', 'webview-specialist', 'ci-build-engineer']) assert.notEqual(bashAction(bash(name), 'npm run verify'), 'deny', name);
+  for (const name of ['typescript-specialist', 'webview-specialist']) assert.equal(bashAction(bash(name), 'npm test -- --grep x'), 'ask', name);
+  assert.equal(bashAction(bash('webview-specialist'), 'node scripts/visual-test-server.js'), 'ask');
+  for (const command of ['npm run test:tooling', 'npm run test:tooling:python']) assert.notEqual(bashAction(bash('ci-build-engineer'), command), 'deny', command);
+  assert.equal(bashAction(bash('ci-build-engineer'), 'npm ci --ignore-scripts'), 'ask');
+  assert.equal(bashAction(bash('release-manager'), 'npm run release:bump -- 2.4.0'), 'ask');
+  for (const name of ['typescript-specialist', 'ci-build-engineer']) {
+    for (const gate of ['npm --prefix terminal run typecheck', 'npm --prefix terminal run lint', 'npm --prefix terminal test', 'npm --prefix terminal run build']) assert.equal(bashAction(bash(name), gate), 'ask', `${name}: ${gate}`);
+  }
 });
 
 test('typescript-specialist owns terminal source and tests, CI owns its dependencies and tooling, and no role edits terminal/AGENTS.md', async () => {
