@@ -248,7 +248,7 @@ test('executing and review roles default to ask behind explicit deny blocks; pla
     'command npm publish', 'command npm install', 'npm install', 'npm i lodash', 'npm ci', 'npm add lodash', 'npm rm x', 'command gh pr create', 'command gh auth switch', '/opt/homebrew/bin/gh release create v1',
     'command bd -C "/m" sql "select 1"', 'command bd -C "/m" compact', 'command bd -C "/m" delete bbk-1', 'command bd -C "/m" hooks install', 'command bd -C "/m" vc commit', 'command bd -C "/m" federation sync',
     'rm -rf /*', 'rm -fr /', 'rm -r -f ~', 'ls ~/.ssh', 'ls .beads', 'cat ".env"', 'cat ./.env.local', 'source .env'];
-  const reviewerOnly = ['git add -A', 'git -C /x add f', 'git apply x.patch', 'git fetch origin', 'git branch new', 'npm test', 'command npm test', 'node -e 1', './node_modules/.bin/mocha', 'python3 -c 1', 'patch -p1 -i x.patch', 'scripts/build-local-vsix.sh', './scripts/clean-test-data.sh', '/repo/scripts/visual-test-launch.sh', '/repo/assets/check-pipeline.py', 'sed -i s/a/b/ x', 'tee x', 'cp a b', 'mv a b', 'rm x', 'touch x', 'mkdir x', 'curl -s https://example.com', 'find . -name x -delete', 'xargs rm'];
+  const reviewerOnly = ['git add -A', 'git -C /x add f', 'git apply x.patch', 'git fetch origin', 'git branch new', 'npm test', 'command npm test', 'node -e 1', '/opt/homebrew/bin/npm test', '/usr/bin/node -e 1', '/usr/bin/python3 -c 1', '/usr/bin/python3.12 -c 1', '/usr/bin/perl -e 1', '/usr/bin/ruby -e 1', 'env node -e 1', 'env', '/usr/bin/env node -e 1', 'command /usr/bin/env node -e 1', '/usr/bin/env', 'command env node -e 1', '/usr/bin/python -c 1', 'command perl -e 1', 'command ruby -e 1', 'perl5.34 -e 1', '/usr/bin/perl5.34 -e 1', './node_modules/.bin/node -e 1', './bin/node -e 1', '../bin/node -e 1', '.venv/bin/python -c 1', 'command ./node_modules/.bin/node -e 1', './node_modules/.bin/mocha', 'python3 -c 1', 'patch -p1 -i x.patch', 'scripts/build-local-vsix.sh', './scripts/clean-test-data.sh', '/repo/scripts/visual-test-launch.sh', '/repo/assets/check-pipeline.py', 'sed -i s/a/b/ x', 'tee x', 'cp a b', 'mv a b', 'rm x', 'touch x', 'mkdir x', 'curl -s https://example.com', 'find . -name x -delete', 'xargs rm'];
   const notCi = ["oc-commit -m 'feat: x'", 'cc-commit -m x', 'assets/agent-wt-merge ff --actor claude', '.opencode/bin/agent-wt-merge prepare-ci', '/repo/assets/agent-wt-merge inspect --json'];
   for (const name of flipped) {
     const bash = settings.agent[name].permission.bash;
@@ -270,7 +270,7 @@ test('executing and review roles default to ask behind explicit deny blocks; pla
       assert.equal(bashAction(bash, command) === 'deny', [...reviewers, 'release-manager'].includes(name), `${name} ${command}`);
     }
     for (const command of notCi) assert.equal(bashAction(bash, command) === 'deny', name !== 'ci-build-engineer', `${name} ${command}`);
-    for (const command of ['ls -la', 'git -C /x status --porcelain', 'git -C /x log --oneline -5', 'git diff --no-ext-diff --no-textconv -- configs/pipeline-guard.json addons/x', 'rg TODO src', 'rg process.env src', 'rg beadsWatch src', 'wc -l package.json']) assert.equal(bashAction(bash, command), 'ask', `${name} ${command}`);
+    for (const command of ['ls -la', 'git -C /x status --porcelain', 'git -C /x log --oneline -5', 'git diff --no-ext-diff --no-textconv -- configs/pipeline-guard.json addons/x', 'rg TODO src', 'rg process.env src', 'rg beadsWatch src', 'wc -l package.json', 'ls -la node_modules/.bin/node', 'rg -n Buffer node_modules/@types/node', 'stat /usr/bin/perl', 'cat /opt/homebrew/lib/python3.12/site.py']) assert.equal(bashAction(bash, command), 'ask', `${name} ${command}`);
   }
   const ci = settings.agent['ci-build-engineer'].permission.bash;
   assert.equal(bashAction(ci, 'npm ci --ignore-scripts'), 'ask');
@@ -1079,12 +1079,26 @@ test('typescript-specialist edits host modules, the shared core and package.json
   assert.ok(card.includes('src/filterMarkup.ts, src/filterUniverse.ts and src/shared/** changes return through the parent to typescript-specialist.'));
 });
 
+test('every role denies npm commands that commit, publish or change account and configuration state', async () => {
+  const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
+  const commands = ['npm version patch', 'npm verison patch', 'npm ve patch', 'command npm version patch', '/opt/homebrew/bin/npm publish',
+    'npm pu', 'npm unpublish x', 'npm stage publish', 'npm deprecate x m', 'npm undeprecate x', 'npm dist-tag add x@1 latest',
+    'npm owner add u x', 'npm author add u x', 'npm access set status=public', 'npm team create o:t', 'npm org set o u', 'npm ogr set o u', 'npm token create',
+    'npm login', 'npm logout', 'npm adduser', 'npm add-user', 'npm addUser', 'npm profile set k v', 'npm trust github x', 'npm star x', 'npm unstar x',
+    'npm config set registry=x', 'npm c set k=v', 'npm config --location user set k=v', 'npm config delete k', 'npm config rm k', 'npm c del k', 'npm config edit', 'npm config fix', 'npm set k=v',
+    'npm unp', 'npm dep', 'npm und', 'npm ow', 'npm aut', 'npm ac', 'npm tea', 'npm or', 'npm og', 'npm to', 'npm logi', 'npm logo', 'npm addu', 'npm add-', 'npm pro', 'npm tr', 'npm uns', 'npm stag', 'npm dis', 'npm con set k=v'];
+  for (const [name, agent] of Object.entries(settings.agent)) {
+    const bash = agent.permission?.bash ?? settings.permission.bash;
+    for (const command of commands) assert.equal(typeof bash === 'string' ? bash : bashAction(bash, command), 'deny', `${name}: ${command}`);
+  }
+});
+
 test('the install denies leave the npm forms each role runs reachable', async () => {
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
   const bash = name => settings.agent[name].permission.bash;
   const gateRoles = ['typescript-specialist', 'webview-specialist', 'ci-build-engineer', 'release-manager'];
   for (const name of gateRoles) {
-    for (const command of ['npm run lint', 'npm test', 'npm run compile', 'npm audit', 'npm t', 'npm run-script lint', 'npm ls', 'npm view left-pad', 'npm outdated', 'npm explain left-pad', 'npm why left-pad']) assert.notEqual(bashAction(bash(name), command), 'deny', `${name}: ${command}`);
+    for (const command of ['npm config get registry', 'npm config list', 'npm get registry', 'npm stars', 'npm whoami', 'npm run lint', 'npm test', 'npm run compile', 'npm audit', 'npm t', 'npm run-script lint', 'npm ls', 'npm view left-pad', 'npm outdated', 'npm explain left-pad', 'npm why left-pad']) assert.notEqual(bashAction(bash(name), command), 'deny', `${name}: ${command}`);
   }
   for (const name of ['typescript-specialist', 'webview-specialist', 'ci-build-engineer']) assert.notEqual(bashAction(bash(name), 'npm run verify'), 'deny', name);
   for (const name of ['typescript-specialist', 'webview-specialist']) assert.equal(bashAction(bash(name), 'npm test -- --grep x'), 'ask', name);
