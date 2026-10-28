@@ -474,8 +474,9 @@ test('code-reviewer history forms ask while its exact inspection forms stay allo
   const bash = settings.agent['code-reviewer'].permission.bash;
   assert.equal(Object.keys(bash)[0], '*');
   const forms = await contractGitForms('code-reviewer');
-  assert.equal(forms.length, 5);
-  for (const form of forms) assert.equal(bashAction(bash, form), form === 'git rev-parse HEAD' ? 'allow' : 'ask', form);
+  const inventory = ['git --no-optional-locks -c core.fsmonitor=false status --porcelain=v1 -uall', 'git diff --no-ext-diff --no-textconv', 'git diff --no-ext-diff --no-textconv --cached'];
+  assert.equal(forms.length, 8);
+  for (const form of forms) assert.equal(bashAction(bash, form), form === 'git rev-parse HEAD' || inventory.includes(form) ? 'allow' : 'ask', form);
   for (const exact of ['git diff --no-ext-diff --no-textconv', 'git diff --no-ext-diff --no-textconv --cached', 'git diff --no-ext-diff --no-textconv --stat', 'git diff --no-ext-diff --no-textconv --cached --stat', 'git log --oneline -10', 'git --no-optional-locks -c core.fsmonitor=false status --porcelain=v1 -uall']) {
     assert.equal(bashAction(bash, exact), 'allow', exact);
   }
@@ -693,7 +694,11 @@ test('build runs the default chain and plan writes boundary-contract plans', asy
     'stop-on-denial for a named mutating step',
     'phase 2, on the publication day, the date asked once, the CHANGELOG dating commit through the same chain',
     'so a dispatch gives the plan text or path, the lifecycle\'s dispatch fields and the question, and does not restate those rules',
-    'plan-reviewer answers READY, REVISE or INCOMPLETE, and you submit only after READY',
+    'Plan-reviewer answers READY, REVISE or INCOMPLETE, and you submit only after READY',
+    'For a re-review, continue the same plan-reviewer task and send only the changed sections, the findings they answer and the parts of the plan they affect; a new reviewer task gets the full revised plan.',
+    "Prerequisites an executor checks in its own step, such as main's worktree inventory and cleanliness before a release, are not plan evidence; do not ask the operator for them.",
+    'Agents author files only at in-scope repository paths; a fixture or helper script is either committed test code with an owner, or an operator step.',
+    "- Operator steps: for each command the operator runs or evidence they supply, the exact command or the runbook section for a manual check, where to run it and what to send back. Point to the runbook (TESTING.md, RELEASING.md) rather than restating it, and give the steps only when no runbook covers them. Commands whose text depends on the chain's results, such as the release commands, are handed over at their step.",
     'Present simple plans inline for approval, unless the operator asks for the plan-review tool',
     'Agent-produced items come from the chain\'s own steps; do not add a preflight of an executor\'s prerequisites, which its step checks itself',
     'A drift trigger names in-scope files; main moving after the plan was written is not drift'
@@ -1116,6 +1121,27 @@ test('the install denies leave the npm forms each role runs reachable', async ()
   for (const name of ['typescript-specialist', 'ci-build-engineer']) {
     for (const gate of ['npm --prefix terminal run typecheck', 'npm --prefix terminal run lint', 'npm --prefix terminal test', 'npm --prefix terminal run build']) assert.equal(bashAction(bash(name), gate), 'ask', `${name}: ${gate}`);
   }
+});
+
+test('no role may author files in the OS temp directory, and plan no longer asks the operator for executor prerequisites', async () => {
+  const { tmpdir } = await import('node:os');
+  const { join, relative } = await import('node:path');
+  const relativeTemp = relative(fileURLToPath(new URL('../..', import.meta.url)), join(tmpdir(), 'x.mjs'));
+  assert.ok(relativeTemp.startsWith('..'), relativeTemp);
+  const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
+  for (const [name, agent] of Object.entries(settings.agent)) {
+    const edit = agent.permission?.edit ?? settings.permission.edit;
+    for (const file of ['/tmp/x.mjs', '/private/tmp/x.mjs', '/var/folders/ab/T/x.mjs', '/private/var/folders/ab/T/x.mjs', '../x.mjs', relativeTemp]) {
+      assert.equal(typeof edit === 'string' ? edit : bashAction(edit, file), 'deny', `${name}: ${file}`);
+    }
+  }
+  const agents = await readFile(new URL('../../AGENTS.md', import.meta.url), 'utf8');
+  assert.ok(agents.includes('| A | Reads, scratch output that gates and tools write to the OS temp directory, gates'));
+  assert.equal(agents.includes('scratch outputs in the OS temp directory'), false);
+  const plan = await readFile(new URL('../../.opencode/agents/plan.md', import.meta.url), 'utf8');
+  assert.equal(plan.includes("such as main's uncommitted files"), false);
+  const reviewer = await readFile(new URL('../../.opencode/agents/plan-reviewer.md', import.meta.url), 'utf8');
+  for (const text of ['operator steps given as command or runbook section, place and expected output, with class E commands that depend on chain results deferred to their handover step;', 'On a re-review, check each change against the finding it answers and against the parts of the plan it affects, and leave unchanged sections alone unless a change reaches them; ask for the current text of any section a change reaches that you were not sent.']) assert.ok(reviewer.includes(text), text);
 });
 
 test('typescript-specialist owns terminal source and tests, CI owns its dependencies and tooling, and no role edits terminal/AGENTS.md', async () => {

@@ -34,7 +34,7 @@ Protected-content restrictions apply across reads, searches, diffs, and shell in
 
 | Class | Meaning | Approval |
 | --- | --- | --- |
-| A | Reads, scratch outputs in the OS temp directory, gates (lint, tests, compile, tooling suites, package listing) | none |
+| A | Reads, scratch output that gates and tools write to the OS temp directory, gates (lint, tests, compile, tooling suites, package listing) | none |
 | B | Edits to in-scope files by their owning role | the plan |
 | C | Local repository state: `npm ci --ignore-scripts` (or `npm --prefix terminal ci --ignore-scripts` for the terminal) when dependency entries change or the matching `node_modules/.package-lock.json` is missing, commits, local landing on main | the plan, by default |
 | D | Remote or shared state through guarded tools: exact-SHA CI publication through the merge helper, backlog writes | the plan, by default for the merge helper; backlog writes only for named issues |
