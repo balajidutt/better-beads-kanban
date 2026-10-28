@@ -63,5 +63,10 @@ test('git denies expand four ways, and the common block applies to every role wi
     assert.ok(role.denyBlocks.includes(blocks.common), name);
   }
   for (const name of ['plan', 'release-manager']) assert.ok(roles[name].denyBlocks.includes(blocks.readOnlyGit), name);
-  for (const spelling of ['git * --output*', 'git * --no-index*']) assert.ok(blocks.readOnlyGit.includes(spelling) && blocks.review.includes(spelling), spelling);
+  for (const spelling of ['git * --output*', 'git * --no-index*']) assert.ok(blocks.readOnlyGit.includes(spelling), spelling);
+  assert.equal(Object.hasOwn(blocks, 'review'), false);
+  for (const [name, role] of Object.entries(roles)) {
+    if (typeof role === 'string' || role.fallback !== 'deny') continue;
+    assert.ok(role.denyBlocks.includes(blocks.readOnlyGit), name);
+  }
 });

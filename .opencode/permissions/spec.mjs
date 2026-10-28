@@ -47,16 +47,6 @@ export const blocks = {
     ...withCommand('npx', '*'), 'npx', '*/npx', '*/npx *',
     ...['bun', 'bunx', 'pnpm', 'pnpx', 'yarn', 'yarnpkg', 'corepack'].flatMap(anyForm)
   ],
-  review: [
-    ...git('add *', 'mv *', 'rm *', 'apply *', 'am *', 'cherry-pick *', 'revert *', 'notes *', 'fetch *', 'branch *'), ...readOnlyGit,
-    ...withCommand('npm', '*'), ...withCommand('node', '*'),
-    'node_modules/.bin/*', './node_modules/.bin/*', '/*/node_modules/.bin/*',
-    'scripts/*', './scripts/*', '/*/scripts/*', 'assets/*', './assets/*', '/*/assets/*',
-    'python*', 'command python*', 'perl*', 'command perl*', ...withCommand('ruby', '*'), ...withCommand('env', '*'), 'patch *',
-    ...['npm *', 'node *', 'python*', 'perl*', 'ruby *', 'env *'].flatMap(name => [`/*/${name}`, `.*/${name}`, `command /*/${name}`, `command .*/${name}`]),
-    'sed -i*', 'sed * -i*', 'tee *', 'cp *', 'mv *', 'rm *', 'touch *', 'mkdir *', 'ln *', 'chmod *', 'chown *', 'truncate *',
-    'rsync *', 'xargs *', 'find * -delete*', 'find * -exec*', 'curl *', 'wget *'
-  ],
   readOnlyGit,
   backlog: ['bd', 'bd *', 'command bd', 'command bd *', '*/bd', '*/bd *', ...launched('scripts', 'bd-sync.sh')]
 };
@@ -97,7 +87,7 @@ export const roles = {
   },
   "build": "deny",
   "plan-reviewer": {
-    fallback: "ask",
+    fallback: "deny",
     rules: [
       ["git --no-optional-locks -c core.fsmonitor=false status", "allow"],
       ["git --no-optional-locks -c core.fsmonitor=false status *", "allow"],
@@ -105,7 +95,7 @@ export const roles = {
       ...guarded("git diff --no-ext-diff --no-textconv --cached", "allow"),
       ...guarded("git log --oneline -10", "allow")
     ],
-    denyBlocks: [blocks.common, blocks.notCi, blocks.install, blocks.review, blocks.backlog],
+    denyBlocks: [blocks.common, blocks.readOnlyGit],
     afterDeny: [],
     afterRedirect: []
   },
@@ -146,7 +136,7 @@ export const roles = {
     ]
   },
   "code-reviewer": {
-    fallback: "ask",
+    fallback: "deny",
     rules: [
       ...guarded("git log --oneline --decorate --reverse *", "ask"),
       ...guarded("git diff --no-ext-diff --no-textconv --stat *", "ask"),
@@ -161,7 +151,7 @@ export const roles = {
       ...guarded("git log --oneline -10", "allow"),
       ...guarded("git rev-parse HEAD", "allow")
     ],
-    denyBlocks: [blocks.common, blocks.notCi, blocks.install, blocks.review, blocks.backlog],
+    denyBlocks: [blocks.common, blocks.readOnlyGit],
     afterDeny: [
       ["command bd --help", "allow"],
       ["command bd show --help", "allow"],
@@ -210,12 +200,12 @@ export const roles = {
     afterRedirect: []
   },
   "test-strategist": {
-    fallback: "ask",
+    fallback: "deny",
     rules: [
       ...guarded("git diff --no-ext-diff --no-textconv", "allow"),
       ...guarded("git diff --no-ext-diff --no-textconv --cached", "allow")
     ],
-    denyBlocks: [blocks.common, blocks.notCi, blocks.install, blocks.review, blocks.backlog],
+    denyBlocks: [blocks.common, blocks.readOnlyGit],
     afterDeny: [],
     afterRedirect: []
   },

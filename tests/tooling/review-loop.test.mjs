@@ -227,17 +227,18 @@ test('the three reviewer agents declare anthropic/claude-opus-5-5 high with no l
   assert.equal(settings.agent['beads-manager'].model, 'openai/gpt-5.6-terra');
 });
 
-test('executing and review roles default to ask behind explicit deny blocks; planning roles keep default deny', async () => {
+test('roles that run code default to ask behind explicit deny blocks; review and planning roles default to deny', async () => {
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
   const reviewers = ['plan-reviewer', 'code-reviewer', 'test-strategist'];
-  const flipped = ['beads-manager', 'typescript-specialist', 'webview-specialist', 'ci-build-engineer', 'release-manager', ...reviewers];
+  const runners = ['beads-manager', 'typescript-specialist', 'webview-specialist', 'ci-build-engineer', 'release-manager'];
+  const ruleMapRoles = [...runners, ...reviewers];
   assert.equal(settings.agent.build.permission.bash, 'deny');
   assert.equal(settings.agent.plan.permission.bash['*'], 'deny');
   assert.equal(settings.permission.bash, 'deny');
   for (const [name, agent] of Object.entries(settings.agent)) {
     const bash = agent.permission?.bash;
     if (typeof bash !== 'object') continue;
-    assert.equal(bash['*'], flipped.includes(name) ? 'ask' : 'deny', name);
+    assert.equal(bash['*'], runners.includes(name) ? 'ask' : 'deny', name);
     for (const [key, action] of Object.entries(bash)) {
       if (action !== 'deny') assert.equal(bashAction(bash, key.replaceAll('*', 'x')), action, `${name}: a later deny shadows ${key}`);
     }
@@ -250,7 +251,7 @@ test('executing and review roles default to ask behind explicit deny blocks; pla
     'rm -rf /*', 'rm -fr /', 'rm -r -f ~', 'ls ~/.ssh', 'ls .beads', 'cat ".env"', 'cat ./.env.local', 'source .env'];
   const reviewerOnly = ['git add -A', 'git -C /x add f', 'git apply x.patch', 'git fetch origin', 'git branch new', 'npm test', 'command npm test', 'node -e 1', '/opt/homebrew/bin/npm test', '/usr/bin/node -e 1', '/usr/bin/python3 -c 1', '/usr/bin/python3.12 -c 1', '/usr/bin/perl -e 1', '/usr/bin/ruby -e 1', 'env node -e 1', 'env', '/usr/bin/env node -e 1', 'command /usr/bin/env node -e 1', '/usr/bin/env', 'command env node -e 1', '/usr/bin/python -c 1', 'command perl -e 1', 'command ruby -e 1', 'perl5.34 -e 1', '/usr/bin/perl5.34 -e 1', './node_modules/.bin/node -e 1', './bin/node -e 1', '../bin/node -e 1', '.venv/bin/python -c 1', 'command ./node_modules/.bin/node -e 1', './node_modules/.bin/mocha', 'python3 -c 1', 'patch -p1 -i x.patch', 'scripts/build-local-vsix.sh', './scripts/clean-test-data.sh', '/repo/scripts/visual-test-launch.sh', '/repo/assets/check-pipeline.py', 'sed -i s/a/b/ x', 'tee x', 'cp a b', 'mv a b', 'rm x', 'touch x', 'mkdir x', 'curl -s https://example.com', 'find . -name x -delete', 'xargs rm'];
   const notCi = ["oc-commit -m 'feat: x'", 'cc-commit -m x', 'assets/agent-wt-merge ff --actor claude', '.opencode/bin/agent-wt-merge prepare-ci', '/repo/assets/agent-wt-merge inspect --json'];
-  for (const name of flipped) {
+  for (const name of ruleMapRoles) {
     const bash = settings.agent[name].permission.bash;
     for (const command of ['scripts/release-fork-vsix.sh --release-issue bbk-ek0', './scripts/release-fork-vsix.sh --release-issue bbk-ek0', '/repo/scripts/release-fork-vsix.sh --release-issue bbk-ek0', 'bash scripts/release-fork-vsix.sh --release-issue bbk-ek0']) assert.equal(bashAction(bash, command), 'deny', `${name} ${command}`);
   }
@@ -262,7 +263,7 @@ test('executing and review roles default to ask behind explicit deny blocks; pla
     }
   }
   assert.equal(bashAction(settings.agent['release-manager'].permission.bash, 'git ls-files -- scripts/release-fork-vsix.sh'), 'allow');
-  for (const name of flipped) {
+  for (const name of ruleMapRoles) {
     const bash = settings.agent[name].permission.bash;
     for (const command of everyRole) assert.equal(bashAction(bash, command), 'deny', `${name} ${command}`);
     for (const command of reviewerOnly) assert.equal(bashAction(bash, command) === 'deny', reviewers.includes(name), `${name} ${command}`);
@@ -270,7 +271,13 @@ test('executing and review roles default to ask behind explicit deny blocks; pla
       assert.equal(bashAction(bash, command) === 'deny', [...reviewers, 'release-manager'].includes(name), `${name} ${command}`);
     }
     for (const command of notCi) assert.equal(bashAction(bash, command) === 'deny', name !== 'ci-build-engineer', `${name} ${command}`);
-    for (const command of ['ls -la', 'git -C /x status --porcelain', 'git -C /x log --oneline -5', 'git diff --no-ext-diff --no-textconv -- configs/pipeline-guard.json addons/x', 'rg TODO src', 'rg process.env src', 'rg beadsWatch src', 'wc -l package.json', 'ls -la node_modules/.bin/node', 'rg -n Buffer node_modules/@types/node', 'stat /usr/bin/perl', 'cat /opt/homebrew/lib/python3.12/site.py']) assert.equal(bashAction(bash, command), 'ask', `${name} ${command}`);
+    assert.equal(bashAction(bash, 'git diff --no-ext-diff --no-textconv -- configs/pipeline-guard.json addons/x'), ['plan-reviewer', 'test-strategist'].includes(name) ? 'deny' : 'ask', name);
+    for (const command of ['ls -la', 'git -C /x status --porcelain', 'git -C /x log --oneline -5', 'rg TODO src', 'rg process.env src', 'rg beadsWatch src', 'wc -l package.json', 'ls -la node_modules/.bin/node', 'rg -n Buffer node_modules/@types/node', 'stat /usr/bin/perl', 'cat /opt/homebrew/lib/python3.12/site.py']) assert.equal(bashAction(bash, command), reviewers.includes(name) ? 'deny' : 'ask', `${name} ${command}`);
+  }
+  const { roles } = await import('../../.opencode/permissions/spec.mjs');
+  for (const name of reviewers) {
+    const bash = settings.agent[name].permission.bash;
+    for (const [rule, action] of [...roles[name].rules, ...roles[name].afterDeny]) assert.equal(bashAction(bash, rule.replaceAll('*', 'x')), action, `${name}: ${rule}`);
   }
   const ci = settings.agent['ci-build-engineer'].permission.bash;
   assert.equal(bashAction(ci, 'npm ci --ignore-scripts'), 'ask');
@@ -508,7 +515,7 @@ test('beads-manager denies bd commands outside the backlog procedure, including 
   }
 });
 
-test('only beads-manager may write or sync the backlog; other flipped roles keep their exact read forms', async () => {
+test('only beads-manager may write or sync the backlog; other roles keep their exact read forms', async () => {
   const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
   const writes = ['/opt/homebrew/bin/bd update bbk-1 --notes y', '~/go/bin/bd close bbk-1 --reason x', 'command bd -C "/m" update bbk-1 --notes y', 'command bd -C "/m" create --title x', 'command bd -C "/m" close bbk-1 --reason done', 'bd update bbk-1 --claim', 'command bd close bbk-1 --reason --help', 'scripts/bd-sync.sh', 'command bd -C "/m" update bbk-1 --notes --readonly'];
   for (const name of ['typescript-specialist', 'webview-specialist', 'ci-build-engineer', 'release-manager', 'plan-reviewer', 'code-reviewer', 'test-strategist']) {
