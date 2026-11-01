@@ -4,7 +4,7 @@ An independent, actively maintained fork of [Beads Kanban](https://github.com/da
 
 View, create, edit, and organize the [Beads](https://github.com/gastownhall/beads) issues in your repository from four views — Kanban, table, tree, and dependency graph — without leaving the editor.
 
-![Version](https://img.shields.io/badge/version-2.2.0-blue)
+![Version](https://img.shields.io/github/v/release/balajidutt/better-beads-kanban?label=version)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![VS Code](https://img.shields.io/badge/VS%20Code-1.90+-blue)
 
