@@ -10,6 +10,7 @@ for unrelated upstream files or host deployment configuration.
 
 Source repository: <https://gitlab.com/balaji-personal-files/dotfiles>.
 Pinned revision: `a90487cdfbcd1f672a62a6417a544a12cb4461a7`.
+Rows that name a later revision come from that revision instead.
 Source paths resolve beneath that revision's `/-/blob/` or `/-/raw/` URL.
 Source hashes are **Git blob SHA-1 object IDs**, obtained from the public GitLab
 tree API; destination hashes below are **SHA-256 of local file bytes**. The two
@@ -31,7 +32,7 @@ is executable. The other listed modes retain the source's mode.
 | `assets/pipeline_guard.py` | `23b25e2e702196e57af3ff9cce0e12a8aa1423f9` | `ba34d8f3de404175217a4fd9c0f5ce094fb4ed46cf77c02d64abcc4d48413ba6` | 100644; unchanged |
 | `assets/pipeline_policy.py` | `50b25da3407495a1562237e551c7ca0e27e5d3a0` | `b9ea6daa46cf1d9ea2bcf8ed9eb60f8045fe046db55b617fd0a32abceecb0646` | 100644; explicit SSH-only `github-balajidutt` alias normalization |
 | `assets/pipeline_runtime.py` | `a58d847cf27fe7aa12affce60d6748d71b2c0338` | `f8bb14aff19de0b0402b2f92b900e3dd77fa13876626f6b93f5da0bb62ebf4fe` | 100644; unchanged |
-| `assets/github_pipeline.py` | `215476b9a43fb592d849be9772c919ffc07ce076` | `05bab46a24e665b55401af16b41f3028515904564d910eefc45975f38fd91016` | 100644; unchanged |
+| `assets/github_pipeline.py` | `64691e7acd509bf7899b83b63d94a1dfa1ec651f` | `fa34184a60b7237bceafd3217abbf8517de0a531e6569a7d776351afddefe8b5` | 100644; unchanged; revision `6d24a67ee9c8f236561216642fe90efbd271b2d4` |
 | `assets/pipeline_evidence.py` | `c2328f2c3d13393cb024707b91e382685bf3ac34` | `58509de2c86fb55329b6d96adbd42d9582b04f5402affd1cab0f7e178ca5f156` | 100644; unchanged |
 | `assets/gitlab_pipeline_runtime.py` | `0b52e85cd2287dc90999d0372b9a9455bfe10583` | `6e1da38c7aef8673cf645398cb2c56737890a93e44b463c1dd1afb6e135dae93` | 100644; unchanged shared dependency, not GitLab policy adoption |
 | `assets/check-gitlab-pipeline.py` | `57a31e83a77119be72b2d056563ca5823ac9769f` | `3c8916f077981983b3f3ae38773971c2421b507e5143be7c6652db84f5e0daae` | 100644; unchanged shared dependency |
@@ -75,9 +76,9 @@ and excludes upstream helper-owned Beads closure scenarios. All modes are 100644
 
 | Source → destination | Source blob | Destination SHA-256 |
 | --- | --- | --- |
-| `tests/test_github_pipeline.py` → `tests/tooling/test_github_pipeline.py` | `c8621a7507dc47fd3ff60802760d628d7a9265c4` | `8170322ee13999b94d23d7b063806a3297371e6ebbcb06f4b0973ea55d6a8744` |
+| `tests/test_github_pipeline.py` at revision `6d24a67ee9c8f236561216642fe90efbd271b2d4` → `tests/tooling/test_github_pipeline.py` | `a7563777c847eb953dd4dc736c1ce136d882ff11` | `cb9821e21e248af99ffb726608c05edc9b91d3bdc7965e693ec158f199321062` |
 | `tests/test_pipeline_evidence.py` → `tests/tooling/test_pipeline_evidence.py` | `8acd582271aeffc527a9d6f5079b26c97111b106` | `c82f463e4046cfbf4d36459da5258f6b62f52ea7f1799b22ae509238da66ecdb` |
-| `tests/test_github_worktree_merge.py` → `tests/tooling/test_github_worktree_merge.py` | `85daa267854432b6f845ec6ee8e187a02c95b681` | `33d439807baf5af309eeaabcee513a7e485ebebcb511ea887a4192498ba8271e` |
+| `tests/test_github_worktree_merge.py` at revision `6d24a67ee9c8f236561216642fe90efbd271b2d4` → `tests/tooling/test_github_worktree_merge.py` | `7ff829f417cbef9d2938dd445dac159525179eb3` | `3db24e7ebf125724c3f4272b89d535cf5a850c617a314d69ab0a245e87df304e` |
 | `tests/test_pipeline_guard.py` → `tests/tooling/test_pipeline_guard.py` | `4009479cec4fb0546e3a3aca6b1e6ccdaa85f245` | `180b3f1aefa5556499a0aa936d2149919c014c268d96828ba644e9ae50f3f87f` |
 | Portions of `tests/support/fixtures.py` → `tests/tooling/support/fixtures.py` | `c78065020bc130a3832560a0a200fbaf01feab02` | `d51445516743195d74697e6001f3783fbe6ac26955ffba717fe0f34794f4090c` |
 | `tests/support/github_fixtures.py` → `tests/tooling/support/github_fixtures.py` | `70790bbee6dbc645249fbd0863820231cb23d3cd` | `b0e563e4502aae45d5d336312ce7f03d030d65f17460bb7a220abee225862c99` |
@@ -85,7 +86,9 @@ and excludes upstream helper-owned Beads closure scenarios. All modes are 100644
 
 ## Maintenance
 
-Update the complete required bundle from one reviewed public revision. Preserve
+Update the complete required bundle from one reviewed public revision. An
+upstream fix may come in alone when its files depend on nothing that changed
+upstream since the pin; its rows then name the revision it came from. Preserve
 the local SSH alias and Beads boundaries, recheck source rights and update this
 manifest for actual changes. Scope any new upstream files before incorporation.
 Pin tooling dependencies through their respective npm lockfiles; do not copy
