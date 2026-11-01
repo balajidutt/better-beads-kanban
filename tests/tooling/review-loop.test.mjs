@@ -1170,6 +1170,13 @@ test('typescript-specialist owns terminal source and tests, CI owns its dependen
   assert.equal(bashAction(settings.agent['typescript-specialist'].permission.bash, 'npm --prefix terminal run test:pty'), 'deny');
   const card = await readFile(new URL('../../.opencode/agents/typescript-specialist.md', import.meta.url), 'utf8');
   for (const text of ['the private terminal browser in `terminal/`', "In `terminal/`, follow terminal/AGENTS.md's code and boundary rules, but run only the terminal gates in Format and leave its install to ci-build-engineer through the parent.", 'package-lock.json, scripts/ directory, tsconfig.json and .eslintrc.cjs stay with ci-build-engineer', "the terminal's node:test suites in `terminal/test/`", ...gates.map(gate => `\`${gate}\``)]) assert.ok(card.includes(text), text);
+  const terminalAgents = await readFile(new URL('../../terminal/AGENTS.md', import.meta.url), 'utf8');
+  const testing = await readFile(new URL('../../TESTING.md', import.meta.url), 'utf8');
+  for (const form of [...gates, 'npm --prefix terminal ci --ignore-scripts']) {
+    assert.ok(testing.includes(form), `TESTING.md: ${form}`);
+    assert.ok(terminalAgents.includes(`\`${form}\``), `terminal/AGENTS.md: ${form}`);
+  }
+  assert.equal(terminalAgents.includes('from this directory'), false);
   const ciCard = await readFile(new URL('../../.opencode/agents/ci-build-engineer.md', import.meta.url), 'utf8');
   assert.ok(ciCard.includes('or for the terminal exactly `npm --prefix terminal ci --ignore-scripts`'));
   assert.ok(ciCard.includes('Keep root, terminal and Python dependencies separate'));

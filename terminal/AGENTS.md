@@ -1,8 +1,11 @@
 # Terminal prototype
 
 This private Node 22+ ESM package is separate from the extension's CommonJS build.
-Run `npm ci --ignore-scripts`, `npm run typecheck`, `npm run lint`, `npm test` and `npm run build`
-from this directory. Do not install native development tools on macOS. PTY and
+Run its checks from the repository root: `npm --prefix terminal run typecheck`,
+`npm --prefix terminal run lint`, `npm --prefix terminal test` and
+`npm --prefix terminal run build`. Its dependencies install with
+`npm --prefix terminal ci --ignore-scripts`; in OpenCode only ci-build-engineer runs that.
+Do not install native development tools on macOS. PTY and
 native build work belongs in a disposable Linux environment.
 
 Consume shared code through `src/shared/model.ts` or `src/shared/node.ts`; do not
