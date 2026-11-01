@@ -5791,7 +5791,7 @@
         "read": { "*": "allow", "*.env": "deny", "*.env.*": "deny", "**/.env*": "deny", "**/.ssh/**": "deny", "**/auth.json": "deny", "**/.beads/**": "deny" },
         "glob": "allow",
         "grep": "allow",
-        "edit": { "*": "deny", "CHANGELOG.md": "allow", "package.json": "allow", "package-lock.json": "allow", "src/webview.ts": "allow", "RELEASING.md": "allow" },
+        "edit": { "*": "deny", "CHANGELOG.md": "allow", "package.json": "allow", "package-lock.json": "allow", "src/webview.ts": "allow", "RELEASING.md": "allow", "README.md": "allow" },
         "task": "deny",
         "skill": "deny",
         "external_directory": { "*": "ask", "$HOME/.plannotator/plans/**": "allow" },

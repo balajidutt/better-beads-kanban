@@ -122,7 +122,7 @@ Never silently remove dependencies to make the source appear ready.
 Require a fresh remote-main query and local ancestry proof. Missing history stops
 the operation; it does not authorize an automatic fetch, merge or push. The
 publication handover names repository, full SHA, version, tag, Latest promotion,
-assets, reviewed scope and remaining pre/postpublication obligations. Recheck near
+assets, release notes, reviewed scope and remaining pre/postpublication obligations. Recheck near
 publication and hand over again if any of those fields change. These are
 point-in-time checks, not an atomic remote transaction or per-issue attestation.
 
@@ -154,7 +154,7 @@ test on top, drawn from the [release QA checklist](TESTING.md#release-qa-checkli
 The decision is never discovered as a gate at closeout.
 
 **Phase 1, preparation.** Claim the release task, then steps 1 and 2 below: the
-CHANGELOG entry with an undated heading, the bump and the retitle. They go through
+CHANGELOG entry with an undated heading, the README review, the bump and the retitle. They go through
 the default chain: gates, independent review, commit, exact-SHA CI, CI-gated landing
 and exact-SHA CI on the landed main. The operator then pushes main and runs step 3's
 dry run.
@@ -176,7 +176,8 @@ The wrapper and anchored `scripts/release-preflight.js` require:
   absent from the CLI's `bd blocked` result, queried against verified shared main.
 - Matching package/webview version and CHANGELOG heading; accepted versions are
   `X.Y.Z` and `X.Y.Z-bd.N`. A real release also requires the heading to carry a
-  `YYYY-MM-DD` date; a dry run accepts it undated.
+  `YYYY-MM-DD` date; a dry run accepts it undated. The entry under the heading
+  must not be empty, in a dry run as well.
 - A fresh GitHub main SHA and local proof that the source is its ancestor. Missing
   local objects block rather than trigger an automatic fetch.
 - Confirmed absence of the local/remote tag and GitHub release, with query failures
@@ -211,6 +212,16 @@ Leave the heading undated during preparation: write `## [X.Y.Z]`, not
 date written early has to be corrected, reviewed and landed again each time it
 does. Step 4 adds the date.
 
+The entry, without its heading, becomes the GitHub release notes, followed by a
+link to the full `CHANGELOG.md` at the release tag and the source SHA. Write it for
+someone deciding whether to install this version.
+
+Then read `README.md`'s "Why this fork", "Features", "Prerequisites" and
+"Installation" sections against the entry and fold any changes into the same
+preparation commit. The badges need no review: the tooling suite checks the VS Code
+and license badges against `package.json`, and the version badge follows the latest
+release.
+
 ### 2. Bump
 
 ```bash
@@ -242,7 +253,8 @@ bash scripts/release-fork-vsix.sh --release-issue <release-id> --dry-run
 Verifies, packages, and checksums without publishing, but creates local outputs and
 temporarily switches GitHub identity; it is not read-only, so it is class E and the
 operator runs it.
-Confirm the emitted `TAG` and `ASSET` look right. `vsce package` reported 32 files
+Confirm the emitted `TAG` and `ASSET` look right, and read the printed release notes
+as they will appear on GitHub. `vsce package` reported 32 files
 and 949 KB for 2.2.3, and 20 files and 924 KB for a build on 2026-10-05 that packaged
 only the four runtime bundles from `out/`. Both counts include the two VSIX metadata
 files, so `vsce ls` lists two fewer. These are reference observations, not current
@@ -276,8 +288,8 @@ bash scripts/release-fork-vsix.sh --release-issue <release-id>
 
 The script runs `npm run verify` itself (`tsc --noEmit`, `eslint`, the Mocha
 suite), packages the VSIX, writes `SHA256SUMS`, creates the tag on the built
-commit via `--target <full-sha>`, marks the release `--latest`, and uploads the
-VSIX and `SHA256SUMS`.
+commit via `--target <full-sha>`, marks the release `--latest`, publishes the CHANGELOG entry as
+the release notes, and uploads the VSIX and `SHA256SUMS`.
 
 For an older prepared source, invoke the absolute path to the approved main
 checkout's wrapper with CWD at that source's linked worktree. Both checkouts must

@@ -100,6 +100,7 @@ FULL_SHA=$(node -p 'JSON.parse(process.env.BBK_RELEASE_SNAPSHOT).sourceSha')
 ORIG_NAME=$(node -p 'JSON.parse(process.env.BBK_RELEASE_SNAPSHOT).displayName')
 PACKAGE_NAME=$(node -p 'JSON.parse(process.env.BBK_RELEASE_SNAPSHOT).name')
 VERSION=$(node -p 'JSON.parse(process.env.BBK_RELEASE_SNAPSHOT).version')
+RELEASE_NOTES=$(node -p 'JSON.parse(process.env.BBK_RELEASE_SNAPSHOT).notes')
 
 # Same shape as SEMVER_RE in scripts/bump-version.js — keep the two in sync.
 if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-bd\.[0-9]+)?$ ]]; then
@@ -143,6 +144,9 @@ if [ "$DRY_RUN" -eq 1 ]; then
   echo ""
   echo "==> Dry run: skipping 'gh release create'."
   echo "    Would create tag ${TAG} on ${FORK_REPO}."
+  echo ""
+  echo "==> Release notes"
+  printf '%s\n' "${RELEASE_NOTES}"
 else
   echo "==> Creating release ${TAG} on ${FORK_REPO}"
   gh release create "${TAG}" \
@@ -150,7 +154,7 @@ else
     --target "${FULL_SHA}" \
     --latest \
     --title "${RELEASE_TITLE}" \
-    --notes "Fork build of ${PACKAGE_NAME} ${VERSION} from ${FULL_SHA}. See CHANGELOG.md for what changed." \
+    --notes "${RELEASE_NOTES}" \
     "${TARGET_VSIX}" SHA256SUMS
 fi
 

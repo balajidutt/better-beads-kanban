@@ -17,7 +17,7 @@ The maintained runtime definitions live directly under `.opencode/`; there is no
 | `webview-specialist` | Vanilla JS/CSS, helpers under `src/webview/`, rendering/state evidence | Bounded editor; root filter helpers and shared core route through the parent to TypeScript |
 | `test-strategist` | Falsifiable test/evidence design before behavior edits | Read-only; does not write or execute tests |
 | `ci-build-engineer` | Operational build/CI/development tooling, including the terminal's lockfile, scripts and configuration, dependency preparation, and the plan's commits, exact-SHA CI and landing | Not an agent-authority editor or backlog writer |
-| `release-manager` | CHANGELOG/version preparation, the publication-day dating edit and postpublication verification reads | Not a backlog writer; dry runs and publication are operator-run; local VSIX and stable release are different lanes |
+| `release-manager` | CHANGELOG/version preparation, README release sections, the publication-day dating edit and postpublication verification reads | Not a backlog writer; dry runs and publication are operator-run; local VSIX and stable release are different lanes |
 
 Only the two workflow primaries delegate; the eight specialists are leaves. The pre-existing global `agent-engineer` is separately human-directed for agent authority, not an eleventh shipped worker or a build task route. The permissions-only compatibility entry does not add another prompt/model. Neither unrestricted `general` nor `special-builder` is a workflow escape route.
 

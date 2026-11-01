@@ -794,7 +794,7 @@ test('executing role cards run the plan model and hand class E commands to the o
   assert.ok(manager.includes('Backlog sync is class E: hand the operator the sync command AGENTS.md names.'));
   for (const gone of ['it is denied', 'scripts/bd-sync.sh', 'separately approved']) assert.equal(manager.includes(gone), false, gone);
   const release = await read('.opencode/agents/release-manager.md');
-  assert.ok(release.includes('and hand them to the operator with repository, full source SHA, version, tag, Latest promotion, assets, reviewed scope and remaining obligations'));
+  assert.ok(release.includes('and hand them to the operator with repository, full source SHA, version, tag, Latest promotion, assets, release notes, reviewed scope and remaining obligations'));
   for (const gone of ['Publication approval tuple', 'obtain explicit approval', 'needs its own approval']) assert.equal(release.includes(gone), false, gone);
   for (const name of ['typescript-specialist', 'webview-specialist']) {
     assert.ok((await read(`.opencode/agents/${name}.md`)).includes('Stop at an escalation trigger rather than widen authority'), name);
@@ -1182,6 +1182,18 @@ test('typescript-specialist owns terminal source and tests, CI owns its dependen
   assert.ok(ciCard.includes('Keep root, terminal and Python dependencies separate'));
   for (const file of ['AGENTS.md', '.opencode/instructions/development-lifecycle.md', '.opencode/agents/build.md', 'docs/development/opencode-workflow.md']) {
     assert.ok((await readFile(new URL(`../../${file}`, import.meta.url), 'utf8')).includes('`npm --prefix terminal ci --ignore-scripts`'), file);
+  }
+});
+
+test('only release-manager edits the root README, and not the terminal README', async () => {
+  const settings = JSON.parse(await readFile(new URL('../../.opencode/opencode.jsonc', import.meta.url), 'utf8'));
+  const release = settings.agent['release-manager'].permission.edit;
+  assert.equal(bashAction(release, 'README.md'), 'allow');
+  assert.equal(bashAction(release, 'terminal/README.md'), 'deny');
+  for (const [name, agent] of Object.entries(settings.agent)) {
+    if (name === 'release-manager') continue;
+    const map = agent.permission?.edit ?? settings.permission.edit;
+    assert.equal(typeof map === 'string' ? map : bashAction(map, 'README.md'), 'deny', name);
   }
 });
 

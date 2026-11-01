@@ -77,11 +77,17 @@ async function preflight({ issue, source = process.cwd(), tooling = path.resolve
   if (versions.length !== 1 || versions[0][2] !== pkg.version) throw new WorkflowError('WEBVIEW_VERSION_MISMATCH');
   const changelog = await textFile(source, 'CHANGELOG.md');
   const heading = `## [${pkg.version}]`;
-  const headingLine = changelog.split(/\r?\n/).find(line => line === heading || line.startsWith(`${heading} - `));
-  if (headingLine === undefined) throw new WorkflowError('CHANGELOG_VERSION_MISMATCH');
+  const changelogLines = changelog.split(/\r?\n/);
+  const headingIndex = changelogLines.findIndex(line => line === heading || line.startsWith(`${heading} - `));
+  if (headingIndex === -1) throw new WorkflowError('CHANGELOG_VERSION_MISMATCH');
+  const headingLine = changelogLines[headingIndex];
   if (!dryRun && !isCalendarDate(headingLine.slice(`${heading} - `.length))) throw new WorkflowError('CHANGELOG_UNDATED');
+  const nextIndex = changelogLines.findIndex((line, index) => index > headingIndex && line.startsWith('## ['));
+  const entry = changelogLines.slice(headingIndex + 1, nextIndex === -1 ? undefined : nextIndex).join('\n').trim();
+  if (!entry) throw new WorkflowError('CHANGELOG_ENTRY_EMPTY');
   const asset = `${pkg.name}-${pkg.version}.vsix`;
   const tag = `v${pkg.version}`;
+  const notes = `${entry}\n\n---\n\nThe full release history is in [CHANGELOG.md](https://github.com/${REPOSITORY}/blob/${tag}/CHANGELOG.md).\nBuilt from \`${sourceSha}\`.`;
   const states = await status(source, execute);
   if (tooling !== source && (await status(tooling, execute)).some(item => !item.ignored)) throw new WorkflowError('TOOLING_DIRTY');
   const generated = new Set([asset, 'SHA256SUMS', 'out/', 'node_modules/', '.vscode-test/', 'media/purify.min.js']);
@@ -120,7 +126,7 @@ async function preflight({ issue, source = process.cwd(), tooling = path.resolve
   if (await github(`/git/ref/tags/${tag}`, execute, source, true)) throw new WorkflowError('TAG_ALREADY_EXISTS');
   if (await github(`/releases/tags/${tag}`, execute, source, true)) throw new WorkflowError('RELEASE_ALREADY_EXISTS');
 
-  const snapshot = { schemaVersion: 1, repository: REPOSITORY, source, tooling, sourceSha, toolingSha, issue, scope, version: pkg.version, name: pkg.name, displayName: pkg.displayName, asset, tag };
+  const snapshot = { schemaVersion: 1, repository: REPOSITORY, source, tooling, sourceSha, toolingSha, issue, scope, version: pkg.version, name: pkg.name, displayName: pkg.displayName, asset, tag, notes };
   if (expected) {
     const { ignoredBefore, remoteMain: _oldRemote, ...prepared } = expected;
     if (!isDeepStrictEqual(snapshot, prepared)) throw new WorkflowError('RELEASE_SNAPSHOT_CHANGED');
