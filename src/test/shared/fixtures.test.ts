@@ -120,6 +120,15 @@ suite('Mapper handling of fields the recorded fixtures do not carry', () => {
 suite('Recorded bd 1.3.1 behaviour that 1.2.2 lacks', () => {
   const ids = loadFixture<SeededIds>('1.3.1', 'ids.json');
 
+  for (const [setting, value] of [['off', 'false'], ['on', 'true']] as const) {
+    test(`config-get with events-journal ${setting} records its key and string value ${value}`, () => {
+      const config = loadFixture<Record<string, unknown>>('1.3.1', `events-journal-config-${setting}.json`);
+      assert.strictEqual(config.key, 'events-journal');
+      assert.strictEqual(typeof config.value, 'string');
+      assert.strictEqual(config.value, value);
+    });
+  }
+
   test('closing a parent with an open child is refused with exit 1', () => {
     const refusal = loadFixture<RecordedFailure>('1.3.1', 'close-refused-children.json');
     assert.strictEqual(refusal.exitCode, 1);

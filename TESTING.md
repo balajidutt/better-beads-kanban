@@ -61,11 +61,46 @@ shared mappers under `npm run test:shared`, so CI exercises real shapes without
 bd. Commands a version lacks are recorded as failures with their exit code and
 stderr.
 
-To record or refresh a version, point `BD_BIN` at that binary:
+Full recording deletes and recreates the selected version's fixture directory,
+including every existing capture. Point `BD_BIN` at that binary:
 
 ```bash
 BD_BIN=/absolute/path/to/bd node scripts/record-bd-fixtures.js
 ```
+
+To capture only the explicit off/on journal configuration GET responses in an
+existing version directory:
+
+```bash
+BD_BIN=/absolute/path/to/bd node scripts/record-bd-fixtures.js --events-journal-config-only
+```
+
+Targeted mode requires the binary's version, commit and build to match the existing
+`version.json`. It sets `events-journal` to false and then true, capturing
+`config get events-journal --json` after each setting. Both commands must succeed
+and return objects with `key` equal to `"events-journal"` and a separate `value`
+equal to the requested boolean or its lowercase string form. A top-level
+`events-journal` property is not accepted as a substitute. Optional `location`
+metadata and other extra response fields are preserved and scrubbed.
+Both captures are validated before either output file is written. Only
+`events-journal-config-off.json` and `events-journal-config-on.json` are written;
+all other fixture bytes remain untouched. A capture failure or invalid key/value
+writes neither fixture.
+
+Full mode includes both GET responses and retains the SET-true response in
+`events-journal-config.json`. Unsupported GET commands use the ordinary failure
+record (exit code, stdout and stderr), not a successful disabled value. Journaling
+is enabled before the event tail/prune captures.
+
+Under the current OpenCode permission profile, historical recording is an
+operator-run step. After the recorder is ready, build hands the operator the
+approved command; agents do not run or reformulate it. Return the complete console
+output and exit status. Successful targeted output identifies the executable,
+version/commit/build, command arguments and exit statuses, followed by a two-fixture
+summary. Verify that the authored diff contains only the two intended fixture files
+and that their payloads and provenance match before using them in tests. Any
+re-recording is operator-owned. Fake recorder tests exercise process/workspace
+injection and temporary output; they are not evidence of real CLI recording.
 
 The recorder seeds a scratch workspace through
 `scripts/lib/bd-scratch-workspace.js`, runs bd in UTC, scrubs the

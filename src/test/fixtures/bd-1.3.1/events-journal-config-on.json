@@ -1,0 +1,6 @@
+{
+  "key": "events-journal",
+  "location": "config.yaml",
+  "schema_version": 1,
+  "value": "true"
+}

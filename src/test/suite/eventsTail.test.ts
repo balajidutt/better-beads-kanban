@@ -8,6 +8,7 @@ import type * as vscode from 'vscode';
 import { DaemonBeadsAdapter } from '../../daemonBeadsAdapter';
 import { EventsTail, HEALTHY_RUN_MS, KILL_GRACE_MS, MAX_CHILD_LIFETIME_MS, MAX_EVENT_LINE_CHARS, affectsEventsFeed } from '../../eventsTail';
 import { BeadsEvent, EventsTruncation, capabilitiesFor, parseBdVersion } from '../../shared/node';
+import { loadFixture } from '../shared/bdFixtures';
 
 type FakeChild = EventEmitter & { stdout: PassThrough; stderr: PassThrough; kill: sinon.SinonSpy; exitCode: number | null; signalCode: string | null };
 
@@ -196,12 +197,23 @@ suite('Events journal detection', () => {
         return { adapter, calls };
     }
 
-    test('enabled only on bd 1.3 with events-journal set to true', async () => {
-        const on = adapterFor('1.3.1', { key: 'events-journal', value: 'true' });
+    test('the recorded bd 1.3.1 config-get on response enables the journal', async () => {
+        const on = adapterFor('1.3.1', loadFixture('1.3.1', 'events-journal-config-on.json'));
         assert.strictEqual(await on.adapter.isEventsJournalEnabled(), true);
         assert.deepStrictEqual(on.calls, [['config', 'get', 'events-journal', '--json']]);
-        assert.strictEqual(await adapterFor('1.3.1', { key: 'events-journal', value: 'false' }).adapter.isEventsJournalEnabled(), false);
+    });
+
+    test('the recorded bd 1.3.1 config-get off response disables the journal', async () => {
+        const off = adapterFor('1.3.1', loadFixture('1.3.1', 'events-journal-config-off.json'));
+        assert.strictEqual(await off.adapter.isEventsJournalEnabled(), false);
+        assert.deepStrictEqual(off.calls, [['config', 'get', 'events-journal', '--json']]);
+    });
+
+    test('a boolean true config value also enables the journal on bd 1.3.1', async () => {
         assert.strictEqual(await adapterFor('1.3.1', { key: 'events-journal', value: true }).adapter.isEventsJournalEnabled(), true);
+    });
+
+    test('bd 1.2.2 leaves the journal disabled without calling config-get', async () => {
         const old = adapterFor('1.2.2', { value: 'true' });
         assert.strictEqual(await old.adapter.isEventsJournalEnabled(), false);
         assert.deepStrictEqual(old.calls, []);

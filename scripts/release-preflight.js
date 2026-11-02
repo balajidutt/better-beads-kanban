@@ -24,6 +24,20 @@ async function textFile(root, relative) {
   return readFile(file, 'utf8');
 }
 
+async function lockfileVersion(source, version) {
+  let text;
+  try { text = await textFile(source, 'package-lock.json'); }
+  catch (error) {
+    if (error.code === 'ENOENT') throw new WorkflowError('LOCKFILE_INVALID');
+    throw error;
+  }
+  const lock = json(text, 'LOCKFILE_INVALID');
+  const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+  if (!object(lock) || !object(lock.packages) || !object(lock.packages[''])
+    || [lock.version, lock.packages[''].version].some(value => typeof value !== 'string' || !value.trim())) throw new WorkflowError('LOCKFILE_INVALID');
+  if (lock.version !== version || lock.packages[''].version !== version) throw new WorkflowError('LOCKFILE_VERSION_MISMATCH');
+}
+
 async function github(endpoint, execute, cwd, missing = false) {
   const result = await execute('gh', ['api', '--hostname', 'github.com', '--include', `repos/${REPOSITORY}${endpoint}`], { cwd });
   const text = result.stdout.replace(/\r\n/g, '\n');
@@ -72,6 +86,7 @@ async function preflight({ issue, source = process.cwd(), tooling = path.resolve
 
   const pkg = json(await textFile(source, 'package.json'), 'PACKAGE_INVALID');
   if (!VERSION.test(pkg.version ?? '') || !/^[a-z][a-z0-9._-]{0,213}$/.test(pkg.name ?? '') || typeof pkg.displayName !== 'string' || /[\r\n\0]/.test(pkg.displayName)) throw new WorkflowError('PACKAGE_INVALID');
+  await lockfileVersion(source, pkg.version);
   const webview = await textFile(source, 'src/webview.ts');
   const versions = [...webview.matchAll(/\bconst\s+version\s*=\s*(['"])([^'"\r\n]+)\1/g)];
   if (versions.length !== 1 || versions[0][2] !== pkg.version) throw new WorkflowError('WEBVIEW_VERSION_MISMATCH');

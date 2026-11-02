@@ -178,6 +178,14 @@ The wrapper and anchored `scripts/release-preflight.js` require:
   `X.Y.Z` and `X.Y.Z-bd.N`. A real release also requires the heading to carry a
   `YYYY-MM-DD` date; a dry run accepts it undated. The entry under the heading
   must not be empty, in a dry run as well.
+- The selected source checkout's root `package-lock.json` must contain object
+  metadata with nonempty string `version` and `packages[""].version`, both equal to
+  `package.json.version`. Missing, malformed or invalid lockfile metadata blocks
+  with `LOCKFILE_INVALID`; either valid string differing from the package version
+  blocks with `LOCKFILE_VERSION_MISMATCH`. Symlink, non-file and oversized metadata
+  retain the `UNSAFE_METADATA_FILE` guard. These checks run before Beads/GitHub
+  queries in normal, dry-run and post-build snapshot preflight. Preflight does not
+  repair the lockfile, compare terminal metadata or validate dependency versions.
 - A fresh GitHub main SHA and local proof that the source is its ancestor. Missing
   local objects block rather than trigger an automatic fetch.
 - Confirmed absence of the local/remote tag and GitHub release, with query failures

@@ -1,12 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { chmod, copyFile, mkdir, readFile, realpath, writeFile } from 'node:fs/promises';
+import { chmod, copyFile, mkdir, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { scratch } from './support/fixtures.mjs';
 import release from '../../scripts/release-preflight.js';
 import processTools from '../../scripts/lib/workflow-process.js';
 
 const ENTRY = '### Fixed\n\n- Fixture entry.';
+const matchingLock = () => ({ version: '9.8.7', packages: { '': { version: '9.8.7' } } });
 
 async function fixture(t, changes = {}) {
   const root = await scratch(t);
@@ -15,6 +16,7 @@ async function fixture(t, changes = {}) {
   await mkdir(path.join(root, 'scripts/lib'), { recursive: true });
   for (const name of ['release-fork-vsix.sh', 'release-preflight.js', 'lib/workflow-process.js']) await writeFile(path.join(root, 'scripts', name), 'fixture tooling\n');
   await writeFile(path.join(root, 'package.json'), JSON.stringify({ name: 'better-beads-kanban', displayName: 'Better Beads Kanban', version: '9.8.7' }));
+  await writeFile(path.join(root, 'package-lock.json'), JSON.stringify(matchingLock()));
   await writeFile(path.join(root, 'src/webview.ts'), "const version = '9.8.7';\n");
   await writeFile(path.join(root, 'CHANGELOG.md'), `## [9.8.7] - 2026-09-24\n\n${ENTRY}\n`);
   const source = await realpath(root);
@@ -25,7 +27,7 @@ async function fixture(t, changes = {}) {
     calls.push([command, args]);
     if (command === 'git') {
       if (args.includes('--git-common-dir')) return { code: 0, stdout: path.join(source, '.git') };
-      if (args.includes('--show-toplevel')) return { code: 0, stdout: source };
+      if (args.includes('--show-toplevel')) return { code: 0, stdout: options.cwd };
       if (args.includes('HEAD')) return { code: 0, stdout: state.head };
       if (args.includes('ls-files')) return { code: 0, stdout: 'tracked' };
       if (args.includes('status')) return { code: 0, stdout: args.includes('--ignored=matching') ? state.dirty || state.ignored.map(name => `!! ${name}\0`).join('') : '' };
@@ -55,6 +57,91 @@ async function fixture(t, changes = {}) {
   };
   return { root, source, tooling: source, execute, state, calls, issue: 'bbk-release' };
 }
+
+for (const field of ['version', 'packages[""].version']) {
+  test(`root lockfile ${field} mismatch rejects independently before bd or gh`, async t => {
+    for (const mode of ['normal', 'dryRun', 'expected']) {
+      const data = await fixture(t);
+      const expected = mode === 'expected' ? await release.preflight(data) : null;
+      data.calls.length = 0;
+      const lock = matchingLock();
+      if (field === 'version') lock.version = '9.8.6';
+      else lock.packages[''].version = '9.8.6';
+      await writeFile(path.join(data.root, 'package-lock.json'), JSON.stringify(lock));
+      await assert.rejects(release.preflight({ ...data, expected, dryRun: mode === 'dryRun' }), { code: 'LOCKFILE_VERSION_MISMATCH' }, mode);
+      assert.equal(data.calls.some(([command]) => command === 'bd' || command === 'bd.exe' || command === 'gh'), false, mode);
+    }
+  });
+}
+
+test('matching root lockfile versions accept LF and CRLF metadata on every preflight', async t => {
+  for (const newline of ['\n', '\r\n']) {
+    const data = await fixture(t);
+    for (const file of ['package.json', 'package-lock.json']) {
+      const value = JSON.parse(await readFile(path.join(data.root, file), 'utf8'));
+      await writeFile(path.join(data.root, file), JSON.stringify(value, null, 2).replaceAll('\n', newline) + newline);
+    }
+    const expected = await release.preflight(data);
+    assert.equal((await release.preflight({ ...data, dryRun: true })).version, '9.8.7');
+    assert.equal((await release.preflight({ ...data, expected })).version, '9.8.7');
+  }
+});
+
+test('lockfile versions come from selected source, not the tooling checkout', async t => {
+  const data = await fixture(t);
+  const tooling = path.join(data.source, 'tooling');
+  await mkdir(path.join(tooling, 'scripts/lib'), { recursive: true });
+  for (const name of ['release-fork-vsix.sh', 'release-preflight.js', 'lib/workflow-process.js']) {
+    await writeFile(path.join(tooling, 'scripts', name), 'fixture tooling\n');
+  }
+  await writeFile(path.join(tooling, 'package-lock.json'), '{invalid tooling lock');
+  assert.equal((await release.preflight({ ...data, tooling })).version, '9.8.7');
+  await writeFile(path.join(data.source, 'package-lock.json'), JSON.stringify({ ...matchingLock(), version: '9.8.6' }));
+  await assert.rejects(release.preflight({ ...data, tooling }), { code: 'LOCKFILE_VERSION_MISMATCH' });
+});
+
+test('missing, malformed and invalid root lockfile shapes fail with a named error before queries', async t => {
+  const invalid = [null, [], true, 'private', 42, {}, { version: '9.8.7' },
+    { ...matchingLock(), packages: null }, { ...matchingLock(), packages: [] },
+    { ...matchingLock(), packages: {} }, { ...matchingLock(), packages: { '': null } },
+    { ...matchingLock(), packages: { '': [] } }];
+  for (const value of [undefined, null, '', ' ', 42, false]) {
+    invalid.push({ ...matchingLock(), version: value });
+    invalid.push({ ...matchingLock(), packages: { '': { version: value } } });
+  }
+  for (const content of [undefined, '{private malformed', ...invalid.map(value => JSON.stringify(value))]) {
+    const data = await fixture(t);
+    const file = path.join(data.root, 'package-lock.json');
+    if (content === undefined) await rm(file);
+    else await writeFile(file, content);
+    for (const dryRun of [false, true]) {
+      await assert.rejects(release.preflight({ ...data, dryRun }), error => error.code === 'LOCKFILE_INVALID' && error.message === 'LOCKFILE_INVALID');
+    }
+    assert.equal(data.calls.some(([command]) => command !== 'git'), false);
+  }
+});
+
+test('root lockfile metadata retains nonsymlink, regular-file and size safeguards', async t => {
+  for (const kind of ['symlink', 'dangling', 'directory', 'oversized']) {
+    const data = await fixture(t);
+    const file = path.join(data.root, 'package-lock.json');
+    await rm(file);
+    if (kind === 'directory') await mkdir(file);
+    else if (kind === 'oversized') await writeFile(file, ' '.repeat(1048577));
+    else await symlink(path.join(data.root, kind === 'symlink' ? 'package.json' : 'absent.json'), file);
+    await assert.rejects(release.preflight(data), { code: 'UNSAFE_METADATA_FILE' }, kind);
+    assert.equal(data.calls.some(([command]) => command !== 'git'), false);
+  }
+});
+
+test('expected snapshot rechecks invalid lockfile metadata', async t => {
+  const data = await fixture(t);
+  const expected = await release.preflight(data);
+  data.calls.length = 0;
+  await rm(path.join(data.root, 'package-lock.json'));
+  await assert.rejects(release.preflight({ ...data, expected }), { code: 'LOCKFILE_INVALID' });
+  assert.equal(data.calls.some(([command]) => command !== 'git'), false);
+});
 
 test('release preflight accepts an unblocked scoped task whether it is open or claimed', async t => {
   for (const issueStatus of ['open', 'in_progress']) {
@@ -179,6 +266,7 @@ async function wrapperFixture(t, changes = {}, changelog = `## [9.8.7] - 2026-09
   await copyFile(new URL('./support/fake-command.js', import.meta.url), vsce);
   await chmod(vsce, 0o755);
   await writeFile(path.join(source, 'package.json'), JSON.stringify({ name: 'better-beads-kanban', displayName: 'Fixture', version: '9.8.7' }));
+  await writeFile(path.join(source, 'package-lock.json'), JSON.stringify(matchingLock()));
   await writeFile(path.join(source, 'src/webview.ts'), "const version = '9.8.7';\n");
   await writeFile(path.join(source, 'CHANGELOG.md'), changelog);
   const log = path.join(root, 'calls.jsonl');
@@ -235,6 +323,25 @@ test('actual release wrapper stops on a blocked release task before building or 
   const calls = (await readFile(f.log, 'utf8')).trim().split('\n').map(line => JSON.parse(line));
   assert.equal(calls.some(call => call.name === 'vsce' || call.name === 'gh' && call.args[0] === 'release'), false);
   assert.equal(JSON.parse(await readFile(f.stateFile, 'utf8')).account, 'fixture-user');
+});
+
+test('actual release wrapper refuses either lockfile mismatch before verify, package or publication and restores fake identity', async t => {
+  for (const field of ['version', 'packages[""].version']) {
+    for (const dryRun of [false, true]) {
+      const f = await wrapperFixture(t);
+      const lock = matchingLock();
+      if (field === 'version') lock.version = '9.8.6';
+      else lock.packages[''].version = '9.8.6';
+      await writeFile(path.join(f.source, 'package-lock.json'), JSON.stringify(lock));
+      const result = await processTools.run('bash', [path.join(f.source, 'scripts/release-fork-vsix.sh'), '--release-issue', 'bbk-release', ...(dryRun ? ['--dry-run'] : [])], { cwd: f.source, env: f.env, timeout: 30000 });
+      assert.notEqual(result.code, 0);
+      assert.match(result.stderr, /Release preflight blocked: LOCKFILE_VERSION_MISMATCH\./);
+      const calls = (await readFile(f.log, 'utf8')).trim().split('\n').map(line => JSON.parse(line));
+      assert.equal(calls.some(call => ['npm', 'vsce', 'bd'].includes(call.name) || call.name === 'gh' && call.args[0] === 'release'), false);
+      assert.equal(calls.some(call => call.name === 'gh' && call.args.some(arg => arg.startsWith('repos/'))), false);
+      assert.equal(JSON.parse(await readFile(f.stateFile, 'utf8')).account, 'fixture-user');
+    }
+  }
 });
 
 test('actual release wrapper keeps primary failure observable when restoration also fails', async t => {
