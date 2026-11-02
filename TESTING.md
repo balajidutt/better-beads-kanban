@@ -282,6 +282,18 @@ Two mandatory rules from [AGENTS.md](AGENTS.md#security-and-correctness):
   schema rejecting your input because you misspelled a required field name is not
   evidence that it rejects X.
 
+Two more rules apply to every suite, including the tooling tests:
+
+- **Copy fake CLI output from a real one.** A fake bd response takes its shape from
+  a recording under `src/test/fixtures/bd-<version>/` or from the code that parses
+  the real output, and the test names which. A shape written by hand passes against
+  code that shares its mistake.
+- **Never let an assertion print the environment.** A failed comparison assertion
+  (`equal`, `strictEqual`, `deepStrictEqual` and the rest) on `process.env`, or on a
+  copy of it, prints every variable, credentials included. Use
+  `assert.ok(isDeepStrictEqual(actual, expected), 'fixed message')` with
+  `isDeepStrictEqual` from `node:util`, or compare only the keys the test needs.
+
 ## Integration Tests
 
 Standalone scripts that validate adapter behaviour and data consistency against a

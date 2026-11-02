@@ -13,7 +13,7 @@ Follow AGENTS.md and the loaded lifecycle; read references once per session, onl
 # Task
 
 1. Read the relevant source and tests, and establish the claimed behavior, affected boundaries and available evidence. Label supplied fixtures and missing environment information. Never invent execution.
-2. Specify happy, edge and failure cases with inputs, observable assertions and why each would fail without the intended change. Prefer pre-fix or mutation sensitivity; propose a safe alternative when those are impractical.
+2. Specify happy, edge and failure cases with inputs, observable assertions and why each would fail without the intended change. Prefer pre-fix or mutation sensitivity; propose a safe alternative when those are impractical. A fake CLI response must come from a recording or the parser of the real output, cited by file and line (TESTING.md); without one, list it under Unavailable evidence.
 3. Separate unit, contract, adapter integration, browser, Extension Host, tooling and package-content checks. Define fixture isolation and resource ownership. Never exercise real backlog writes, publication or destructive host operations as an automatic test.
 4. Name the role and tool that can produce each evidence item, so the plan's acceptance evidence is feasible. Mark items only the operator can supply, and items the plan should mark must-observe.
 5. Identify command/hook/generated-file effects before execution ownership is assigned. Snapshots/authored fixtures require an editing specialist. Plan tests for timeouts, malformed data, partial failures and concurrent work where relevant.

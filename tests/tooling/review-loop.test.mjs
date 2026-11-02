@@ -595,6 +595,8 @@ test('AGENTS.md states the intent-and-boundaries model in harness-neutral terms 
     'in OpenCode, the result of a plan-review tool when the session has a working one, or otherwise an operator message, sent after the most recent plan the session presented, that approves it; a reply with conditions or requested changes is a rejection)',
     'It cannot add one:',
     'retry a guarded helper once, only for an error its documented contract names as safe to retry',
+    'treat a gate run as inconclusive when it failed only because another required gate\'s output was missing: run that gate ahead of the plan\'s order, through the role the plan assigns to it, then rerun the failed gate within its budget;',
+    'Triggers 4 and 8 stop the operation\'s effects, not its reads. Before asking, the agent that hit one, or build directly or through a read-only dispatch to that step\'s owner, may make class A reads to find the cause. The escalation then names the cause it found, or what the reads ruled out, and proposes a specific remediation. Diagnosis does not edit, rerun the failed step or retry it in another form. Triggers 5, 6 and 7, and any exposure of a secret, stop at once without further reads, even when trigger 4 or 8 also applies.',
     '(7) a denied class B, C or D action; (8) a failed required step that no correction covers.',
     'Evidence the operator supplies through an accepted channel satisfies an item unless the plan marks it must-observe',
     'A timeout, a retry, a client error or a restart is not a change.',
@@ -637,7 +639,11 @@ test('the OpenCode lifecycle states its accepted channels, plan approval forms a
     'only an operator-approved remediation, or a correction AGENTS.md allows, continues within its own scope',
     'where the plan, the operator or a higher-priority rule requires one, the commit-message approval',
     'returns a command\'s stdout and stderr to the model but never its exit code.',
-    'Agents hand the operator the exact command in every case.'
+    'Agents hand the operator the exact command in every case.',
+    'A rerun after running a gate early, as AGENTS.md allows, counts against the same budget.',
+    'Triggers 4 and 8 are not terminal stops unless trigger 5, 6 or 7 or a secret exposure also applies; diagnose them with class A reads before asking, as AGENTS.md describes.',
+    'Ask for a value the operator must type, such as a path, in one question with no options, and gather all the values a step needs in that question.',
+    'Read output the operator supplies the same way: when it is complete and ends in the command\'s own completion line, do not ask for its exit status.'
   ]) assert.ok(lifecycle.includes(text), text);
   for (const gone of ['Separate approval is required for commits', 'At CI\'s permission prompt the human chooses Once', 'deny every class E command', 'in every dispatch that relies on it']) assert.equal(lifecycle.includes(gone), false, gone);
   const handoff = await readFile(new URL('../../.opencode/instructions/beads-plan-handoff.md', import.meta.url), 'utf8');
@@ -698,7 +704,7 @@ test('build runs the default chain and plan writes boundary-contract plans', asy
     'For a re-review, continue the same plan-reviewer task and send only the changed sections, the findings they answer and the parts of the plan they affect; a new reviewer task gets the full revised plan.',
     "Prerequisites an executor checks in its own step, such as main's worktree inventory and cleanliness before a release, are not plan evidence; do not ask the operator for them.",
     'Agents author files only at in-scope repository paths; a fixture or helper script is either committed test code with an owner, or an operator step.',
-    "- Operator steps: for each command the operator runs or evidence they supply, the exact command or the runbook section for a manual check, where to run it and what to send back. Point to the runbook (TESTING.md, RELEASING.md) rather than restating it, and give the steps only when no runbook covers them. Commands whose text depends on the chain's results, such as the release commands, are handed over at their step.",
+    "- Operator steps: for each command the operator runs or evidence they supply, the exact command or the runbook section for a manual check, where to run it and what to send back (the output; the lifecycle reads success from it). Point to the runbook (TESTING.md, RELEASING.md) rather than restating it, and give the steps only when no runbook covers them. Commands whose text depends on the chain's results, such as the release commands, are handed over at their step.",
     'Present simple plans inline for approval, unless the operator asks for the plan-review tool',
     'Agent-produced items come from the chain\'s own steps; do not add a preflight of an executor\'s prerequisites, which its step checks itself',
     'A drift trigger names in-scope files; main moving after the plan was written is not drift'
@@ -743,6 +749,8 @@ test('the runbooks describe the plan-boundary chain, the release plan and the ma
   const testing = await read('TESTING.md');
   assert.ok(testing.includes('## Release QA Checklist'));
   assert.ok(testing.includes('the release plan records up front whether one was done, is waived or is not required'));
+  assert.ok(testing.includes('**Copy fake CLI output from a real one.** A fake bd response takes its shape from a recording under `src/test/fixtures/bd-<version>/` or from the code that parses the real output, and the test names which.'));
+  assert.ok(testing.includes("**Never let an assertion print the environment.** A failed comparison assertion (`equal`, `strictEqual`, `deepStrictEqual` and the rest) on `process.env`, or on a copy of it, prints every variable, credentials included. Use `assert.ok(isDeepStrictEqual(actual, expected), 'fixed message')` with `isDeepStrictEqual` from `node:util`, or compare only the keys the test needs."));
   assert.equal(testing.includes('Manual QA Before a Release'), false);
   assert.ok((await read('.opencode/agents/plan.md')).includes('When it has none or the tool fails, present the plan as text in the session instead'));
   assert.ok(workflow.indexOf('### Plannotator') > workflow.indexOf('## Maintainer environment'));
@@ -775,6 +783,7 @@ test('review role cards review against the plan model', async () => {
   assert.equal(plan.includes('distinct lifecycle approvals'), false);
   const strategy = flat(await read('test-strategist'));
   assert.ok(strategy.includes('Name the role and tool that can produce each evidence item'));
+  assert.ok(strategy.includes('A fake CLI response must come from a recording or the parser of the real output, cited by file and line (TESTING.md); without one, list it under Unavailable evidence.'));
   assert.equal(strategy.includes('requires its own approval'), false);
 });
 
