@@ -34,7 +34,7 @@ A failed required gate blocks its dependent action; only an operator-approved re
 
 After a terminal stop, issue no further tool calls, including verification, Read, question, review/delegation, retry or rollback. This overrides instructions to collect final evidence or clean up. Report already-known effects, partial edits, outstanding calls and missing verification in text. A caller pauses affected work on a terminal-stop report rather than dispatching a replacement, and labels unverified reports unverified. With a new approval through an accepted channel, it may continue the stopped session with its task_id or dispatch a fresh one; without one it does neither. A new process, compaction, generic continuation or specialist output does not revive stopped authorization.
 
-Triggers 4 and 8 are not terminal stops unless trigger 5, 6 or 7 or a secret exposure also applies; diagnose them with class A reads before asking, as AGENTS.md describes.
+Triggers 1, 2, 3, 4 and 8 are not terminal stops unless trigger 5, 6 or 7 or a secret exposure also applies; the agent may make class A reads before asking, as AGENTS.md describes.
 
 Retain role return formats subject to truthful uncertainty:
 - A stopped plan returns text without submitting it for review and is not approval-ready; a stopped plan-reviewer returns INCOMPLETE; a stopped code-reviewer emits its required FAIL marker.

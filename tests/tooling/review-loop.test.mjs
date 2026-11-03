@@ -596,7 +596,7 @@ test('AGENTS.md states the intent-and-boundaries model in harness-neutral terms 
     'It cannot add one:',
     'retry a guarded helper once, only for an error its documented contract names as safe to retry',
     'treat a gate run as inconclusive when it failed only because another required gate\'s output was missing: run that gate ahead of the plan\'s order, through the role the plan assigns to it, then rerun the failed gate within its budget;',
-    'Triggers 4 and 8 stop the operation\'s effects, not its reads. Before asking, the agent that hit one, or build directly or through a read-only dispatch to that step\'s owner, may make class A reads to find the cause. The escalation then names the cause it found, or what the reads ruled out, and proposes a specific remediation. Diagnosis does not edit, rerun the failed step or retry it in another form. Triggers 5, 6 and 7, and any exposure of a secret, stop at once without further reads, even when trigger 4 or 8 also applies.',
+    'Triggers 1, 2, 3, 4 and 8 stop the operation\'s effects, not its reads. Before asking, the agent that hit one, or build directly or through a read-only dispatch to that step\'s owner, may make class A reads to prepare the escalation. For triggers 1, 2 and 3 the escalation names what falls outside the plan, any such effect that has already happened, why the step needs it, and what a revised plan would add to cover it. For triggers 4 and 8 it names the cause the reads found, or what they ruled out, and proposes a specific remediation. These reads do not edit, rerun the failed step or retry it in another form. Triggers 5, 6 and 7, and any exposure of a secret, stop at once without further reads, even when trigger 1, 2, 3, 4 or 8 also applies.',
     '(7) a denied class B, C or D action; (8) a failed required step that no correction covers.',
     'Evidence the operator supplies through an accepted channel satisfies an item unless the plan marks it must-observe',
     'A timeout, a retry, a client error or a restart is not a change.',
@@ -641,7 +641,7 @@ test('the OpenCode lifecycle states its accepted channels, plan approval forms a
     'returns a command\'s stdout and stderr to the model but never its exit code.',
     'Agents hand the operator the exact command in every case.',
     'A rerun after running a gate early, as AGENTS.md allows, counts against the same budget.',
-    'Triggers 4 and 8 are not terminal stops unless trigger 5, 6 or 7 or a secret exposure also applies; diagnose them with class A reads before asking, as AGENTS.md describes.',
+    'Triggers 1, 2, 3, 4 and 8 are not terminal stops unless trigger 5, 6 or 7 or a secret exposure also applies; the agent may make class A reads before asking, as AGENTS.md describes.',
     'Ask for a value the operator must type, such as a path, in one question with no options, and gather all the values a step needs in that question.',
     'Read output the operator supplies the same way: when it is complete and ends in the command\'s own completion line, do not ask for its exit status.'
   ]) assert.ok(lifecycle.includes(text), text);
